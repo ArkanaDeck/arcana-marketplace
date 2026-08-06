@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arkana Store Design Layout</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        /* 1. Flat White Navigation Bar matching your exact image layout */
+        .navbar {
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            padding: 18px 60px;
+            border-bottom: 1px solid #f1f5f9;
+            box-sizing: border-box;
+            height: 75px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            margin-left: auto;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #1e293b;
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+
+        .nav-links a.active {
+            border-bottom: 3px solid #4a90e2;
+            color: #1a365d;
+            padding-bottom: 4px;
+        }
+
+        .gold-avatar {
+            background: #d4af37; 
+            color: #ffffff;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-left: 15px;
+        }
+
+        /* 2. FULL CANVAS AREA: Dot-mesh canvas mimicking your Softr preview precisely */
+        .full-background-canvas {
+            height: calc(100vh - 75px);
+            width: 100vw;
+            background-color: #fafbfd;
+            background-image: 
+                radial-gradient(rgba(148, 163, 184, 0.2) 1.5px, transparent 1.5px),
+                radial-gradient(rgba(148, 163, 184, 0.25) 1.5px, transparent 1.5px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Soft overlay card displaying your platform brand name */
+        .brand-overlay-card {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 40px 60px;
+            border-radius: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            z-index: 5;
+        }
+
+        .brand-overlay-card h1 {
+            color: #1e3a8a;
+            margin: 0;
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-overlay-card p {
+            color: #64748b;
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Flat White Navigation Header Menu -->
+    <div class="navbar">
+        <div class="nav-links">
+            <a href="#" class="active">Home</a>
+            <a href="#">Listings</a>
+            <a href="#">Form</a>
+        </div>
+        <div class="gold-avatar">A</div>
+    </div>
+
+    <div class="full-background-canvas">
+        <div class="brand-overlay-card">
+            <h1>Arkana Platform</h1>
+            <p>Your beautiful sketch-art background is fully loaded.</p>
+        </div>
+    </div>
+
+</body>
+</html>
