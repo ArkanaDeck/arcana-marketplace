@@ -1,22 +1,29 @@
 task_progress:
-- [x] Analyze requirements for Light-Mode Marketplace
-  - Break down the market into its various components (e.g. UI, backend, database)
-  - Identify necessary features and functionalities
-  - Research any potential technical challenges or roadblocks
-- [x] Set up necessary files and directories for the project
-  - Create a new directory for the Light-Mode Marketplace
-  - Initialize a new Git repository
-  - Install required dependencies and tools (e.g. npm, yarn)
-- [ ] Implement main functionality for the Light-Mode Marketplace
-  - Design and implement UI components (e.g. header, footer, navigation)
-  - Develop backend logic for handling user interactions and data storage
-  - Integrate database to store and retrieve market data
-- [ ] Handle edge cases and implement error handling mechanisms
-  - Identify potential edge cases (e.g. user errors, system crashes)
-  - Implement robust error handling mechanisms to prevent or mitigate these issues
-- [ ] Test the implementation thoroughly
-  - Write unit tests and integration tests for various components
-  - Perform manual testing to ensure smooth user experience
 - [ ] Verify results and make necessary adjustments
   - Review test results and identify areas for improvement
   - Make any necessary adjustments to ensure market functionality is correct
+
+# new feedback from user
+task_progress:
+- [x] Read assets folder
+- [x] Integrate branding screenshots
+- [x] Update code to use background PNG pictures
+
+<!-- FAQ Section -->
+<h2>Frequently Asked Questions (FAQs)</h2>
+<ul>
+  <li><strong>Q: What happens to remainders on my account?</strong></li>
+  <p>A: Remainders are stored on your account and can be used for future transactions or withdrawn as cash.</p>
+  <li><strong>Q: Can I use remainders to pay for other purchases in the UK?</strong></li>
+  <p>A: Yes, you can use remainders to make payments on our platform, subject to UK laws and regulations.</p>
+  <li><strong>Q: What happens if I violate the acceptable use policy?</strong></li>
+  <p>A: If you violate the acceptable use policy, we reserve the right to suspend or terminate your account.</p>
+  <li><strong>Q: How do I contact customer support?</strong></li>
+  <p>A: You can contact our customer support team by email at <a href="mailto:arkana.tarot.market@gmail.com">arkana.tarot.market@gmail.com</a>.</p>
+  <li><strong>Q: What are the payment terms for using your platform?</strong></li>
+  <p>A: Payment terms are outlined in our payment policy, which can be found on our website.</p>
+</ul>
+
+<!-- Contact Information Section -->
+<h2>Contact Us</h2>
+<p>Email us at <a href="mailto:arkana.tarot.market@gmail.com">arkana.tarot.market@gmail.com</a> for any questions or concerns.</p>

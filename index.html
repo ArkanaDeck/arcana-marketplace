@@ -102,25 +102,42 @@
             font-weight: 500;
         }
     </style>
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
+    <div id="app"></div>
+    <div id="checkout" style="margin: 24px; max-width: 720px;"></div>
+    <button id="checkout-button" style="background-color:#635BFF; color:white; padding:12px 24px; border:none; border-radius:4px; font-size:16px; cursor:pointer; font-weight:bold; margin: 24px;">
+      Buy with Stripe
+    </button>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      const stripe = window.Stripe ? window.Stripe('YOUR_PUBLISHABLE_KEY') : null;
+      const checkoutButton = document.getElementById('checkout-button');
 
-    <!-- Top Flat White Navigation Header Menu -->
-    <div class="navbar">
-        <div class="nav-links">
-            <a href="#" class="active">Home</a>
-            <a href="#">Listings</a>
-            <a href="#">Form</a>
-        </div>
-        <div class="gold-avatar">A</div>
-    </div>
+      if (checkoutButton && stripe) {
+        checkoutButton.addEventListener('click', function () {
+          fetch('/create-checkout-session', {
+            method: 'POST',
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (!data.client_secret) {
+                throw new Error('No client secret returned from checkout session');
+              }
 
-    <div class="full-background-canvas">
-        <div class="brand-overlay-card">
-            <h1>Arkana Platform</h1>
-            <p>Your beautiful sketch-art background is fully loaded.</p>
-        </div>
-    </div>
-
+              return stripe.initEmbeddedCheckout({
+                clientSecret: data.client_secret,
+              });
+            })
+            .then((checkout) => {
+              checkout.mount('#checkout');
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        });
+      }
+    </script>
 </body>
 </html>
