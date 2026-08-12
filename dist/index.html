@@ -1,143 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arkana Store Design Layout</title>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-            background: #ffffff;
-            overflow: hidden;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arkana Store Design Layout</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #ffffff;
+      overflow: hidden;
+    }
 
-        /* 1. Flat White Navigation Bar matching your exact image layout */
-        .navbar {
-            display: flex;
-            align-items: center;
-            background: #ffffff;
-            padding: 18px 60px;
-            border-bottom: 1px solid #f1f5f9;
-            box-sizing: border-box;
-            height: 75px;
-            position: relative;
-            z-index: 10;
-        }
+    /* 1. Flat White Navigation Bar matching your exact image layout */
+    .navbar {
+      display: flex;
+      align-items: center;
+      background: #ffffff;
+      padding: 18px 60px;
+      border-bottom: 1px solid #f1f5f9;
+      box-sizing: border-box;
+      height: 75px;
+      position: relative;
+      z-index: 10;
+    }
 
-        .nav-links {
-            display: flex;
-            gap: 32px;
-            margin-left: auto;
-            align-items: center;
-        }
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      margin-left: auto;
+      align-items: center;
+    }
 
-        .nav-links a {
-            text-decoration: none;
-            color: #1e293b;
-            font-size: 1.05rem;
-            font-weight: 500;
-        }
+    .nav-links a {
+      text-decoration: none;
+      color: #1e293b;
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
 
-        .nav-links a.active {
-            border-bottom: 3px solid #4a90e2;
-            color: #1a365d;
-            padding-bottom: 4px;
-        }
+    .nav-links a.active {
+      border-bottom: 3px solid #4a90e2;
+      color: #1a365d;
+      padding-bottom: 4px;
+    }
 
-        .gold-avatar {
-            background: #d4af37; 
-            color: #ffffff;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-left: 15px;
-        }
+    .gold-avatar {
+      background: #d4af37;
+      color: #ffffff;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-left: 15px;
+    }
 
-        /* 2. FULL CANVAS AREA: Dot-mesh canvas mimicking your Softr preview precisely */
-        .full-background-canvas {
-            height: calc(100vh - 75px);
-            width: 100vw;
-            background-color: #fafbfd;
-            background-image: 
-                radial-gradient(rgba(148, 163, 184, 0.2) 1.5px, transparent 1.5px),
-                radial-gradient(rgba(148, 163, 184, 0.25) 1.5px, transparent 1.5px);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    /* 2. FULL CANVAS AREA: Dot-mesh canvas mimicking your Softr preview precisely */
+    .full-background-canvas {
+      height: calc(100vh - 75px);
+      width: 100vw;
+      background-color: #fafbfd;
+      background-image:
+        radial-gradient(rgba(148, 163, 184, 0.2) 1.5px, transparent 1.5px),
+        radial-gradient(rgba(148, 163, 184, 0.25) 1.5px, transparent 1.5px);
+      background-size: 40px 40px;
+      background-position: 0 0, 20px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        /* Soft overlay card displaying your platform brand name */
-        .brand-overlay-card {
-            background: rgba(255, 255, 255, 0.98);
-            padding: 40px 60px;
-            border-radius: 24px;
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
-            text-align: center;
-            z-index: 5;
-        }
+    /* Soft overlay card displaying your platform brand name */
+    .brand-overlay-card {
+      background: rgba(255, 255, 255, 0.98);
+      padding: 40px 60px;
+      border-radius: 24px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      z-index: 5;
+    }
 
-        .brand-overlay-card h1 {
-            color: #1e3a8a;
-            margin: 0;
-            font-size: 2.4rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
+    .brand-overlay-card h1 {
+      color: #1e3a8a;
+      margin: 0;
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
 
-        .brand-overlay-card p {
-            color: #64748b;
-            margin: 10px 0 0 0;
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
-    </style>
-    <script src="https://js.stripe.com/v3/"></script>
-  <script type="module" crossorigin src="/assets/index-CUo6OdMa.js"></script>
+    .brand-overlay-card p {
+      color: #64748b;
+      margin: 10px 0 0 0;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+  </style>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script type="module" src="/src/App.tsx"></script>
 </head>
+
 <body>
-    <div id="app"></div>
-    <div id="checkout" style="margin: 24px; max-width: 720px;"></div>
-    <button id="checkout-button" style="background-color:#635BFF; color:white; padding:12px 24px; border:none; border-radius:4px; font-size:16px; cursor:pointer; font-weight:bold; margin: 24px;">
-      Buy with Stripe
-    </button>
-    <script>
-      const stripe = window.Stripe ? window.Stripe('YOUR_PUBLISHABLE_KEY') : null;
-      const checkoutButton = document.getElementById('checkout-button');
+  <div id="app"></div>
+  <div id="checkout" style="margin: 24px; max-width: 720px;"></div>
+  <button id="checkout-button"
+    style="background-color:#635BFF; color:white; padding:12px 24px; border:none; border-radius:4px; font-size:16px; cursor:pointer; font-weight:bold; margin: 24px;">
+    Buy with Stripe
+  </button>
+  <script>
+    const stripe = window.Stripe ? window.Stripe('YOUR_PUBLISHABLE_KEY') : null;
+    const checkoutButton = document.getElementById('checkout-button');
 
-      if (checkoutButton && stripe) {
-        checkoutButton.addEventListener('click', function () {
-          fetch('/create-checkout-session', {
-            method: 'POST',
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              if (!data.client_secret) {
-                throw new Error('No client secret returned from checkout session');
-              }
+    if (checkoutButton && stripe) {
+      checkoutButton.addEventListener('click', function () {
+        fetch('/create-checkout-session', {
+          method: 'POST',
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.client_secret) {
+              throw new Error('No client secret returned from checkout session');
+            }
 
-              return stripe.initEmbeddedCheckout({
-                clientSecret: data.client_secret,
-              });
-            })
-            .then((checkout) => {
-              checkout.mount('#checkout');
-            })
-            .catch((error) => {
-              console.error(error);
+            return stripe.initEmbeddedCheckout({
+              clientSecret: data.client_secret,
             });
-        });
-      }
-    </script>
+          })
+          .then((checkout) => {
+            checkout.mount('#checkout');
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      });
+    }
+  </script>
 </body>
+
 </html>
