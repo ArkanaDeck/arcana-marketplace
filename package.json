@@ -13,19 +13,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@paypal/paypal-server-sdk": "^2.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^4.3.1",
-    "vercel": "^58.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
     "vite": "^5.4.11"
-  },
-  "allowScripts": {
-    "fsevents@2.3.3": true,
-    "esbuild@0.21.5": true
   }
 }
