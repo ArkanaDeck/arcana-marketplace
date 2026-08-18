@@ -26,13 +26,45 @@ const Sell = () => (
   </div>
 );
 
-// 🃏 Listings / Marketplace View Component
+// Mock database array structure representing listed inventory items
+const MOCK_DECKS = [
+  { id: 1, title: "The Celestial Arcana", description: "First edition gilded gold edges. Out of print collectible.", price: "£75", condition: "Mint" },
+  { id: 2, title: "Mystic Woodland Oracle", description: "Hand-illustrated indie deck featuring raw matte cardstock finishes.", price: "£32", condition: "Like New" },
+  { id: 3, title: "Classic Rider-Waite (1971)", description: "Vintage printing historical deck with authentic color tones.", price: "£45", condition: "Good" }
+];
+
+// Upgraded Listings/Marketplace interactive catalog loop
 const Listings = () => (
-  <div className="brand-overlay-card">
-    <h1>Marketplace Listings</h1>
-    <p>Browse beautiful community decks currently up for trading or sale.</p>
+  <div className="listings-container">
+    <h1 style={{ color: '#114E60', textAlign: 'center', marginBottom: '32px', fontWeight: 800 }}>
+      Current Marketplace Catalog
+    </h1>
+
+    <div className="deck-grid">
+      {MOCK_DECKS.map((deck) => (
+        <div key={deck.id} className="deck-card">
+          {/* Visual element anchor frame */}
+          <div className="deck-image-frame">🔮</div>
+
+          <div className="deck-details">
+            <h3>{deck.id}. {deck.title}</h3>
+            <p>{deck.description}</p>
+
+            <div className="deck-meta-row">
+              <span className="deck-price">{deck.price}</span>
+              <span className="condition-badge">{deck.condition}</span>
+            </div>
+
+            <Link to="/" className="stripe-btn" style={{ textDecoration: 'none', textAlign: 'center', marginTop: '16px' }}>
+              View Listing
+            </Link>
+          </div>
+        </div>
+      ))}
+    </div>
   </div>
 );
+
 export default function App() {
   return (
     <BrowserRouter>
