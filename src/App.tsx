@@ -10,6 +10,21 @@ const Home = () => (
     </Link>
   </div>
 );
+// 📊 Dashboard View Component Placeholder
+const Dashboard = () => (
+  <div className="brand-overlay-card">
+    <h1>Your Dashboard</h1>
+    <p>Track your active sales, purchase history, and tarot shop analytics.</p>
+  </div>
+);
+
+// 💰 Sell View Component Placeholder
+const Sell = () => (
+  <div className="brand-overlay-card">
+    <h1>List a Tarot Deck</h1>
+    <p>Upload details, conditions, and images to list your deck on the marketplace.</p>
+  </div>
+);
 
 // 🃏 Listings / Marketplace View Component
 const Listings = () => (
@@ -18,7 +33,6 @@ const Listings = () => (
     <p>Browse beautiful community decks currently up for trading or sale.</p>
   </div>
 );
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -28,7 +42,6 @@ export default function App() {
           ARKANA
         </div>
         <div className="nav-links">
-          {/* NavLink automatically adds an "active" class when you are on that page */}
           <NavLink to="/" end>Home</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/listings">Listings</NavLink>
@@ -41,11 +54,13 @@ export default function App() {
       <main className="full-background-canvas">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/listings" element={<Listings />} />
-          {/* Fallback route to home if paths don't match yet */}
+          <Route path="/sell" element={<Sell />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
     </BrowserRouter>
   );
 }
+
