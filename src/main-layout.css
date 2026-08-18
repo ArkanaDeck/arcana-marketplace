@@ -70,21 +70,47 @@ body {
     height: calc(100vh - 75px);
     width: 100vw;
     background-color: #F4EEE8;
-    /* 🌟 Premium Linen White Background */
     background-image:
         radial-gradient(#114E60 1.2px, transparent 1.2px),
-        /* 🌟 Deep Teal Mesh Accent Dots */
         radial-gradient(#114E60 1.2px, transparent 1.2px);
     background-size: 40px 40px;
     background-position: 0 0, 20px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    /* 🌟 Pulls the card cleanly to the top */
+    padding: 40px 20px;
+    /* 🌟 Creates breathing space at the bottom */
+    box-sizing: border-box;
+    overflow-y: auto;
+    /* 🌟 Enables clean system vertical scrolling */
 }
+
 
 /* Soft overlay branding hero focus card */
 .brand-overlay-card {
+    .full-background-canvas {
+        height: calc(100vh - 75px);
+        width: 100vw;
+        background-color: #F4EEE8;
+        background-image:
+            radial-gradient(#114E60 1.2px, transparent 1.2px),
+            radial-gradient(#114E60 1.2px, transparent 1.2px);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        /* 🌟 Pulls the card cleanly to the top */
+        padding: 40px 20px;
+        /* 🌟 Creates breathing space at the bottom */
+        box-sizing: border-box;
+        overflow-y: auto;
+        /* 🌟 Enables clean system vertical scrolling */
+    }
+
     background: #ffffff;
     padding: 40px 60px;
     border-radius: 24px;
