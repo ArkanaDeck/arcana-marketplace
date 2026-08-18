@@ -72,8 +72,7 @@ export default function App() {
     alert("Listing published successfully! Click 'Listings' tab to view your item.");
   };
 
-  // 🔮 1. Home View Component Layout
-  // 🔮 Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
+  // 🔮 1. Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
   const Home = () => {
     const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
     const [email, setEmail] = useState('');
@@ -89,12 +88,10 @@ export default function App() {
       } else {
         alert(`Welcome back! Session successfully authenticated.`);
       }
-      // Future hook point: Connect to your database auth table pipeline here
     };
 
     return (
       <div className="auth-container">
-        {/* Tab selection switches header interface states dynamically */}
         <div className="auth-tabs">
           <button
             className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
@@ -118,35 +115,18 @@ export default function App() {
           {authMode === 'signup' && (
             <div className="form-group">
               <label>Full Name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                placeholder="e.g. Alex Crowley"
-              />
+              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alex Crowley" />
             </div>
           )}
 
           <div className="form-group">
             <label>Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="name@domain.com"
-              required
-            />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com" required />
           </div>
 
           <div className="form-group">
             <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
           </div>
 
           <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>
@@ -154,30 +134,23 @@ export default function App() {
           </button>
         </form>
 
-        {/* Guest Path Integration Element */}
         <div className="auth-divider">OR</div>
-
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px' }}>
           In a rush to secure a rare deck? Skip the queue safely.
         </p>
 
         <Link to="/listings" style={{ textDecoration: 'none' }}>
-          <button className="guest-btn">
-            Continue as Guest Checkout 🚀
-          </button>
+          <button className="guest-btn">Continue as Guest Checkout 🚀</button>
         </Link>
       </div>
     );
   };
 
-
   // 📊 2. Upgraded Dynamic Dashboard View Component Layout
   const Dashboard = () => {
-    // Check if the current user has created any listings
-    const userDecks = listings.filter(deck => deck.id !== 1 && deck.id !== 2); // Excludes initial mock seeds
+    const userDecks = listings.filter(deck => deck.id !== 1 && deck.id !== 2);
     const hasListings = userDecks.length > 0;
 
-    // Calculate total shop valuation metrics dynamically
     const totalValue = userDecks.reduce((sum, deck) => {
       const priceNum = parseFloat(deck.price.replace(/[^0-9.]/g, '')) || 0;
       return sum + priceNum;
@@ -192,16 +165,8 @@ export default function App() {
           Manage your inventory, tracking metrics, and marketplace revenue.
         </p>
 
-        {/* Conditional Layout Switching Logic */}
         {!hasListings ? (
-          /* 📭 Empty State Grid Box (Shows when user has 0 items) */
-          <div style={{
-            background: '#F4EEE8',
-            padding: '32px 20px',
-            borderRadius: '16px',
-            border: '2px dashed #F5CEBE',
-            marginTop: '16px'
-          }}>
+          <div style={{ background: '#F4EEE8', padding: '32px 20px', borderRadius: '16px', border: '2px dashed #F5CEBE', marginTop: '16px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📦</div>
             <h3 style={{ color: '#114E60', margin: '0 0 8px 0' }}>No Active Listings Yet</h3>
             <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 20px 0' }}>
@@ -212,14 +177,8 @@ export default function App() {
             </Link>
           </div>
         ) : (
-          /* 📈 Active Shop Stats Layout Box (Shows automatically once they list an item) */
           <div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               <div style={{ background: '#F4EEE8', padding: '16px', borderRadius: '12px', border: '1px solid #F5CEBE' }}>
                 <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>ACTIVE DECK LISTINGS</span>
                 <h2 style={{ color: '#114E60', margin: '4px 0 0 0', fontSize: '2rem', fontWeight: 800 }}>{userDecks.length}</h2>
@@ -233,15 +192,7 @@ export default function App() {
             <h3 style={{ color: '#114E60', textAlign: 'left', marginBottom: '12px', fontSize: '1.1rem' }}>Your Live Shop Inventory</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {userDecks.map((deck) => (
-                <div key={deck.id} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                  background: '#fafafa',
-                  borderRadius: '8px',
-                  border: '1px solid #F4EEE8'
-                }}>
+                <div key={deck.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#fafafa', borderRadius: '8px', border: '1px solid #F4EEE8' }}>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ color: '#114E60', fontWeight: 700 }}>{deck.title}</div>
                     <div style={{ color: '#64748b', fontSize: '0.8rem' }}>📍 {deck.location} • <span style={{ color: '#114E60', fontWeight: 600 }}>{deck.condition}</span></div>
@@ -275,7 +226,6 @@ export default function App() {
               <p>{deck.description}</p>
               <div className="deck-meta-row">
                 <span className="deck-price">{deck.price}</span>
-                {/* ✉️ Direct Messaging: HTML Mailto anchor opens native email applications */}
                 <a href={`mailto:${deck.sellerEmail}?subject=Inquiry about ${encodeURIComponent(deck.title)}`} className="contact-seller-btn" style={{ textDecoration: 'none' }}>
                   Contact Seller
                 </a>
@@ -287,119 +237,131 @@ export default function App() {
     </div>
   );
 
-  // 💰 4. Form Submission View Component Layout
+  // 💰 4. Form Submission View with Dynamic Tier-Based Payments
+  import React, { useState } from 'react';
+  // Assuming these types/states exist in your parent context, add placeholders if needed:
+  // const [newTitle, setNewTitle] = useState('');
+  // const [newPrice, setNewPrice] = useState('');
+  // const [newEmail, setNewEmail] = useState('');
+  // const [newLoc, setNewLoc] = useState('');
+  // const [newCondition, setNewCondition] = useState('');
+  // const [newDesc, setNewDesc] = useState('');
+  // const listings = [];
+  // const handleCreateListing = (e: React.FormEvent) => {};
+  // const setView = (view: string) => {};
+
   // 💰 4. Form Submission View with Dynamic Tier-Based Payments
   const SellView = () => {
     const [payMethod, setPayMethod] = useState<'stripe' | 'paypal'>('stripe');
-
-    // Mathematical Calculation: Check active index limit boundaries
     const currentCount = listings.length;
     const isFreeTier = currentCount < 3;
 
-    // Every 3 items after the initial 3 costs an additional £0.66
-    const listingFee = isFreeTier ? 0 : 0.66;
-
     const handleSubmitWithPayment = (e: React.FormEvent) => {
       e.preventDefault();
-
       if (!isFreeTier) {
-        // Simulated Payment Authorization Framework Routing Points
         const gatewayName = payMethod === 'stripe' ? 'Stripe Secure Checkout' : 'PayPal Instant Transfer';
         alert(`Redirecting to ${gatewayName} to process your £0.66 listing submission fee...`);
       }
-
-      // Execute base submission pipeline logic directly
       handleCreateListing(e);
     };
 
     return (
-      <div className="sell-form-card">
+      <form onSubmit={handleSubmitWithPayment}>
         <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '6px' }}>Create New Listing</h2>
 
-        {/* Dynamic Status Counter Box */}
-        <div className="tier-banner">
-          Inventory Level: {currentCount} Decks Listed. <br />
-          {isFreeTier ? (
-            <span style={{ color: '#2e7d32' }}>✅ You have {3 - currentCount} Free Listing spaces remaining!</span>
-          ) : (
-            <span style={{ color: '#c62828' }}>⚠️ Free Tier Limit Met. Fee to publish next item: £0.66</span>
-          )}
+        <p>Inventory Level: {currentCount} Decks Listed.</p>
+
+        {isFreeTier ? (
+          <span style={{ color: '#2e7d32' }}>✅ You have {3 - currentCount} Free Listing spaces remaining!</span>
+        ) : (
+          <span style={{ color: '#c62828' }}>⚠️ Free Tier Limit Met. Fee to publish next item: £0.66</span>
+        )}
+
+        <div className="form-group">
+          <label>Deck Title *</label>
+          <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
         </div>
 
-        <form onSubmit={handleSubmitWithPayment}>
-          <div className="form-group">
-            <label>Deck Title *</label>
-            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
-          </div>
-          <div className="form-group">
-            <label>Asking Price (£) *</label>
-            <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required />
-          </div>
-          <div className="form-group">
-            <label>Your Email (For Buyer Contact) *</label>
-            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
-          </div>
-          <div className="form-group">
-            <label>Location / Address</label>
-            <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. London, UK" />
-          </div>
-          <div className="form-group">
-            <label>Condition</label>
-            <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
-              <option value="Mint">Mint</option>
-              <option value="Like New">Like New</option>
-              <option value="Good">Good</option>
-              <option value="Fair">Fair</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide information about card quality, completeness..." />
-          </div>
+        <div className="form-group">
+          <label>Price (£) *</label>
+          <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required />
+        </div>
 
-          {/* Conditional Payment UI: Renders only when user falls outside free limits */}
-          {!isFreeTier && (
-            <div className="form-group" style={{ borderTop: '1px solid #F4EEE8', paddingTop: '16px' }}>
-              <label>Select Gateway Platform for Listing Fee (£0.66)</label>
-              <div className="payment-methods-grid">
-                <button
-                  type="button"
-                  className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`}
-                  onClick={() => setPayMethod('stripe')}
-                >
-                  💳 Stripe
-                </button>
-                <button
-                  type="button"
-                  className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`}
-                  onClick={() => setPayMethod('paypal')}
-                >
-                  🪪 PayPal
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="form-group">
+          <label>Your Email (For Buyer Contact) *</label>
+          <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
+        </div>
 
-          <button
-            type="submit"
-            className="stripe-btn"
-            style={{
-              width: '100%',
-              marginTop: '10px',
-              backgroundColor: !isFreeTier && payMethod === 'paypal' ? '#003087' : '#325288'
-            }}
-          >
-            {isFreeTier ? 'Publish Free Listing' : `Pay £0.66 & Publish Item`}
-          </button>
-        </form>
-      </div>
+        <div className="form-group">
+          <label>Location / Address / Delivery Method</label>
+          <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. Royal Mail Tracked / London, UK" />
+        </div>
+
+        <div className="form-group">
+          <label>Condition</label>
+          <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
+            <option value="Mint">Mint</option>
+            <option value="Like New">Like New</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Description (Specify Delivery options, packaging details, etc.)</label>
+          <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide information about card quality, completeness..." />
+        </div>
+
+        {!isFreeTier && (
+          <div className="form-group" style={{ borderTop: '1px solid #F4EEE8', paddingTop: '16px' }}>
+            <p>Select Gateway Platform for Listing Fee (£0.66)</p>
+            <button type="button" className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`} onClick={() => setPayMethod('stripe')}>💳 Stripe</button>
+            <button type="button" className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`} onClick={() => setPayMethod('paypal')}>🪪 PayPal</button>
+          </div>
+        )}
+
+        <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px', backgroundColor: !isFreeTier && payMethod === 'paypal' ? '#003087' : '#325288' }}>
+          {isFreeTier ? 'Publish Free Listing' : 'Pay £0.66 & Publish Item'}
+        </button>
+      </form>
     );
   };
 
+  // 📖 5. Terms & Conditions Policy View Component Layout
+  const TermsView = () => (
+    <div className="brand-overlay-card" style={{ maxWidth: '650px', width: '100%', textAlign: 'left', maxHeight: '75vh', overflowY: 'auto' }}>
+      <h1 style={{ color: '#114E60', marginTop: 0, fontWeight: 800, textAlign: 'center' }}>Terms of Service</h1>
+      <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', marginBottom: '24px' }}>Last Updated: August 18, 2026</p>
 
+      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px' }}>1. No Liability Disclaimer</h3>
+      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+        Arkana Marketplace operates solely as an introductory peer-to-peer indexing directory. We do not own, inspect, hold, or ship any items. Under no circumstances shall Arkana Marketplace be liable for financial loss, fraudulent listings, or damaged goods. All interactions and trades are conducted entirely at your own risk.
+      </p>
+
+      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>2. Dispute Resolution</h3>
+      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+        Any transaction disputes regarding payments, conditions, or fake claims must be handled directly between the buyer and seller via email. Arkana Marketplace does not process refunds and cannot mediate user conflicts.
+      </p>
+
+      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>3. Delivery & Shipping Policies</h3>
+      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+        Sellers are completely responsible for shipping items safely and sharing valid tracked delivery numbers. Buyers are responsible for any international custom fees or local VAT charges.
+      </p>
+
+      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>4. Listing Fees</h3>
+      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+        Your first 3 active deck slots are 100% free. Additional listings require a non-refundable deployment fee of £0.66 paid via Stripe or PayPal.
+      </p>
+      {/* 🌟 Fix: Replaced broken button with an official React Router link */}
+      <Link to="/" className="stripe-btn" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', margin: '24px auto 0 auto', maxWidth: '200px' }}>
+        Accept & Return
+      </Link>
+    </div>
+  );
+
+  // 🌟 Fix: Restored the main layout return sequence that was cut off
   return (
     <BrowserRouter>
-      {/* 🧭 Flat White Navbar Structural Header Wrapper */}
       <nav className="navbar">
         <div style={{ fontWeight: 800, fontSize: '1.4rem', color: '#114E60', letterSpacing: '-0.5px' }}>ARKANA</div>
         <div className="nav-links">
@@ -407,20 +369,22 @@ export default function App() {
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/listings">Listings</NavLink>
           <NavLink to="/sell">Sell</NavLink>
+          <NavLink to="/terms">T&Cs</NavLink>
           <div className="gold-avatar">A</div>
         </div>
       </nav>
 
-      {/* 🔮 Background dot-mesh core canvas view engine container */}
       <main className="full-background-canvas">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/listings" element={<ListingsView />} />
           <Route path="/sell" element={<SellView />} />
+          <Route path="/terms" element={<TermsView />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
     </BrowserRouter>
   );
 }
+
