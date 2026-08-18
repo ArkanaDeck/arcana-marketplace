@@ -73,15 +73,103 @@ export default function App() {
   };
 
   // 🔮 1. Home View Component Layout
-  const Home = () => (
-    <div className="brand-overlay-card">
-      <h1>Welcome to Arkana</h1>
-      <p>Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
-      <Link to="/listings" className="stripe-btn" style={{ textDecoration: 'none', display: 'inline-block' }}>
-        Explore our listings
-      </Link>
-    </div>
-  );
+  // 🔮 Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
+  const Home = () => {
+    const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState('');
+
+    const handleAuthSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!email || !password) return alert("Please enter your credentials.");
+
+      if (authMode === 'signup') {
+        alert(`Welcome to Arkana, ${fullName || 'Collector'}! Your account has been initialized.`);
+      } else {
+        alert(`Welcome back! Session successfully authenticated.`);
+      }
+      // Future hook point: Connect to your database auth table pipeline here
+    };
+
+    return (
+      <div className="auth-container">
+        {/* Tab selection switches header interface states dynamically */}
+        <div className="auth-tabs">
+          <button
+            className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
+            onClick={() => setAuthMode('signin')}
+          >
+            Sign In
+          </button>
+          <button
+            className={`auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
+            onClick={() => setAuthMode('signup')}
+          >
+            Create Account
+          </button>
+        </div>
+
+        <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '20px', fontWeight: 800 }}>
+          {authMode === 'signin' ? 'Log In to Arkana' : 'Join the Marketplace'}
+        </h2>
+
+        <form onSubmit={handleAuthSubmit}>
+          {authMode === 'signup' && (
+            <div className="form-group">
+              <label>Full Name</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="e.g. Alex Crowley"
+              />
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="name@domain.com"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>
+            {authMode === 'signin' ? 'Sign In Securely' : 'Register Account'}
+          </button>
+        </form>
+
+        {/* Guest Path Integration Element */}
+        <div className="auth-divider">OR</div>
+
+        <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px' }}>
+          In a rush to secure a rare deck? Skip the queue safely.
+        </p>
+
+        <Link to="/listings" style={{ textDecoration: 'none' }}>
+          <button className="guest-btn">
+            Continue as Guest Checkout 🚀
+          </button>
+        </Link>
+      </div>
+    );
+  };
+
 
   // 📊 2. Dashboard View Component Layout
   const Dashboard = () => (

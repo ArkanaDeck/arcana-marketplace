@@ -301,3 +301,91 @@ body {
 .contact-seller-btn:hover {
     background-color: #0b333f;
 }
+
+/* Authentication Frame Containers */
+.auth-container {
+    width: 100%;
+    max-width: 440px;
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 28px;
+    border: 1px solid #F5CEBE;
+    /* Soft Peach accent boundary line */
+    box-shadow: 0 20px 50px rgba(17, 78, 96, 0.05);
+    text-align: center;
+    box-sizing: border-box;
+}
+
+/* Tab Selector Header row */
+.auth-tabs {
+    display: flex;
+    border-bottom: 2px solid #F4EEE8;
+    margin-bottom: 30px;
+    gap: 15px;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auth-tab-btn.active {
+    color: #114E60;
+    /* Deep Teal emphasis text */
+    border-bottom: 3px solid #325288;
+    /* Royal Indigo indicator track */
+}
+
+/* Guest separation divider layout rule */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 24px 0;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #F4EEE8;
+}
+
+.auth-divider:not(:empty)::before {
+    margin-right: .5em;
+}
+
+.auth-divider:not(:empty)::after {
+    margin-left: .5em;
+}
+
+/* Secondary Guest Action button design option */
+.guest-btn {
+    background-color: transparent;
+    color: #114E60;
+    border: 2px solid #114E60;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.guest-btn:hover {
+    background-color: #F4EEE8;
+    color: #325288;
+    border-color: #325288;
+}
