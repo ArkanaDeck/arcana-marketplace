@@ -171,13 +171,90 @@ export default function App() {
   };
 
 
-  // 📊 2. Dashboard View Component Layout
-  const Dashboard = () => (
-    <div className="brand-overlay-card">
-      <h1>Your Dashboard</h1>
-      <p>Track your active sales, purchase history, and tarot shop analytics.</p>
-    </div>
-  );
+  // 📊 2. Upgraded Dynamic Dashboard View Component Layout
+  const Dashboard = () => {
+    // Check if the current user has created any listings
+    const userDecks = listings.filter(deck => deck.id !== 1 && deck.id !== 2); // Excludes initial mock seeds
+    const hasListings = userDecks.length > 0;
+
+    // Calculate total shop valuation metrics dynamically
+    const totalValue = userDecks.reduce((sum, deck) => {
+      const priceNum = parseFloat(deck.price.replace(/[^0-9.]/g, '')) || 0;
+      return sum + priceNum;
+    }, 0);
+
+    return (
+      <div className="brand-overlay-card" style={{ maxWidth: '600px', width: '100%' }}>
+        <h1 style={{ color: '#114E60', marginTop: 0, marginBottom: '8px', fontWeight: 800 }}>
+          Your Collector Dashboard
+        </h1>
+        <p style={{ color: '#325288', margin: '0 0 24px 0', fontSize: '0.95rem' }}>
+          Manage your inventory, tracking metrics, and marketplace revenue.
+        </p>
+
+        {/* Conditional Layout Switching Logic */}
+        {!hasListings ? (
+          /* 📭 Empty State Grid Box (Shows when user has 0 items) */
+          <div style={{
+            background: '#F4EEE8',
+            padding: '32px 20px',
+            borderRadius: '16px',
+            border: '2px dashed #F5CEBE',
+            marginTop: '16px'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📦</div>
+            <h3 style={{ color: '#114E60', margin: '0 0 8px 0' }}>No Active Listings Yet</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 20px 0' }}>
+              Your store inventory is empty. List your first tarot or oracle deck to start tracking your shop metrics here!
+            </p>
+            <Link to="/sell" className="stripe-btn" style={{ textDecoration: 'none', display: 'inline-block', marginTop: 0 }}>
+              Create Your First Listing
+            </Link>
+          </div>
+        ) : (
+          /* 📈 Active Shop Stats Layout Box (Shows automatically once they list an item) */
+          <div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              marginBottom: '24px'
+            }}>
+              <div style={{ background: '#F4EEE8', padding: '16px', borderRadius: '12px', border: '1px solid #F5CEBE' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>ACTIVE DECK LISTINGS</span>
+                <h2 style={{ color: '#114E60', margin: '4px 0 0 0', fontSize: '2rem', fontWeight: 800 }}>{userDecks.length}</h2>
+              </div>
+              <div style={{ background: '#F4EEE8', padding: '16px', borderRadius: '12px', border: '1px solid #F5CEBE' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>TOTAL SHOP VALUE</span>
+                <h2 style={{ color: '#114E60', margin: '4px 0 0 0', fontSize: '2rem', fontWeight: 800 }}>£{totalValue.toFixed(2)}</h2>
+              </div>
+            </div>
+
+            <h3 style={{ color: '#114E60', textAlign: 'left', marginBottom: '12px', fontSize: '1.1rem' }}>Your Live Shop Inventory</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {userDecks.map((deck) => (
+                <div key={deck.id} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  background: '#fafafa',
+                  borderRadius: '8px',
+                  border: '1px solid #F4EEE8'
+                }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ color: '#114E60', fontWeight: 700 }}>{deck.title}</div>
+                    <div style={{ color: '#64748b', fontSize: '0.8rem' }}>📍 {deck.location} • <span style={{ color: '#114E60', fontWeight: 600 }}>{deck.condition}</span></div>
+                  </div>
+                  <span style={{ color: '#325288', fontWeight: 800, fontSize: '1.1rem' }}>{deck.price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // 🃏 3. Interactive Listings Catalog Grid View Component Layout
   const ListingsView = () => (
