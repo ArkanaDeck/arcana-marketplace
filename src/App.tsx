@@ -211,43 +211,114 @@ export default function App() {
   );
 
   // 💰 4. Form Submission View Component Layout
-  const SellView = () => (
-    <div className="sell-form-card">
-      <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '24px' }}>Create New Listing</h2>
-      <form onSubmit={handleCreateListing}>
-        <div className="form-group">
-          <label>Deck Title *</label>
-          <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
+  // 💰 4. Form Submission View with Dynamic Tier-Based Payments
+  const SellView = () => {
+    const [payMethod, setPayMethod] = useState<'stripe' | 'paypal'>('stripe');
+
+    // Mathematical Calculation: Check active index limit boundaries
+    const currentCount = listings.length;
+    const isFreeTier = currentCount < 3;
+
+    // Every 3 items after the initial 3 costs an additional £0.66
+    const listingFee = isFreeTier ? 0 : 0.66;
+
+    const handleSubmitWithPayment = (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!isFreeTier) {
+        // Simulated Payment Authorization Framework Routing Points
+        const gatewayName = payMethod === 'stripe' ? 'Stripe Secure Checkout' : 'PayPal Instant Transfer';
+        alert(`Redirecting to ${gatewayName} to process your £0.66 listing submission fee...`);
+      }
+
+      // Execute base submission pipeline logic directly
+      handleCreateListing(e);
+    };
+
+    return (
+      <div className="sell-form-card">
+        <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '6px' }}>Create New Listing</h2>
+
+        {/* Dynamic Status Counter Box */}
+        <div className="tier-banner">
+          Inventory Level: {currentCount} Decks Listed. <br />
+          {isFreeTier ? (
+            <span style={{ color: '#2e7d32' }}>✅ You have {3 - currentCount} Free Listing spaces remaining!</span>
+          ) : (
+            <span style={{ color: '#c62828' }}>⚠️ Free Tier Limit Met. Fee to publish next item: £0.66</span>
+          )}
         </div>
-        <div className="form-group">
-          <label>Price (£) *</label>
-          <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required />
-        </div>
-        <div className="form-group">
-          <label>Your Email (For Buyer Contact) *</label>
-          <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
-        </div>
-        <div className="form-group">
-          <label>Location / Address</label>
-          <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. London, UK" />
-        </div>
-        <div className="form-group">
-          <label>Condition</label>
-          <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
-            <option value="Mint">Mint</option>
-            <option value="Like New">Like New</option>
-            <option value="Good">Good</option>
-            <option value="Fair">Fair</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Description</label>
-          <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide information about card quality, completeness, packaging, shipping..." />
-        </div>
-        <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>Publish Item</button>
-      </form>
-    </div>
-  );
+
+        <form onSubmit={handleSubmitWithPayment}>
+          <div className="form-group">
+            <label>Deck Title *</label>
+            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
+          </div>
+          <div className="form-group">
+            <label>Asking Price (£) *</label>
+            <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required />
+          </div>
+          <div className="form-group">
+            <label>Your Email (For Buyer Contact) *</label>
+            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
+          </div>
+          <div className="form-group">
+            <label>Location / Address</label>
+            <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. London, UK" />
+          </div>
+          <div className="form-group">
+            <label>Condition</label>
+            <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
+              <option value="Mint">Mint</option>
+              <option value="Like New">Like New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide information about card quality, completeness..." />
+          </div>
+
+          {/* Conditional Payment UI: Renders only when user falls outside free limits */}
+          {!isFreeTier && (
+            <div className="form-group" style={{ borderTop: '1px solid #F4EEE8', paddingTop: '16px' }}>
+              <label>Select Gateway Platform for Listing Fee (£0.66)</label>
+              <div className="payment-methods-grid">
+                <button
+                  type="button"
+                  className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`}
+                  onClick={() => setPayMethod('stripe')}
+                >
+                  💳 Stripe
+                </button>
+                <button
+                  type="button"
+                  className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`}
+                  onClick={() => setPayMethod('paypal')}
+                >
+                  🪪 PayPal
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="stripe-btn"
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              backgroundColor: !isFreeTier && payMethod === 'paypal' ? '#003087' : '#325288'
+            }}
+          >
+            {isFreeTier ? 'Publish Free Listing' : `Pay £0.66 & Publish Item`}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
 
   return (
     <BrowserRouter>

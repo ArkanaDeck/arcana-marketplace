@@ -389,3 +389,52 @@ body {
     color: #325288;
     border-color: #325288;
 }
+
+/* Tier Info Banner Box */
+.tier-banner {
+    background: #F4EEE8;
+    border: 1px dashed #114E60;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+    color: #114E60;
+    font-weight: 600;
+}
+
+/* Row wrapper for Payment Gateway options */
+.payment-methods-grid {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.payment-method-card {
+    flex: 1;
+    border: 2px solid #F4EEE8;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    background: #ffffff;
+}
+
+.payment-method-card.stripe-select {
+    color: #635BFF;
+}
+
+.payment-method-card.stripe-select.active {
+    background: rgba(99, 91, 255, 0.08);
+    border-color: #635BFF;
+}
+
+.payment-method-card.paypal-select {
+    color: #003087;
+}
+
+.payment-method-card.paypal-select.active {
+    background: rgba(0, 48, 135, 0.08);
+    border-color: #003087;
+}
