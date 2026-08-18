@@ -1,737 +1,140 @@
-/* Base Variables & Theme — Modern Glow Edit */
-:root {
-    --primary-color: #a7f3d0;
-    /* Light pastel mint green */
-    --primary-hover: #6ee7b7;
-    /* Vibrant sage mint green on hover */
-    --secondary-color: #fffdf2;
-    /* Beautiful duck-egg / baby blue */
-    --secondary-hover: #7dd3fc;
-    /* Smooth sky blue on hover */
-    --bg-color: #f8fafc;
-    /* Clean light gray background */
-    --surface-color: rgba(255, 255, 255, 0.8);
-    /* Frosted glass white panels */
-    --text-main: #1e293b;
-    /* Rich deep slate graphite */
-    --text-muted: #64748b;
-    /* Soft slate blue-gray text */
-    --border-color: #e2e8f0;
-    /* Minimalist crisp divider gray */
-    --radius: 20px;
-    /* Smoothed modern round edges */
-
-    /* 🌊 Refreshing Aura Glow Tokens (No Pink!) */
-    --primary-glow: rgba(167, 243, 208, 0.35);
-    /* Mint green aura glow */
-    --secondary-glow: rgba(186, 230, 253, 0.35);
-    /* Duck-egg blue aura glow */
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    overflow: hidden;
 }
 
-.container {
-    min-height: 100vh;
-    background-color: var(--bg-color);
-
-    /* 🌌 CALM NATURAL MESH: Soft, shifting duck-egg blue, mint green, and pale yellow orbs */
-    background-image:
-        radial-gradient(at 0% 0%, rgba(186, 230, 253, 0.45) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(167, 243, 208, 0.4) 0px, transparent 50%),
-        radial-gradient(at 50% 0%, rgba(254, 243, 199, 0.4) 0px, transparent 40%);
-    background-attachment: fixed;
-
+/* 1. Premium Flat White Navigation Bar Layout */
+.navbar {
     display: flex;
-    justify-content: center;
     align-items: center;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--text-main);
-    padding: 20px;
+    background: #ffffff;
+    padding: 18px 60px;
+    border-bottom: 1px solid #F4EEE8;
+    /* 🌟 Linen White Splitter Line */
     box-sizing: border-box;
-}
-
-/* ==========================================================================
-   2. MODERN HEADER & NAVIGATION
-   ========================================================================== */
-.topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.brand-mark {
-    background-color: var(--primary-color);
-    color: white;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-.brand strong {
-    display: block;
-    font-size: 1.1rem;
-}
-
-.brand span {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    height: 75px;
+    position: relative;
+    z-index: 10;
 }
 
 .nav-links {
     display: flex;
-    gap: 8px;
+    gap: 32px;
+    margin-left: auto;
+    align-items: center;
 }
 
-/* Interactive Buttons */
-.nav-btn {
-    background: none;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
+.nav-links a {
+    text-decoration: none;
+    color: #114E60;
+    /* 🌟 Deep Teal Navigation Links */
+    font-size: 1.05rem;
+    font-weight: 600;
+    transition: color 0.2s;
 }
 
-.nav-btn:hover {
-    background-color: var(--secondary-color);
-    color: var(--text-main);
+.nav-links a:hover {
+    color: #325288;
+    /* 🌟 Royal Indigo Hover Color */
 }
 
-.nav-btn.active {
-    .nav-btn.active {
-        background: var(--secondary-color);
-        /* Light duck-egg blue */
-        color: #0f172a !important;
-        /* Hardcoded deep slate gray text for readable contrast */
-        box-shadow: var(--shadow-subtle);
-        font-weight: 700;
-    }
-
-
-    .primary-btn {
-        background-color: var(--primary-color);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .primary-btn:hover {
-        background-color: var(--primary-hover);
-    }
-
-    .secondary-btn {
-        background-color: var(--secondary-color);
-        color: var(--text-main);
-        border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .secondary-btn:hover {
-        background-color: var(--secondary-hover);
-    }
-
-    /* Main Content Wrapper */
-    .page-content {
-        padding: 40px;
-        min-height: 450px;
-    }
-
-    /* View Sections: Home Hero Grid */
-    .hero-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-        align-items: center;
-    }
-
-    .hero-card h1 {
-        font-size: 2.5rem;
-        margin: 0 0 16px 0;
-        letter-spacing: -0.025em;
-    }
-
-    .hero-card p {
-        font-size: 1.1rem;
-        color: var(--text-muted);
-        line-height: 1.6;
-        margin: 0 0 24px 0;
-    }
-
-    .hero-img {
-        height: 320px;
-        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-        border-radius: var(--radius);
-        border: 2px dashed #a5b4fc;
-    }
-
-    /* View Sections: Dashboard Layout */
-    .dashboard-section h2,
-    .listings-section h2,
-    .sell-section h2 {
-        margin: 0 0 8px 0;
-    }
-
-    .dashboard-section p,
-    .listings-section p,
-    .sell-section p {
-        color: var(--text-muted);
-        margin: 0 0 24px 0;
-    }
-
-    .stats-placeholder-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-    }
-
-    .stat-card {
-        border: 1px solid var(--border-color);
-        padding: 24px;
-        border-radius: var(--radius);
-        background-color: var(--bg-color);
-    }
-
-    .stat-card h3 {
-        font-size: 1.75rem;
-        margin: 0 0 4px 0;
-        color: var(--primary-color);
-    }
-
-    .stat-card p {
-        margin: 0;
-        font-size: 0.9rem;
-    }
-
-    /* View Sections: Listings Placeholder */
-    .items-placeholder-grid {
-        border: 2px dashed var(--border-color);
-        padding: 60px;
-        border-radius: var(--radius);
-        text-align: center;
-    }
-
-    .empty-message {
-        margin: 0 !important;
-    }
-
-    /* View Sections: Form Layout */
-    .listing-placeholder-form {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 400px;
-    }
-
-    .form-input {
-        padding: 12px 16px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 1rem;
-        outline: none;
-        transition: border-color 0.2s ease;
-    }
-
-    .form-input:focus {
-        border-color: var(--primary-color);
-    }
-
-    /* Live Listings Grid Style rules */
-    .listings-live-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 24px;
-    }
-
-    .live-product-card {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        overflow: hidden;
-        background: var(--surface-color);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .live-product-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-    }
-
-    .product-image-box {
-        height: 180px;
-        background-color: var(--secondary-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 3rem;
-    }
-
-    .product-details {
-        padding: 16px;
-    }
-
-    .product-details h4 {
-        margin: 0 0 8px 0;
-        font-size: 1.05rem;
-    }
-
-    .price-tag {
-        font-weight: 700;
-        color: var(--primary-color);
-    }
-
-    /* Live Listings Grid Style rules */
-    .listings-live-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 24px;
-    }
-
-    .live-product-card {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        overflow: hidden;
-        background: var(--surface-color);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .live-product-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-    }
-
-    .product-image-box {
-        height: 180px;
-        background-color: var(--secondary-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 3rem;
-    }
-
-    .product-details {
-        padding: 16px;
-    }
-
-    .product-details h4 {
-        margin: 0 0 8px 0;
-        font-size: 1.05rem;
-    }
-
-    .price-tag {
-        font-weight: 700;
-        color: var(--primary-color);
-    }
-
-    .product-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 16px;
-        gap: 8px;
-    }
-
-    .buy-btn {
-        background-color: var(--primary-color);
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        flex: 1;
-        transition: background-color 0.2s ease;
-    }
-
-    .buy-btn:hover {
-        background-color: var(--primary-hover);
-    }
-
-    .delete-btn {
-        background: none;
-        border: 1px solid #fee2e2;
-        color: #ef4444;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .delete-btn:hover {
-        background-color: #fef2f2;
-        border-color: #f87171;
-    }
-
-    .dashboard-header-block {
-        margin-bottom: 2rem;
-    }
-
-    .revenue-highlight h3 {
-        color: #635bff;
-        /* Stripe Purple Accent */
-    }
-
-    .dashboard-insights-layout {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-        margin-top: 2rem;
-    }
-
-    .insight-panel-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
-        border-radius: 12px;
-    }
-
-    .insight-panel-card h4 {
-        margin: 0 0 1rem 0;
-        font-size: 1.1rem;
-        color: #1a202c;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-    }
-
-    .alert-empty {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .success-active {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .ready-connected {
-        background: #e0e7ff;
-        color: #3730a3;
-    }
-
-    .text-link-btn {
-        background: none;
-        border: none;
-        color: #635bff;
-        font-weight: 600;
-        cursor: pointer;
-        padding: 0;
-    }
-
-    .text-link-btn:hover {
-        text-decoration: underline;
-    }
-
-    /* Soft ambient glow transitions */
-    .live-product-card:hover,
-    .stat-card:hover {
-        border-color: var(--secondary-color) !important;
-        box-shadow: 0 12px 30px var(--secondary-glow) !important;
-        transform: translateY(-4px);
-        transition: all 0.3s ease;
-    }
-
-    .primary-btn:hover {
-        box-shadow: 0 8px 24px var(--primary-glow) !important;
-        transform: translateY(-1px);
-        transition: all 0.2s ease;
-    }
-
-    .buy-btn:hover {
-        box-shadow: 0 8px 24px var(--secondary-glow) !important;
-        transform: translateY(-1px);
-        transition: all 0.2s ease;
-    }
+/* Active navigation item state */
+.nav-links a.active {
+    color: #325288;
+    border-bottom: 3px solid #325288;
+    padding-bottom: 4px;
 }
 
-/* ==========================================================================
-   CHECKOUT OVERLAY MODAL BASE
-   ========================================================================== */
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(30, 41, 59, 0.4);
-    /* Soft warm gray tint */
-    backdrop-filter: blur(12px);
-    /* Glassmorphism background blur */
-    -webkit-backdrop-filter: blur(12px);
+.gold-avatar {
+    background: #114E60;
+    /* 🌟 Deep Teal Profile Bubble */
+    color: #ffffff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    padding: 20px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-left: 15px;
 }
 
-.checkout-modal-card {
-    background: var(--surface-color);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--border-color);
-    width: 100%;
-    max-width: 480px;
-    border-radius: var(--radius);
-    padding: 2.5rem;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-    box-sizing: border-box;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.modal-header h3 {
-    margin: 0;
-    font-size: 1.5rem;
-}
-
-.close-modal-btn {
-    background: transparent;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: var(--transition-smooth);
-}
-
-.close-modal-btn:hover {
-    color: var(--text-main);
-}
-
-.step-instruction-text {
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    margin: 0 0 1.5rem 0;
-    line-height: 1.5;
-}
-
-.modal-auth-form {
+/* 2. FULL CANVAS AREA: Deep linen dot-mesh background design matrix */
+.full-background-canvas {
+    height: calc(100vh - 75px);
+    width: 100vw;
+    background-color: #F4EEE8;
+    /* 🌟 Premium Linen White Background */
+    background-image:
+        radial-gradient(#114E60 1.2px, transparent 1.2px),
+        /* 🌟 Deep Teal Mesh Accent Dots */
+        radial-gradient(#114E60 1.2px, transparent 1.2px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
-/* ==========================================================================
-   AUTHENTICATION INTERFACES
-   ========================================================================== */
-.divider-line-text {
+/* Soft overlay branding hero focus card */
+.brand-overlay-card {
+    background: #ffffff;
+    padding: 40px 60px;
+    border-radius: 24px;
+    border: 1px solid #F5CEBE;
+    /* 🌟 Soft Peach Boundary Frame */
+    box-shadow: 0 20px 50px rgba(17, 78, 96, 0.06);
+    /* 🌟 Faded Deep Teal shadow profile */
     text-align: center;
-    margin: 1.5rem 0;
-    position: relative;
+    z-index: 5;
 }
 
-.divider-line-text::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 1px;
-    background: var(--border-color);
-    z-index: 1;
+.brand-overlay-card h1 {
+    color: #114E60;
+    /* 🌟 Deep Teal Heading Header */
+    margin: 0;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
-.divider-line-text span {
-    background: var(--bg-color);
-    /* Blends into yellow buttery background tint */
-    padding: 0 0.75rem;
-    position: relative;
-    z-index: 2;
-    font-size: 0.9rem;
-    color: var(--text-muted);
+.brand-overlay-card p {
+    color: #325288;
+    /* 🌟 Royal Indigo Paragraph Subtitle */
+    margin: 10px 0 0 0;
+    font-size: 1.1rem;
     font-weight: 600;
 }
 
-.guest-btn {
-    width: 100%;
-    background: rgba(30, 41, 59, 0.05) !important;
-}
-
-.guest-btn:hover {
-    background: rgba(30, 41, 59, 0.1) !important;
-}
-
-/* ==========================================================================
-   DELIVERY SELECTION ROW TILES
-   ========================================================================== */
-.delivery-options-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.delivery-card-option {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    padding: 1.25rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.5);
-    transition: all 0.25s ease;
-}
-
-.delivery-card-option:hover {
-    border-color: var(--secondary-color);
-    background: #ffffff;
-}
-
-.delivery-card-option.selected {
-    border-color: var(--secondary-color);
-    background: rgba(186, 230, 253, 0.2);
-    /* Soft duck-egg blue wash */
-    box-shadow: 0 8px 20px var(--secondary-glow);
-}
-
-.delivery-card-option input[type="radio"] {
-    accent-color: var(--secondary-color);
-    width: 18px;
-    height: 18px;
-}
-
-.delivery-card-details {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    gap: 0.25rem;
-}
-
-.delivery-card-details strong {
-    font-size: 1rem;
-    color: var(--text-main);
-}
-
-.delivery-card-details span {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.delivery-price {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-
-.action-forward-btn {
-    margin-top: 1rem;
-    width: 100%;
-}
-
-/* ==========================================================================
-   ORDER OVERVIEW SUMMARY & INTEGRATION GATEWAYS
-   ========================================================================== */
-.order-summary-box {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-    margin-bottom: 2rem;
-}
-
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.total-row {
-    border-top: 1px dashed var(--border-color);
-    padding-top: 0.85rem;
-    color: var(--text-main);
-    font-size: 1.2rem;
-}
-
-.payment-gateway-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.secure-payment-final-btn {
-    width: 100%;
-}
-
-/* Premium PayPal Branding Definition */
-.paypal-btn {
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 0.95rem;
-    padding: 0.8rem 1.5rem;
-    border-radius: var(--radius-sm);
+/* High-conversion primary Stripe Transaction Call-to-Action Button */
+.stripe-btn {
+    background-color: #325288;
+    /* 🌟 Royal Indigo Action Button */
+    color: white;
+    padding: 12px 28px;
     border: none;
+    border-radius: 8px;
+    font-size: 16px;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.2s ease;
-    background: #ffc439;
-    /* Official Express Gold */
-    color: #003087;
-    /* Official Royal Navy Accent */
-    box-shadow: 0 4px 14px rgba(255, 196, 57, 0.2);
+    font-weight: bold;
+    margin-top: 24px;
+    box-shadow: 0 4px 14px rgba(50, 82, 136, 0.3);
+    /* 🌟 Royal Indigo Glow Shadow */
+    transition: background-color 0.2s, transform 0.1s;
 }
 
-.paypal-btn:hover {
-    background: #e5af30;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(255, 196, 57, 0.3);
+.stripe-btn:hover {
+    background-color: #243e6b;
+    /* Slightly richer dark indigo tint on hover */
 }
 
-/* Soft Ambient Hover Glow Transitions */
-.live-product-card:hover,
-.stat-card:hover {
-    border-color: var(--secondary-color) !important;
-    box-shadow: 0 12px 30px var(--secondary-glow) !important;
-    transform: translateY(-4px);
-    transition: all 0.3s ease;
-}
-
-.primary-btn:hover {
-    box-shadow: 0 8px 24px var(--primary-glow) !important;
-    transform: translateY(-1px);
-    transition: all 0.2s ease;
-}
-
-.buy-btn:hover {
-    box-shadow: 0 8px 24px var(--secondary-glow) !important;
-    transform: translateY(-1px);
-    transition: all 0.2s ease;
+.stripe-btn:active {
+    transform: scale(0.97);
 }
