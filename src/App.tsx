@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
 
@@ -10,7 +11,7 @@ interface DeckItem {
   condition: string;
   location: string;
   sellerEmail: string;
-  imagePreview: string[];
+  imagePreview: string;
 }
 
 export default function App() {
@@ -24,7 +25,7 @@ export default function App() {
       condition: "Mint",
       location: "London, UK",
       sellerEmail: "seller1@arkana.com",
-      imagePreview: ["🔮"]//
+      imagePreview: "🔮"
     },
     {
       id: 2,
@@ -34,7 +35,7 @@ export default function App() {
       condition: "Like New",
       location: "Manchester, UK",
       sellerEmail: "seller2@arkana.com",
-      imagePreview: ["🌿"]
+      imagePreview: "🌿"
     }
   ]);
 
@@ -58,7 +59,7 @@ export default function App() {
       condition: newCondition,
       location: newLoc || "Remote",
       sellerEmail: newEmail,
-      imagePreview: ["🃏"]
+      imagePreview: "🃏"
     };
 
     setListings([item, ...listings]);
@@ -631,3 +632,101 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
     </div>
   );
 };
+// ========================================================
+// 📸 10. ISOLATED MULTI-IMAGE UPLOADER (Paste at the very bottom)
+// ========================================================
+interface SafeUploaderProps {
+  images: string[];
+  setImages: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+export const SafeMultiImageUploader: React.FC<SafeUploaderProps> = ({ images = [], setImages }) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const incomingFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+
+    if (images.length + incomingFiles.length > 3) {
+      alert("Maximum limit reached! You can only attach up to 3 pictures per deck.");
+      return;
+    }
+    incomingFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImages((prev) => [...prev, reader.result as string].slice(0, 3));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+
+
+  return (
+    <div style={{ marginTop: '12px', marginBottom: '12px', textAlign: 'left' }}>
+      <label
+        htmlFor="safe-gallery-upload"
+        style={{
+          display: 'block',
+          padding: '10px 16px',
+          backgroundColor: images.length >= 3 ? '#94a3b8' : '#114E60',
+          color: '#ffffff',
+          borderRadius: '6px',
+          cursor: images.length >= 3 ? 'not-allowed' : 'pointer',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          textAlign: 'center',
+          border: 'none'
+        }}
+      >
+        {images.length >= 3 ? '🚫 Photo Slots Full (3/3)' : `📸 Upload Gallery Photos (${images.length}/3)`}
+      </label>
+
+      <input
+        id="safe-gallery-upload"
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={images.length >= 3}
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {images.length > 0 && (
+        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          {images.map((img, idx) => (
+            <div key={idx} style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              <img src={img} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <button
+                type="button"
+                onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '2px',
+                  background: 'rgba(198, 40, 40, 0.9)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '9px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
