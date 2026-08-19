@@ -70,6 +70,7 @@ export default function App() {
     setNewDesc('');
     setNewLoc('');
     setNewEmail('');
+
     alert("Listing published successfully! Click 'Listings' tab to view your item.");
   };
 
@@ -117,6 +118,7 @@ export default function App() {
             <div className="form-group">
               <label>Full Name</label>
               <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alex Crowley" />
+
             </div>
           )}
 
@@ -217,7 +219,21 @@ export default function App() {
       <div className="deck-grid">
         {listings.map((deck) => (
           <div key={deck.id} className="deck-card">
-            <div className="deck-image-frame">{deck.imagePreview}</div>
+            <div className="deck-image-frame" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '4px', background: '#f8fafc', borderRadius: '6px' }}>
+              {Array.isArray(deck.imagePreview) && deck.imagePreview.length > 0 ? (
+                deck.imagePreview.map((imgUrl: string, idx: number) => (
+                  <img
+                    key={idx}
+                    src={imgUrl.startsWith('data:') ? imgUrl : undefined}
+                    alt={`Deck View ${idx + 1}`}
+                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }}
+                  />
+                ))
+              ) : (
+                <div style={{ fontSize: '2.5rem', margin: 'auto' }}>{deck.imagePreview || '🃏'}</div>
+              )}
+            </div>
+
             <div className="deck-details">
               <h3>{deck.title}</h3>
               <div className="deck-sub-meta">
@@ -240,12 +256,16 @@ export default function App() {
 
   // 💰 4. Upgraded Form Submission View with 4 Payment Channels
   const SellView = () => {
+    const [newImage, setNewImage] = useState<string[]>([]);
+
+
     const [payMethod, setPayMethod] = useState<'stripe' | 'paypal' | 'cash' | 'qrcode'>('stripe');
     const currentCount = listings.length;
     const isFreeTier = currentCount < 3;
 
     const handleSubmitWithPayment = (e: React.FormEvent) => {
-      e.preventDefault();
+      e.preventDefault(); handleCreateListing(e);
+
       if (!isFreeTier) {
         let displayMessage = "";
         if (payMethod === 'stripe') displayMessage = "Redirecting to Stripe Secure Checkout to process your £0.66 fee...";
@@ -273,6 +293,8 @@ export default function App() {
           <div className="form-group">
             <label>Deck Title *</label>
             <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
+            <SafeMultiImageUploader images={newImage} setImages={setNewImage} />
+
           </div>
           <div className="form-group">
             <label>Price (£) *</label>
@@ -283,7 +305,7 @@ export default function App() {
             <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
           </div>
           <div className="form-group">
-            <label>Location / Collection Address / Shipping Rules</label>
+            <label>Location / Collection Address / Shipp.÷ing Rules</label>
             <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. Royal Mail Tracked / London, UK" />
           </div>
           <div className="form-group">
