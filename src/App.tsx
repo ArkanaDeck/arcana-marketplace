@@ -305,9 +305,18 @@ export default function App() {
             <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
           </div>
           <div className="form-group">
-            <label>Location / Collection Address / Shipp.÷ing Rules</label>
+            <label>Location / Collection Address / Shipping Rules</label>
             <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. Royal Mail Tracked / London, UK" />
           </div>
+          <SafeShippingManager
+            selectedCourier={newLoc}
+            setSelectedCourier={setNewLoc}
+            shippingPrice={newPrice}
+            setShippingPrice={setNewPrice}
+            useQrCodeTracking={false}
+            setUseQrCodeTracking={() => { }}
+          />
+
           <div className="form-group">
             <label>Condition</label>
             <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
@@ -748,6 +757,94 @@ export const SafeMultiImageUploader: React.FC<SafeUploaderProps> = ({ images = [
           ))}
         </div>
       )}
+    </div>
+  );
+};
+// ========================================================
+// 📦 12. STANDALONE SHIPPING CHANNELS METHOD MANAGER (Paste at bottom)
+// ========================================================
+interface ShippingRulesProps {
+  selectedCourier: string;
+  setSelectedCourier: (val: string) => void;
+  shippingPrice: string;
+  setShippingPrice: (val: string) => void;
+  useQrCodeTracking: boolean;
+  setUseQrCodeTracking: (val: boolean) => void;
+}
+
+export const SafeShippingManager: React.FC<ShippingRulesProps> = ({
+  selectedCourier,
+  setSelectedCourier,
+  shippingPrice,
+  setShippingPrice,
+  useQrCodeTracking,
+  setUseQrCodeTracking
+}) => {
+
+  const handleCourierSelect = (courier: string, defaultPrice: string) => {
+    setSelectedCourier(courier);
+    setShippingPrice(defaultPrice);
+  };
+
+  return (
+    <div style={{ marginTop: '16px', borderTop: '1px solid #F4EEE8', paddingTop: '16px', textAlign: 'left' }}>
+      <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '8px' }}>
+        Shipping Methods & Rates Context
+      </label>
+
+      {/* Courier Fast Selector Grid Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        <button
+          type="button"
+          onClick={() => handleCourierSelect('Royal Mail', '4.45')}
+          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Royal Mail' ? '#325288' : '#fff', color: selectedCourier === 'Royal Mail' ? '#fff' : '#325288' }}
+        >
+          ✉️ Royal Mail
+        </button>
+        <button
+          type="button"
+          onClick={() => handleCourierSelect('Evri', '3.20')}
+          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Evri' ? '#325288' : '#fff', color: selectedCourier === 'Evri' ? '#fff' : '#325288' }}
+        >
+          📦 Evri Tracked
+        </button>
+        <button
+          type="button"
+          onClick={() => handleCourierSelect('Collection Only', '0.00')}
+          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Collection Only' ? '#325288' : '#fff', color: selectedCourier === 'Collection Only' ? '#fff' : '#325288' }}
+        >
+          🤝 Collection
+        </button>
+      </div>
+
+      {/* Shipping Rate Dynamic Input Adjustment Row */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+          Delivery Price (£)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          value={shippingPrice}
+          onChange={(e) => setShippingPrice(e.target.value)}
+          placeholder="0.00"
+          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+        />
+      </div>
+
+      {/* Secure Tracking Integration Selection Node */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+        <input
+          id="qr-tracking-toggle"
+          type="checkbox"
+          checked={useQrCodeTracking}
+          onChange={(e) => setUseQrCodeTracking(e.target.value === 'on' || e.target.checked)}
+          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+        />
+        <label htmlFor="qr-tracking-toggle" style={{ fontSize: '0.85rem', color: '#114E60', fontWeight: 600, cursor: 'pointer' }}>
+          📱 Generate Delivery confirmation tracking QR Code for package label receipt scan
+        </label>
+      </div>
     </div>
   );
 };
