@@ -464,3 +464,44 @@ body {
     background: rgba(0, 48, 135, 0.08);
     border-color: #003087;
 }
+
+/* Expanded grid layout to fit 4 payment channels smoothly */
+.payment-methods-grid-expanded {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.payment-method-card.cash-select {
+    color: #114E60;
+    /* Deep Teal alignment theme */
+}
+
+.payment-method-card.cash-select.active {
+    background: rgba(17, 78, 96, 0.08);
+    border-color: #114E60;
+}
+
+.payment-method-card.qr-select {
+    color: #e65100;
+    /* Distinct orange tracking alert color */
+}
+
+.payment-method-card.qr-select.active {
+    background: rgba(230, 81, 0, 0.08);
+    border-color: #e65100;
+}
+
+/* Informational badge wrapper for system descriptions */
+.payment-instruction-box {
+    background: #ffffff;
+    border: 1px solid #E6E6E4;
+    padding: 14px;
+    border-radius: 10px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #325288;
+    text-align: left;
+    line-height: 1.4;
+}
