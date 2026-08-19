@@ -15,6 +15,9 @@ interface DeckItem {
 }
 
 export default function App() {
+
+  const [shipCourier, setShipCourier] = useState('Royal Mail');
+  const [shipCost, setShipCost] = useState('4.45');
   const [newImage, setNewImage] = useState<string[]>([]);
   // 📊 Global state loop managing shared listings array memory context
   const [listings, setListings] = useState<DeckItem[]>([
@@ -309,12 +312,19 @@ export default function App() {
             <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. Royal Mail Tracked / London, UK" />
           </div>
           <SafeShippingManager
-            selectedCourier={newLoc}
-            setSelectedCourier={setNewLoc}
-            shippingPrice={newPrice}
-            setShippingPrice={setNewPrice}
+            selectedCourier={shipCourier}
+            setSelectedCourier={setShipCourier}
+            shippingPrice={shipCost}
+            setShippingPrice={setShipCost}
             useQrCodeTracking={false}
             setUseQrCodeTracking={() => { }}
+          />
+          {/* 🏠 Hidden details box that shows up only when selected */}
+          <ExtraShippingDetailsManager
+            rulesType={newCondition === 'Mint' ? 'none' : 'shipping'}
+            setRulesType={() => { }}
+            detailsText={newDesc}
+            setDetailsText={setNewDesc}
           />
 
           <div className="form-group">
@@ -845,6 +855,53 @@ export const SafeShippingManager: React.FC<ShippingRulesProps> = ({
           📱 Generate Delivery confirmation tracking QR Code for package label receipt scan
         </label>
       </div>
+    </div>
+  );
+};
+// ========================================================
+// 📦 13. EXTRA SHIPPING & COLLECTION DETAILS MANAGER (Paste at bottom)
+// ========================================================
+interface ExtraRulesProps {
+  rulesType: string;
+  setRulesType: (val: string) => void;
+  detailsText: string;
+  setDetailsText: (val: string) => void;
+}
+
+export const ExtraShippingDetailsManager: React.FC<ExtraRulesProps> = ({
+  rulesType,
+  setRulesType,
+  detailsText,
+  setDetailsText
+}) => {
+  return (
+    <div style={{ marginTop: '12px', textAlign: 'left' }}>
+      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+        ➕ Add Specific Delivery or Collection Instructions
+      </label>
+
+      <select
+        value={rulesType}
+        onChange={(e) => {
+          setRulesType(e.target.value);
+          if (e.target.value === 'none') setDetailsText('');
+        }}
+        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '8px', boxSizing: 'border-box' }}
+      >
+        <option value="none">No extra instructions needed</option>
+        <option value="collection">🏠 Provide Private Collection / Pickup Address</option>
+        <option value="shipping">📦 Provide Custom Shipping Rules (Packaging time, etc.)</option>
+      </select>
+
+      {rulesType !== 'none' && (
+        <textarea
+          rows={2}
+          value={detailsText}
+          onChange={(e) => setDetailsText(e.target.value)}
+          placeholder={rulesType === 'collection' ? "e.g. Collect from 123 High Street, London, open after 5 PM weekdays..." : "e.g. Ships within 48 hours in Bubble Wrap via tracking..."}
+          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box', resize: 'vertical', fontSize: '0.9rem' }}
+        />
+      )}
     </div>
   );
 };
