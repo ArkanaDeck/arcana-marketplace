@@ -15,6 +15,7 @@ interface DeckItem {
 }
 
 export default function App() {
+  const [newImage, setNewImage] = useState<string[]>([]);
   // 📊 Global state loop managing shared listings array memory context
   const [listings, setListings] = useState<DeckItem[]>([
     {
@@ -256,7 +257,6 @@ export default function App() {
 
   // 💰 4. Upgraded Form Submission View with 4 Payment Channels
   const SellView = () => {
-    const [newImage, setNewImage] = useState<string[]>([]);
 
 
     const [payMethod, setPayMethod] = useState<'stripe' | 'paypal' | 'cash' | 'qrcode'>('stripe');
