@@ -310,25 +310,25 @@ export default function App() {
             </label>
 
             <div className="payment-methods-grid-expanded">
-              <button type="button" className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`} onClick={() => setPayMethod('stripe')}>=== Stripe</button>
-              <button type="button" className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`} onClick={() => setPayMethod('paypal')}>=== PayPal</button>
-              <button type="button" className={`payment-method-card cash-select ${payMethod === 'cash' ? 'active' : ''}`} onClick={() => setPayMethod('cash')}>=== Cash on Collection</button>
-              <button type="button" className={`payment-method-card qr-select ${payMethod === 'qrcode' ? 'active' : ''}`} onClick={() => setPayMethod('qrcode')}>=== Delivery QR Code</button>
+              <button type="button" className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`} onClick={() => setPayMethod('stripe')}>💳 Stripe</button>
+              <button type="button" className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`} onClick={() => setPayMethod('paypal')}>🪪 PayPal</button>
+              <button type="button" className={`payment-method-card cash-select ${payMethod === 'cash' ? 'active' : ''}`} onClick={() => setPayMethod('cash')}>🤝 Cash on Collection</button>
+              <button type="button" className={`payment-method-card qr-select ${payMethod === 'qrcode' ? 'active' : ''}`} onClick={() => setPayMethod('qrcode')}>📱 Delivery QR Code</button>
             </div>
 
             {payMethod === 'cash' && (
               <div className="payment-instruction-box">
-                <strong>=== Cash on Collection:</strong> Best for local trading hubs. Buyer contacts you via email, verifies deck details in person, and swaps physical currency directly on handover.
+                <strong>🤝 Cash on Collection:</strong> Best for local trading hubs. Buyer contacts you via email, verifies deck details in person, and swaps physical currency directly on handover.
               </div>
             )}
             {payMethod === 'qrcode' && (
               <div className="payment-instruction-box">
-                <strong>=== Delivery QR Code:</strong> Secure digital tracking system. Generates a distinct delivery reference scan block upon order fulfillment to confirm parcel receipt.
+                <strong>📱 Delivery QR Code:</strong> Secure digital tracking system. Generates a distinct delivery reference scan block upon order fulfillment to confirm parcel receipt.
               </div>
             )}
             {(payMethod === 'stripe' || payMethod === 'paypal') && (
               <div className="payment-instruction-box">
-                <strong>=== Digital Gateway:</strong> Instant processing framework. Best for long-distance shipping protection buffers with comprehensive tracking integrations.
+                <strong>💳 Digital Gateway:</strong> Instant processing framework. Best for long-distance shipping protection buffers with comprehensive tracking integrations.
               </div>
             )}
           </div>
@@ -349,7 +349,7 @@ export default function App() {
     );
   };
 
-  // === 5. Terms & Conditions Policy View Component Layout
+  // 📖 5. Terms & Conditions Policy View Component Layout
   const TermsView = () => (
     <div className="brand-overlay-card" style={{ maxWidth: '650px', width: '100%', textAlign: 'left', maxHeight: '75vh', overflowY: 'auto' }}>
       <h1 style={{ color: '#114E60', marginTop: 0, fontWeight: 800, textAlign: 'center' }}>Terms of Service</h1>
