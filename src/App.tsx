@@ -238,7 +238,7 @@ export default function App() {
   );
 
   // 💰 4. Form Submission View with Dynamic Tier-Based Payments
-  import React, { useState } from 'react';
+
   // Assuming these types/states exist in your parent context, add placeholders if needed:
   // const [newTitle, setNewTitle] = useState('');
   // const [newPrice, setNewPrice] = useState('');
