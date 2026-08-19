@@ -408,3 +408,111 @@ export default function App() {
     </BrowserRouter>
   );
 }
+// 🗑️ 6. Isolated Delete Action Button Component Block
+interface DeleteButtonProps {
+  itemId: number;
+  listingsState: any[];
+  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
+  onDeleteSuccess?: () => void;
+}
+
+export const DeleteListingButton: React.FC<DeleteButtonProps> = ({
+  itemId,
+  listingsState,
+  setListingsState,
+  onDeleteSuccess
+}) => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Avoid triggering card click layout events
+
+    const confirmation = window.confirm("Are you sure you want to permanently remove this marketplace listing?");
+    if (!confirmation) return;
+
+    // Filter out the selected item by ID string validation rules
+    const updatedListings = listingsState.filter((item) => item.id !== itemId);
+    setListingsState(updatedListings);
+
+    alert("Listing removed successfully from index registry records.");
+    if (onDeleteSuccess) onDeleteSuccess();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleDelete}
+      style={{
+        padding: '6px 12px',
+        backgroundColor: '#c62828',
+        color: '#ffffff',
+        border: 'none',
+        borderRadius: '4px',
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        cursor: 'pointer',
+        marginTop: '8px',
+        width: '100%',
+        textAlign: 'center',
+        transition: 'background-color 0.2s ease'
+      }}
+      onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#b71c1c')}
+      onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#c62828')}
+    >
+      🗑️ Delete Entry Listing
+    </button>
+  );
+};
+// 🎴 7. Integrated Card Row Component Layout with Delete Action Hook
+interface IntegratedCardProps {
+  deck: {
+    id: number;
+    title: string;
+    description: string;
+    price: string;
+    condition: string;
+    location: string;
+    sellerEmail: string;
+    imagePreview: string;
+  };
+  listingsState: any[];
+  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
+}
+
+export const IntegratedMarketplaceCard: React.FC<IntegratedCardProps> = ({
+  deck,
+  listingsState,
+  setListingsState,
+}) => {
+  return (
+    <div style={{ border: '1px solid #F4EEE8', borderRadius: '8px', overflow: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#fff' }}>
+      <div style={{ fontSize: '2.5rem', background: '#f1f5f9', padding: '20px', borderRadius: '6px', textAlign: 'center' }}>
+        {deck.imagePreview}
+      </div>
+
+      <h3 style={{ color: '#114E60', margin: '4px 0' }}>{deck.title}</h3>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+        <span>📍 {deck.location}</span>
+        <span style={{ fontWeight: 600, color: '#325288' }}>{deck.condition}</span>
+      </div>
+
+      <p style={{ fontSize: '0.9rem', color: '#475569', flexGrow: 1 }}>{deck.description}</p>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+        <span style={{ fontWeight: 800, color: '#114E60', fontSize: '1.2rem' }}>£{deck.price}</span>
+        <a
+          href={`mailto:${deck.sellerEmail}?subject=Inquiry: ${encodeURIComponent(deck.title)}`}
+          style={{ textDecoration: 'none', background: '#325288', color: '#fff', padding: '6px 12px', borderRadius: '4px', fontSize: '0.85rem' }}
+        >
+          Contact Seller
+        </a>
+      </div>
+
+      {/* 🛑 Injected Delete Action Button Component Hook Instance */}
+      <DeleteListingButton
+        itemId={deck.id}
+        listingsState={listingsState}
+        setListingsState={setListingsState}
+      />
+    </div>
+  );
+};
