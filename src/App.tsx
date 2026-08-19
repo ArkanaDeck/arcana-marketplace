@@ -10,7 +10,7 @@ interface DeckItem {
   condition: string;
   location: string;
   sellerEmail: string;
-  imagePreview: string;
+  imagePreview: string[];
 }
 
 export default function App() {
@@ -24,7 +24,7 @@ export default function App() {
       condition: "Mint",
       location: "London, UK",
       sellerEmail: "seller1@arkana.com",
-      imagePreview: "🔮"
+      imagePreview: ["🔮"]//
     },
     {
       id: 2,
@@ -34,7 +34,7 @@ export default function App() {
       condition: "Like New",
       location: "Manchester, UK",
       sellerEmail: "seller2@arkana.com",
-      imagePreview: "🌿"
+      imagePreview: ["🌿"]
     }
   ]);
 
@@ -58,7 +58,7 @@ export default function App() {
       condition: newCondition,
       location: newLoc || "Remote",
       sellerEmail: newEmail,
-      imagePreview: "🃏"
+      imagePreview: ["🃏"]
     };
 
     setListings([item, ...listings]);
@@ -513,6 +513,121 @@ export const IntegratedMarketplaceCard: React.FC<IntegratedCardProps> = ({
         listingsState={listingsState}
         setListingsState={setListingsState}
       />
+    </div>
+  );
+};
+// 🗑️ 6. Isolated Delete Action Button Component Block
+interface DeleteButtonProps {
+  itemId: number;
+  listingsState: any[];
+  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
+}
+// 📸 10. Standalone Multi-Image Base64 Uploader Component Block (Max 3 Images)
+interface MultiImageUploaderProps {
+  imagesArray: string[];
+  setImagesArray: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
+  imagesArray = [],
+  setImagesArray
+}) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    // Convert file list to an array and slice to enforce a hard maximum limit
+    const incomingFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+
+    if (imagesArray.length + incomingFiles.length > 3) {
+      alert("Maximum limit reached. You can only attach up to 3 product pictures per deck listing.");
+      return;
+    }
+
+    incomingFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImagesArray((prev) => [...prev, reader.result as string].slice(0, 3));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    setImagesArray((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  return (
+    <div style={{ marginTop: '8px' }}>
+      <label
+        htmlFor="deck-multi-file-upload"
+        style={{
+          display: 'inline-block',
+          padding: '10px 16px',
+          backgroundColor: imagesArray.length >= 3 ? '#94a3b8' : '#114E60',
+          color: '#ffffff',
+          borderRadius: '6px',
+          cursor: imagesArray.length >= 3 ? 'not-allowed' : 'pointer',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          textAlign: 'center',
+          width: '100%',
+          border: imagesArray.length >= 3 ? '1px solid #94a3b8' : '1px solid #114E60',
+          boxSizing: 'border-box'
+        }}
+      >
+        {imagesArray.length >= 3 ? '🚫 Maximum 3 Images Reached' : `📸 Upload Gallery Photos (${imagesArray.length}/3)`}
+      </label>
+
+      <input
+        id="deck-multi-file-upload"
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={imagesArray.length >= 3}
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* Grid preview layout block */}
+      {imagesArray.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px' }}>
+          {imagesArray.map((imgString, index) => (
+            <div key={index} style={{ position: 'relative', border: '1px solid #F4EEE8', borderRadius: '6px', overflow: 'hidden', height: '80px', backgroundColor: '#f8fafc' }}>
+              <img
+                src={imgString}
+                alt={`Preview ${index + 1}`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(index)}
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '2px',
+                  background: 'rgba(198, 40, 40, 0.9)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  fontSize: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
