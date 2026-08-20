@@ -1,908 +1,356 @@
 
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
 
-// 📋 TypeScript blueprint interface definition for our marketplace items
+// 🟦 1. Blueprint Validation Data Schema
 interface DeckItem {
   id: number;
   title: string;
+  category: string; // Tarot, Trading Cards
   description: string;
   price: string;
   condition: string;
   location: string;
   sellerEmail: string;
-  imagePreview: string;
+  imagePreview: string[]; // Holds up to 3 gallery image strings
+  courier: string;
+  shippingCost: string;
+  qrTracking: boolean;
+  collectionAddress?: string;
+  customShippingRules?: string;
 }
 
 export default function App() {
+  const [currentView, setCurrentView] = useState('Listings');
 
-  const [shipCourier, setShipCourier] = useState('Royal Mail');
-  const [shipCost, setShipCost] = useState('4.45');
-  const [newImage, setNewImage] = useState<string[]>([]);
-  // 📊 Global state loop managing shared listings array memory context
+  // 🗄️ Universal Database Array State Registry
   const [listings, setListings] = useState<DeckItem[]>([
     {
       id: 1,
-      title: "The Celestial Arcana",
-      description: "First edition gilded gold edges. Out of print collectible.",
-      price: "£75",
-      condition: "Mint",
-      location: "London, UK",
-      sellerEmail: "seller1@arkana.com",
-      imagePreview: "🔮"
-    },
-    {
-      id: 2,
-      title: "Mystic Woodland Oracle",
-      description: "Hand-illustrated indie deck featuring raw matte cardstock finishes.",
-      price: "£32",
+      title: "Vintage Thoth Tarot Deck",
+      category: "Tarot",
+      description: "Excellent historical print with complete booklet insert.",
+      price: "45",
       condition: "Like New",
-      location: "Manchester, UK",
-      sellerEmail: "seller2@arkana.com",
-      imagePreview: "🌿"
+      location: "London, UK",
+      sellerEmail: "collector@example.com",
+      imagePreview: ["🔮"],
+      courier: "Royal Mail",
+      shippingCost: "4.45",
+      qrTracking: true,
+      customShippingRules: "Ships securely within 24 hours."
     }
   ]);
 
-  // 📝 Form submission text string data buffers
+  // 📥 Universal Form Input State Trackers
   const [newTitle, setNewTitle] = useState('');
+  const [newCategory, setNewCategory] = useState('Tarot');
   const [newPrice, setNewPrice] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newLoc, setNewLoc] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newLoc, setNewLoc] = useState('');
   const [newCondition, setNewCondition] = useState('Mint');
+  const [newDesc, setNewDesc] = useState('');
+  const [newImage, setNewImage] = useState<string[]>([]);
 
-  const handleCreateListing = (e: React.FormEvent) => {
+  // 📦 Delivery, Courier and Extra Instruction states
+  const [shipCourier, setShipCourier] = useState('Royal Mail');
+  const [shipCost, setShipCost] = useState('4.45');
+  const [qrTrackingToggle, setqrTrackingToggle] = useState(false);
+  const [extraInstructionType, setExtraInstructionType] = useState('none');
+  const [extraInstructionText, setExtraInstructionText] = useState('');
+
+  const currentCount = listings.length;
+
+  // 📤 Form submission capturing handler
+  const handleCreateListingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newPrice || !newEmail) return alert("Please fill in required fields.");
 
-    const item: DeckItem = {
+    if (!newTitle || !newPrice || !newEmail) {
+      return alert("Please fill in all required fields marked with an asterisk (*).");
+    }
+
+    const itemPayload: DeckItem = {
       id: Date.now(),
       title: newTitle,
-      description: newDesc,
-      price: `£${newPrice.replace('£', '')}`,
+      category: newCategory,
+      description: newDesc || "No description provided.",
+      price: newPrice,
       condition: newCondition,
-      location: newLoc || "Remote",
+      location: newLoc || "UK Hub Collection Point",
       sellerEmail: newEmail,
-      imagePreview: "🃏"
+      imagePreview: newImage.length > 0 ? newImage : ["🔮"],
+      courier: shipCourier,
+      shippingCost: shipCost,
+      qrTracking: qrTrackingToggle,
+      collectionAddress: extraInstructionType === 'collection' ? extraInstructionText : undefined,
+      customShippingRules: extraInstructionType === 'shipping' ? extraInstructionText : undefined
     };
 
-    setListings([item, ...listings]);
+    setListings([itemPayload, ...listings]);
+    alert("Published successfully!");
 
-    // Clear individual form input rows text memory hooks
+    // Clear inputs cleanly
     setNewTitle('');
     setNewPrice('');
-    setNewDesc('');
-    setNewLoc('');
     setNewEmail('');
-
-    alert("Listing published successfully! Click 'Listings' tab to view your item.");
+    setNewLoc('');
+    setNewDesc('');
+    setNewImage([]);
+    setqrTrackingToggle(false);
+    setExtraInstructionType('none');
+    setExtraInstructionText('');
+    setCurrentView('Listings');
   };
 
-  // 🔮 1. Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
-  const Home = () => {
-    const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-
-    const handleAuthSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!email || !password) return alert("Please enter your credentials.");
-
-      if (authMode === 'signup') {
-        alert(`Welcome to Arkana, ${fullName || 'Collector'}! Your account has been initialized.`);
-      } else {
-        alert(`Welcome back! Session successfully authenticated.`);
-      }
-    };
-
+  // 🟦 2. Listings Catalog Grid View Component Layout
+  const ListingsView = () => {
     return (
-      <div className="auth-container">
-        <div className="auth-tabs">
-          <button
-            className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
-            onClick={() => setAuthMode('signin')}
-          >
-            Sign In
-          </button>
-          <button
-            className={`auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
-            onClick={() => setAuthMode('signup')}
-          >
-            Create Account
-          </button>
-        </div>
-
-        <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '20px', fontWeight: 800 }}>
-          {authMode === 'signin' ? 'Log In to Arkana' : 'Join the Marketplace'}
-        </h2>
-
-        <form onSubmit={handleAuthSubmit}>
-          {authMode === 'signup' && (
-            <div className="form-group">
-              <label>Full Name</label>
-              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alex Crowley" />
-
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com" required />
-          </div>
-
-          <div className="form-group">
-            <label>Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
-          </div>
-
-          <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>
-            {authMode === 'signin' ? 'Sign In Securely' : 'Register Account'}
-          </button>
-        </form>
-
-        <div className="auth-divider">OR</div>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px' }}>
-          In a rush to secure a rare deck? Skip the queue safely.
-        </p>
-
-        <Link to="/listings" style={{ textDecoration: 'none' }}>
-          <button className="guest-btn">Continue as Guest Checkout 🚀</button>
-        </Link>
-      </div>
-    );
-  };
-
-  // 📊 2. Upgraded Dynamic Dashboard View Component Layout
-  const Dashboard = () => {
-    const userDecks = listings.filter(deck => deck.id !== 1 && deck.id !== 2);
-    const hasListings = userDecks.length > 0;
-
-    const totalValue = userDecks.reduce((sum, deck) => {
-      const priceNum = parseFloat(deck.price.replace(/[^0-9.]/g, '')) || 0;
-      return sum + priceNum;
-    }, 0);
-
-    return (
-      <div className="brand-overlay-card" style={{ maxWidth: '600px', width: '100%' }}>
-        <h1 style={{ color: '#114E60', marginTop: 0, marginBottom: '8px', fontWeight: 800 }}>
-          Your Collector Dashboard
+      <div className="listings-container">
+        <h1 style={{ color: '#114E60', textAlign: 'center', marginBottom: '32px', fontWeight: 800 }}>
+          Current Marketplace Catalog
         </h1>
-        <p style={{ color: '#325288', margin: '0 0 24px 0', fontSize: '0.95rem' }}>
-          Manage your inventory, tracking metrics, and marketplace revenue.
-        </p>
 
-        {!hasListings ? (
-          <div style={{ background: '#F4EEE8', padding: '32px 20px', borderRadius: '16px', border: '2px dashed #F5CEBE', marginTop: '16px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📦</div>
-            <h3 style={{ color: '#114E60', margin: '0 0 8px 0' }}>No Active Listings Yet</h3>
-            <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 20px 0' }}>
-              Your store inventory is empty. List your first tarot or oracle deck to start tracking your shop metrics here!
-            </p>
-            <Link to="/sell" className="stripe-btn" style={{ textDecoration: 'none', display: 'inline-block', marginTop: 0 }}>
-              Create Your First Listing
-            </Link>
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <div style={{ background: '#F4EEE8', padding: '16px', borderRadius: '12px', border: '1px solid #F5CEBE' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>ACTIVE DECK LISTINGS</span>
-                <h2 style={{ color: '#114E60', margin: '4px 0 0 0', fontSize: '2rem', fontWeight: 800 }}>{userDecks.length}</h2>
-              </div>
-              <div style={{ background: '#F4EEE8', padding: '16px', borderRadius: '12px', border: '1px solid #F5CEBE' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>TOTAL SHOP VALUE</span>
-                <h2 style={{ color: '#114E60', margin: '4px 0 0 0', fontSize: '2rem', fontWeight: 800 }}>£{totalValue.toFixed(2)}</h2>
-              </div>
-            </div>
+        <div className="deck-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, min max(300px, 1fr))', gap: '24px' }}>
+          {listings.map((deck) => (
+            <div key={deck.id} className="deck-card" style={{ border: '1px solid #F4EEE8', borderRadius: '8px', overflow: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
 
-            <h3 style={{ color: '#114E60', textAlign: 'left', marginBottom: '12px', fontSize: '1.1rem' }}>Your Live Shop Inventory</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {userDecks.map((deck) => (
-                <div key={deck.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#fafafa', borderRadius: '8px', border: '1px solid #F4EEE8' }}>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ color: '#114E60', fontWeight: 700 }}>{deck.title}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.8rem' }}>📍 {deck.location} • <span style={{ color: '#114E60', fontWeight: 600 }}>{deck.condition}</span></div>
-                  </div>
-                  <span style={{ color: '#325288', fontWeight: 800, fontSize: '1.1rem' }}>{deck.price}</span>
+              <MarketCardGalleryViewer galleryImages={deck.imagePreview} />
+
+              <div className="deck-details" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.75rem', background: '#e2e8f0', color: '#334155', padding: '2px 8px', borderRadius: '20px', width: 'fit-content', fontWeight: 600, textTransform: 'uppercase' }}>
+                  {deck.category}
+                </span>
+                <h3 style={{ color: '#114E60', margin: '4px 0', fontSize: '1.25rem', fontWeight: 700 }}>{deck.title}</h3>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                  <span>📍 {deck.location}</span>
+                  <span style={{ fontWeight: 600, color: '#325288' }}>{deck.condition}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
-  // 🃏 3. Interactive Listings Catalog Grid View Component Layout
-  const ListingsView = () => (
-    <div className="listings-container">
-      <h1 style={{ color: '#114E60', textAlign: 'center', marginBottom: '32px', fontWeight: 800 }}>
-        Current Marketplace Catalog
-      </h1>
-      <div className="deck-grid">
-        {listings.map((deck) => (
-          <div key={deck.id} className="deck-card">
-            <div className="deck-image-frame" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '4px', background: '#f8fafc', borderRadius: '6px' }}>
-              {Array.isArray(deck.imagePreview) && deck.imagePreview.length > 0 ? (
-                deck.imagePreview.map((imgUrl: string, idx: number) => (
-                  <img
-                    key={idx}
-                    src={imgUrl.startsWith('data:') ? imgUrl : undefined}
-                    alt={`Deck View ${idx + 1}`}
-                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }}
-                  />
-                ))
-              ) : (
-                <div style={{ fontSize: '2.5rem', margin: 'auto' }}>{deck.imagePreview || '🃏'}</div>
-              )}
-            </div>
+                <p style={{ fontSize: '0.9rem', color: '#475569', margin: '8px 0', lineHeight: 1.4 }}>{deck.description}</p>
 
-            <div className="deck-details">
-              <h3>{deck.title}</h3>
-              <div className="deck-sub-meta">
-                <span>📍 {deck.location}</span>
-                <span className="condition-badge">{deck.condition}</span>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div>🚚 <strong>Courier:</strong> {deck.courier} (Cost: £{deck.shippingCost})</div>
+                  {deck.qrTracking && <div>📱 <strong>Tracking:</strong> Delivery QR Code Active</div>}
+                  {deck.collectionAddress && <div style={{ color: '#15803d' }}>🏠 <strong>Pickup Address:</strong> {deck.collectionAddress}</div>}
+                  {deck.customShippingRules && <div style={{ color: '#b45309' }}>📦 <strong>Shipping Rules:</strong> {deck.customShippingRules}</div>}
+                </div>
               </div>
-              <p>{deck.description}</p>
-              <div className="deck-meta-row">
-                <span className="deck-price">{deck.price}</span>
-                <a href={`mailto:${deck.sellerEmail}?subject=Inquiry about ${encodeURIComponent(deck.title)}`} className="contact-seller-btn" style={{ textDecoration: 'none' }}>
+
+              <div className="deck-meta-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: 'auto' }}>
+                <span style={{ fontWeight: 800, color: '#114E60', fontSize: '1.3rem' }}>£{deck.price}</span>
+                <a href={`mailto:${deck.sellerEmail}?subject=Inquiry about ${encodeURIComponent(deck.title)}`} style={{ textDecoration: 'none', background: '#325288', color: '#fff', padding: '6px 14px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                   Contact Seller
                 </a>
               </div>
+
+              <DeleteListingButton itemId={deck.id} setListingsState={setListings} />
             </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // 💰 3. Form Submission Creation Page
+  const SellView = () => {
+    return (
+      <form onSubmit={handleCreateListingSubmit} style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'left', backgroundColor: '#fff', padding: '24px', borderRadius: '8px', border: '1px solid #F4EEE8' }}>
+        <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '4px', fontWeight: 800 }}>Create New Marketplace Entry</h2>
+        <p style={{ color: '#64748b', marginBottom: '16px', fontSize: '0.9rem' }}>Database Registry Size: {currentCount} Active Items.</p>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Marketplace Category *</label>
+          <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '1rem' }}>
+            <option value="Tarot">🔮 Tarot Decks</option>
+            <option value="Trading Cards">🃏 Trading Cards</option>
+          </select>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Item Title *</label>
+          <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Tarot Deck / Rare TCG Card" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+        </div>
+
+        {newCategory === 'Trading Cards' && (
+          <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '6px', border: '1px solid #bbf7d0', marginBottom: '16px', fontSize: '0.85rem', color: '#166534' }}>
+            ⚡ <strong>TCG Custom Rules:</strong> Listings must specify card grading profiles (PSA, BGS, or raw sleeve conditions) inside descriptions.
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Gallery Photos (Max 3 Images) *</label>
+          <MultiImageUploader imagesArray={newImage} setImagesArray={setNewImage} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Price (£) *</label>
+          <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Your Contact Email *</label>
+          <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@example.com" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>General Location City Address</label>
+          <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. London, UK / Manchester Hub" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+        </div>
+
+        <SafeShippingManager selectedCourier={shipCourier} setSelectedCourier={setShipCourier} shippingPrice={shipCost} setShippingPrice={setShipCost} useQrCodeTracking={qrTrackingToggle} setUseQrCodeTracking={setqrTrackingToggle} />
+        <ExtraShippingDetailsManager rulesType={extraInstructionType} setRulesType={setExtraInstructionType} detailsText={extraInstructionText} setDetailsText={setExtraInstructionText} />
+
+        <div className="form-group" style={{ marginTop: '16px', marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Condition Grading Quality</label>
+          <select value={newCondition} onChange={e => setNewCondition(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }}>
+            <option value="Mint">Mint (Perfect Pack Fresh)</option>
+            <option value="Like New">Like New (Minimal Wear)</option>
+            <option value="Good">Good (Lightly Played)</option>
+            <option value="Fair">Fair (Heavy Card Scratches)</option>
+          </select>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '6px' }}>Item Details & Description</label>
+          <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide full card context details..." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box', resize: 'vertical' }} />
+        </div>
+
+        <button type="submit" style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', backgroundColor: '#325288' }}>
+          Publish Marketplace Listing
+        </button>
+      </form>
+    );
+  };
+
+  return (
+    <div style={{ fontFamily: 'sans-serif', minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', borderBottom: '1px solid #F4EEE8', backgroundColor: '#fff' }}>
+        <div onClick={() => setCurrentView('Listings')} style={{ fontWeight: 900, fontSize: '1.5rem', color: '#114E60', cursor: 'pointer' }}>ARKANA</div>
+        <nav style={{ display: 'flex', gap: '16px' }}>
+          <button onClick={() => setCurrentView('Listings')} style={{ background: 'none', border: 'none', color: currentView === 'Listings' ? '#114E60' : '#64748b', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}>Browse Catalog</button>
+          <button onClick={() => setCurrentView('Sell')} style={{ background: 'none', border: 'none', color: currentView === 'Sell' ? '#114E60' : '#64748b', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}>+ List Item</button>
+        </nav>
+      </header>
+
+      <main style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+        {currentView === 'Listings' && <ListingsView />}
+        {currentView === 'Sell' && <SellView />}
+      </main>
+    </div>
+  );
+}
+5
+
+// ========================================================
+// 🛠️ STANDALONE UTILITY SUB-COMPONENTS (Appended to end of page)
+// ========================================================
+
+const MultiImageUploader = ({ imagesArray = [], setImagesArray }: any) => {
+  const handleFile = (e: any) => {
+    const files = Array.from(e.target.files || []).filter((f: any) => f.type.startsWith('image/'));
+    if (imagesArray.length + files.length > 3) return alert("Maximum 3 gallery images allowed.");
+
+    files.forEach((file: any) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImagesArray((prev: any) => [...prev, reader.result as string].slice(0, 3));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  return (
+    <div style={{ marginTop: '4px' }}>
+      <label htmlFor="multi-upload-node" style={{ display: 'block', padding: '12px', backgroundColor: imagesArray.length >= 3 ? '#94a3b8' : '#114E60', color: '#fff', borderRadius: '6px', textAlign: 'center', cursor: 'pointer' }}>
+        {imagesArray.length >= 3 ? '🚫 Photo Slots Full (3/3)' : `📸 Select Deck Images (${imagesArray.length}/3)`}
+      </label>
+      <input id="multi-upload-node" type="file" accept="image/*" multiple disabled={imagesArray.length >= 3} onChange={handleFile} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+        {imagesArray.map((img: string, idx: number) => (
+          <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            <img src={img} alt="Thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <button type="button" onClick={() => setImagesArray((prev: any) => prev.filter((_: any, i: number) => i !== idx))} style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(198,40,40,0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', fontSize: '9px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           </div>
         ))}
       </div>
     </div>
   );
+};
 
-  // 💰 4. Upgraded Form Submission View with 4 Payment Channels
-  const SellView = () => {
+const MarketCardGalleryViewer = ({ galleryImages = [] }: any) => {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const images = galleryImages.length > 0 ? galleryImages : ["🔮"];
 
-
-    const [payMethod, setPayMethod] = useState<'stripe' | 'paypal' | 'cash' | 'qrcode'>('stripe');
-    const currentCount = listings.length;
-    const isFreeTier = currentCount < 3;
-
-    const handleSubmitWithPayment = (e: React.FormEvent) => {
-      e.preventDefault(); handleCreateListing(e);
-
-      if (!isFreeTier) {
-        let displayMessage = "";
-        if (payMethod === 'stripe') displayMessage = "Redirecting to Stripe Secure Checkout to process your £0.66 fee...";
-        if (payMethod === 'paypal') displayMessage = "Redirecting to PayPal Instant Transfer to process your £0.66 fee...";
-        if (payMethod === 'cash') displayMessage = "Listing processed! Bring cash to the mutual collection exchange rendezvous.";
-        if (payMethod === 'qrcode') displayMessage = "Listing authorized! Generate your custom digital delivery tracking QR Code.";
-        alert(displayMessage);
-      }
-      handleCreateListing(e);
-    };
-
-    return (
-      <div className="sell-form-card">
-        <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '6px' }}>Create New Listing</h2>
-        <div className="tier-banner">
-          Inventory Level: {currentCount} Decks Listed. <br />
-          {isFreeTier ? (
-            <span style={{ color: '#2e7d32' }}>✅ You have {3 - currentCount} Free Listing spaces remaining!</span>
-          ) : (
-            <span style={{ color: '#c62828' }}>⚠️ Free Tier Limit Met. Fee to publish next item: £0.66</span>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmitWithPayment}>
-          <div className="form-group">
-            <label>Deck Title *</label>
-            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Vintage Thoth Tarot" required />
-            <SafeMultiImageUploader images={newImage} setImages={setNewImage} />
-
-          </div>
-          <div className="form-group">
-            <label>Price (£) *</label>
-            <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="45" required />
-          </div>
-          <div className="form-group">
-            <label>Your Email (For Buyer Contact) *</label>
-            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yourname@domain.com" required />
-          </div>
-          <div className="form-group">
-            <label>Location / Collection Address / Shipping Rules</label>
-            <input type="text" value={newLoc} onChange={e => setNewLoc(e.target.value)} placeholder="e.g. Royal Mail Tracked / London, UK" />
-          </div>
-          <SafeShippingManager
-            selectedCourier={shipCourier}
-            setSelectedCourier={setShipCourier}
-            shippingPrice={shipCost}
-            setShippingPrice={setShipCost}
-            useQrCodeTracking={false}
-            setUseQrCodeTracking={() => { }}
-          />
-          {/* 🏠 Hidden details box that shows up only when selected */}
-          <ExtraShippingDetailsManager
-            rulesType={newCondition === 'Mint' ? 'none' : 'shipping'}
-            setRulesType={() => { }}
-            detailsText={newDesc}
-            setDetailsText={setNewDesc}
-          />
-
-          <div className="form-group">
-            <label>Condition</label>
-            <select value={newCondition} onChange={e => setNewCondition(e.target.value)}>
-              <option value="Mint">Mint</option>
-              <option value="Like New">Like New</option>
-              <option value="Good">Good</option>
-              <option value="Fair">Fair</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Description (Specify Delivery options, packaging details, etc.)</label>
-            <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Provide information about card quality, completeness..." />
-          </div>
-
-          <div className="form-group" style={{ borderTop: '1px solid #F4EEE8', paddingTop: '16px' }}>
-            <label style={{ marginBottom: '12px' }}>
-              Select Payment & Delivery Handling Channel —{' '}
-              {isFreeTier ? (
-                <span style={{ color: '#2e7d32', fontWeight: 700 }}>Due Now: £0.00 (Free Spaces Active)</span>
-              ) : (
-                <span style={{ color: '#c62828', fontWeight: 700 }}>Due Now: £0.66 (Listing Fee Applies)</span>
-              )}
-            </label>
-
-            <div className="payment-methods-grid-expanded">
-              <button type="button" className={`payment-method-card stripe-select ${payMethod === 'stripe' ? 'active' : ''}`} onClick={() => setPayMethod('stripe')}>💳 Stripe</button>
-              <button type="button" className={`payment-method-card paypal-select ${payMethod === 'paypal' ? 'active' : ''}`} onClick={() => setPayMethod('paypal')}>🪪 PayPal</button>
-              <button type="button" className={`payment-method-card cash-select ${payMethod === 'cash' ? 'active' : ''}`} onClick={() => setPayMethod('cash')}>🤝 Cash on Collection</button>
-              <button type="button" className={`payment-method-card qr-select ${payMethod === 'qrcode' ? 'active' : ''}`} onClick={() => setPayMethod('qrcode')}>📱 Delivery QR Code</button>
-            </div>
-
-            {payMethod === 'cash' && (
-              <div className="payment-instruction-box">
-                <strong>🤝 Cash on Collection:</strong> Best for local trading hubs. Buyer contacts you via email, verifies deck details in person, and swaps physical currency directly on handover.
-              </div>
-            )}
-            {payMethod === 'qrcode' && (
-              <div className="payment-instruction-box">
-                <strong>📱 Delivery QR Code:</strong> Secure digital tracking system. Generates a distinct delivery reference scan block upon order fulfillment to confirm parcel receipt.
-              </div>
-            )}
-            {(payMethod === 'stripe' || payMethod === 'paypal') && (
-              <div className="payment-instruction-box">
-                <strong>💳 Digital Gateway:</strong> Instant processing framework. Best for long-distance shipping protection buffers with comprehensive tracking integrations.
-              </div>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className="stripe-btn"
-            style={{
-              width: '100%',
-              marginTop: '10px',
-              backgroundColor: !isFreeTier && payMethod === 'paypal' ? '#003087' : payMethod === 'cash' ? '#114E60' : payMethod === 'qrcode' ? '#e65100' : '#325288'
-            }}
-          >
-            {isFreeTier ? 'Publish Free Listing' : `Pay £0.66 & Publish Item`}
-          </button>
-        </form>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+      <div style={{ width: '100%', height: '200px', overflow: 'hidden', borderRadius: '6px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {images[activeIdx].startsWith('data:') ? (
+          <img src={images[activeIdx]} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ fontSize: '3rem' }}>{images[activeIdx]}</div>
+        )}
       </div>
-    );
-  };
-
-  // 📖 5. Terms & Conditions Policy View Component Layout
-  const TermsView = () => (
-    <div className="brand-overlay-card" style={{ maxWidth: '650px', width: '100%', textAlign: 'left', maxHeight: '75vh', overflowY: 'auto' }}>
-      <h1 style={{ color: '#114E60', marginTop: 0, fontWeight: 800, textAlign: 'center' }}>Terms of Service</h1>
-      <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', marginBottom: '24px' }}>Last Updated: August 18, 2026</p>
-
-      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px' }}>1. No Liability Disclaimer</h3>
-      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
-        Arkana Marketplace operates solely as an introductory peer-to-peer indexing directory. We do not own, inspect, hold, or ship any items. Under no circumstances shall Arkana Marketplace be liable for financial loss, fraudulent listings, or damaged goods. All interactions and trades are conducted entirely at your own risk.
-      </p>
-
-      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>2. Dispute Resolution</h3>
-      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
-        Any transaction disputes regarding payments, conditions, or fake claims must be handled directly between the buyer and seller via email. Arkana Marketplace does not process refunds and cannot mediate user conflicts.
-      </p>
-
-      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>3. Delivery & Shipping Policies</h3>
-      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
-        Sellers are completely responsible for shipping items safely and sharing valid tracked delivery numbers. Buyers are responsible for any international custom fees or local VAT charges.
-      </p>
-
-      <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>4. Listing Fees</h3>
-      <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
-        Your first 3 active deck slots are 100% free. Additional listings require a non-refundable deployment fee of £0.66 paid via Stripe or PayPal.
-      </p>
-
-      <Link to="/" className="stripe-btn" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', margin: '24px auto 0 auto', maxWidth: '200px' }}>
-        Accept & Return
-      </Link>
+      {images.length > 1 && (
+        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+          {images.map((thumb: string, idx: number) => (
+            <div key={idx} onClick={() => setActiveIdx(idx)} style={{ width: '40px', height: '30px', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', border: activeIdx === idx ? '2px solid #114E60' : '1px solid #e2e8f0', opacity: activeIdx === idx ? 1 : 0.5 }}>
+              {thumb.startsWith('data:') ? <img src={thumb} alt="Mini" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ fontSize: '0.75rem', textAlign: 'center', lineHeight: '30px' }}>{thumb}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
+};
 
+const SafeShippingManager = ({ selectedCourier, setSelectedCourier, shippingPrice, setShippingPrice, useQrCodeTracking, setUseQrCodeTracking }: any) => {
   return (
-    <BrowserRouter>
-      <nav className="navbar">
-        <div style={{ fontWeight: 800, fontSize: '1.4rem', color: '#114E60', letterSpacing: '-0.5px' }}>ARKANA</div>
-        <div className="nav-links">
-          <NavLink to="/" end>Home</NavLink>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/listings">Listings</NavLink>
-          <NavLink to="/sell">Sell</NavLink>
-          <NavLink to="/terms">T&Cs</NavLink>
-          <div className="gold-avatar">A</div>
-        </div>
-      </nav>
-
-      <main className="full-background-canvas">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/listings" element={<ListingsView />} />
-          <Route path="/sell" element={<SellView />} />
-          <Route path="/terms" element={<TermsView />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </main>
-    </BrowserRouter>
+    <div style={{ marginTop: '16px', borderTop: '1px solid #F4EEE8', paddingTop: '16px' }}>
+      <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '8px' }}>Delivery Method Selection</label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        <button type="button" onClick={() => { setSelectedCourier('Royal Mail'); setShippingPrice('4.45'); }} style={{ padding: '10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, border: '1px solid #325288', background: selectedCourier === 'Royal Mail' ? '#325288' : '#fff', color: selectedCourier === 'Royal Mail' ? '#fff' : '#325288' }}>✉️ Royal Mail</button>
+        <button type="button" onClick={() => { setSelectedCourier('Evri'); setShippingPrice('3.20'); }} style={{ padding: '10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, border: '1px solid #325288', background: selectedCourier === 'Evri' ? '#325288' : '#fff', color: selectedCourier === 'Evri' ? '#fff' : '#325288' }}>📦 Evri Tracked</button>
+        <button type="button" onClick={() => { setSelectedCourier('Collection'); setShippingPrice('0.00'); }} style={{ padding: '10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, border: '1px solid #325288', background: selectedCourier === 'Collection' ? '#325288' : '#fff', color: selectedCourier === 'Collection' ? '#fff' : '#325288' }}>🤝 Pickup</button>
+      </div>
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Courier Shipping Cost (£)</label>
+        <input type="number" step="0.01" value={shippingPrice} onChange={(e) => setShippingPrice(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+        <input id="tracking-qr-manifest" type="checkbox" checked={useQrCodeTracking} onChange={(e) => setUseQrCodeTracking(e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+        <label htmlFor="tracking-qr-manifest" style={{ fontSize: '0.85rem', color: '#114E60', fontWeight: 600, cursor: 'pointer' }}>📱 Generate Tracking QR Code label receipts</label>
+      </div>
+    </div>
   );
-}
-// 🗑️ 6. Isolated Delete Action Button Component Block
-interface DeleteButtonProps {
-  itemId: number;
-  listingsState: any[];
-  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
-  onDeleteSuccess?: () => void;
-}
+};
 
-export const DeleteListingButton: React.FC<DeleteButtonProps> = ({
-  itemId,
-  listingsState,
-  setListingsState,
-  onDeleteSuccess
-}) => {
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Avoid triggering card click layout events
-
-    const confirmation = window.confirm("Are you sure you want to permanently remove this marketplace listing?");
-    if (!confirmation) return;
-
-    // Filter out the selected item by ID string validation rules
-    const updatedListings = listingsState.filter((item) => item.id !== itemId);
-    setListingsState(updatedListings);
-
-    alert("Listing removed successfully from index registry records.");
-    if (onDeleteSuccess) onDeleteSuccess();
-  };
-
+const ExtraShippingDetailsManager = ({ rulesType, setRulesType, detailsText, setDetailsText }: any) => {
   return (
-    <button
-      type="button"
-      onClick={handleDelete}
-      style={{
-        padding: '6px 12px',
-        backgroundColor: '#c62828',
-        color: '#ffffff',
-        border: 'none',
-        borderRadius: '4px',
-        fontSize: '0.85rem',
-        fontWeight: 600,
-        cursor: 'pointer',
-        marginTop: '8px',
-        width: '100%',
-        textAlign: 'center',
-        transition: 'background-color 0.2s ease'
-      }}
-      onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#b71c1c')}
-      onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#c62828')}
-    >
+    <div style={{ marginTop: '16px' }}>
+      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>➕ Specific Delivery Address or Packaging Instructions</label>
+      <select value={rulesType} onChange={(e) => { setRulesType(e.target.value); if (e.target.value === 'none') setDetailsText(''); }} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '8px', boxSizing: 'border-box' }}>
+        <option value="none">No extra instructions required</option>
+        <option value="collection">🏠 Add Specific Physical Pickup Address</option>
+        <option value="shipping">📦 Add Custom Courier Packing Guidelines</option>
+      </select>
+      {rulesType !== 'none' && (
+        <textarea rows={2} value={detailsText} onChange={(e) => setDetailsText(e.target.value)} placeholder={rulesType === 'collection' ? "e.g. Collection from 123 High Street..." : "e.g. Shipped inside cardboard sleeves..."} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '0.9rem', resize: 'vertical' }} />
+      )}
+    </div>
+  );
+};
+
+const DeleteListingButton = ({ itemId, setListingsState }: any) => {
+  const handleDelete = () => {
+    if (!window.confirm("Are you sure you want to permanently clear this item row?")) return;
+    setListingsState((prev: any) => prev.filter((item: any) => item.id !== itemId));
+    alert("Listing successfully deleted.");
+  };
+  return (
+    <button type="button" onClick={handleDelete} style={{ padding: '10px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginTop: '6px', width: '100%' }}>
       🗑️ Delete Entry Listing
     </button>
   );
 };
-// 🎴 7. Integrated Card Row Component Layout with Delete Action Hook
-interface IntegratedCardProps {
-  deck: {
-    id: number;
-    title: string;
-    description: string;
-    price: string;
-    condition: string;
-    location: string;
-    sellerEmail: string;
-    imagePreview: string;
-  };
-  listingsState: any[];
-  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
-}
-
-export const IntegratedMarketplaceCard: React.FC<IntegratedCardProps> = ({
-  deck,
-  listingsState,
-  setListingsState,
-}) => {
-  return (
-    <div style={{ border: '1px solid #F4EEE8', borderRadius: '8px', overflow: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#fff' }}>
-      <div style={{ fontSize: '2.5rem', background: '#f1f5f9', padding: '20px', borderRadius: '6px', textAlign: 'center' }}>
-        {deck.imagePreview}
-      </div>
-
-      <h3 style={{ color: '#114E60', margin: '4px 0' }}>{deck.title}</h3>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-        <span>📍 {deck.location}</span>
-        <span style={{ fontWeight: 600, color: '#325288' }}>{deck.condition}</span>
-      </div>
-
-      <p style={{ fontSize: '0.9rem', color: '#475569', flexGrow: 1 }}>{deck.description}</p>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-        <span style={{ fontWeight: 800, color: '#114E60', fontSize: '1.2rem' }}>£{deck.price}</span>
-        <a
-          href={`mailto:${deck.sellerEmail}?subject=Inquiry: ${encodeURIComponent(deck.title)}`}
-          style={{ textDecoration: 'none', background: '#325288', color: '#fff', padding: '6px 12px', borderRadius: '4px', fontSize: '0.85rem' }}
-        >
-          Contact Seller
-        </a>
-      </div>
-
-      {/* 🛑 Injected Delete Action Button Component Hook Instance */}
-      <DeleteListingButton
-        itemId={deck.id}
-        listingsState={listingsState}
-        setListingsState={setListingsState}
-      />
-    </div>
-  );
-};
-// 🗑️ 6. Isolated Delete Action Button Component Block
-interface DeleteButtonProps {
-  itemId: number;
-  listingsState: any[];
-  setListingsState: React.Dispatch<React.SetStateAction<any[]>>;
-}
-// 📸 10. Standalone Multi-Image Base64 Uploader Component Block (Max 3 Images)
-interface MultiImageUploaderProps {
-  imagesArray: string[];
-  setImagesArray: React.Dispatch<React.SetStateAction<string[]>>;
-}
-
-export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
-  imagesArray = [],
-  setImagesArray
-}) => {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    // Convert file list to an array and slice to enforce a hard maximum limit
-    const incomingFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-
-    if (imagesArray.length + incomingFiles.length > 3) {
-      alert("Maximum limit reached. You can only attach up to 3 product pictures per deck listing.");
-      return;
-    }
-
-    incomingFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImagesArray((prev) => [...prev, reader.result as string].slice(0, 3));
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (indexToRemove: number) => {
-    setImagesArray((prev) => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  return (
-    <div style={{ marginTop: '8px' }}>
-      <label
-        htmlFor="deck-multi-file-upload"
-        style={{
-          display: 'inline-block',
-          padding: '10px 16px',
-          backgroundColor: imagesArray.length >= 3 ? '#94a3b8' : '#114E60',
-          color: '#ffffff',
-          borderRadius: '6px',
-          cursor: imagesArray.length >= 3 ? 'not-allowed' : 'pointer',
-          fontSize: '0.9rem',
-          fontWeight: 600,
-          textAlign: 'center',
-          width: '100%',
-          border: imagesArray.length >= 3 ? '1px solid #94a3b8' : '1px solid #114E60',
-          boxSizing: 'border-box'
-        }}
-      >
-        {imagesArray.length >= 3 ? '🚫 Maximum 3 Images Reached' : `📸 Upload Gallery Photos (${imagesArray.length}/3)`}
-      </label>
-
-      <input
-        id="deck-multi-file-upload"
-        type="file"
-        accept="image/*"
-        multiple
-        disabled={imagesArray.length >= 3}
-        onChange={handleFileChange}
-        style={{ display: 'none' }}
-      />
-
-      {/* Grid preview layout block */}
-      {imagesArray.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px' }}>
-          {imagesArray.map((imgString, index) => (
-            <div key={index} style={{ position: 'relative', border: '1px solid #F4EEE8', borderRadius: '6px', overflow: 'hidden', height: '80px', backgroundColor: '#f8fafc' }}>
-              <img
-                src={imgString}
-                alt={`Preview ${index + 1}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-              <button
-                type="button"
-                onClick={() => removeImage(index)}
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  right: '2px',
-                  background: 'rgba(198, 40, 40, 0.9)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '18px',
-                  height: '18px',
-                  fontSize: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-// ========================================================
-// 📸 10. ISOLATED MULTI-IMAGE UPLOADER (Paste at the very bottom)
-// ========================================================
-interface SafeUploaderProps {
-  images: string[];
-  setImages: React.Dispatch<React.SetStateAction<string[]>>;
-}
-
-export const SafeMultiImageUploader: React.FC<SafeUploaderProps> = ({ images = [], setImages }) => {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const incomingFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-
-    if (images.length + incomingFiles.length > 3) {
-      alert("Maximum limit reached! You can only attach up to 3 pictures per deck.");
-      return;
-    }
-    incomingFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImages((prev) => [...prev, reader.result as string].slice(0, 3));
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-
-
-  return (
-    <div style={{ marginTop: '12px', marginBottom: '12px', textAlign: 'left' }}>
-      <label
-        htmlFor="safe-gallery-upload"
-        style={{
-          display: 'block',
-          padding: '10px 16px',
-          backgroundColor: images.length >= 3 ? '#94a3b8' : '#114E60',
-          color: '#ffffff',
-          borderRadius: '6px',
-          cursor: images.length >= 3 ? 'not-allowed' : 'pointer',
-          fontSize: '0.9rem',
-          fontWeight: 600,
-          textAlign: 'center',
-          border: 'none'
-        }}
-      >
-        {images.length >= 3 ? '🚫 Photo Slots Full (3/3)' : `📸 Upload Gallery Photos (${images.length}/3)`}
-      </label>
-
-      <input
-        id="safe-gallery-upload"
-        type="file"
-        accept="image/*"
-        multiple
-        disabled={images.length >= 3}
-        onChange={handleFileChange}
-        style={{ display: 'none' }}
-      />
-
-      {images.length > 0 && (
-        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-          {images.map((img, idx) => (
-            <div key={idx} style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-              <img src={img} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <button
-                type="button"
-                onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  right: '2px',
-                  background: 'rgba(198, 40, 40, 0.9)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '16px',
-                  height: '16px',
-                  fontSize: '9px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-// ========================================================
-// 📦 12. STANDALONE SHIPPING CHANNELS METHOD MANAGER (Paste at bottom)
-// ========================================================
-interface ShippingRulesProps {
-  selectedCourier: string;
-  setSelectedCourier: (val: string) => void;
-  shippingPrice: string;
-  setShippingPrice: (val: string) => void;
-  useQrCodeTracking: boolean;
-  setUseQrCodeTracking: (val: boolean) => void;
-}
-
-export const SafeShippingManager: React.FC<ShippingRulesProps> = ({
-  selectedCourier,
-  setSelectedCourier,
-  shippingPrice,
-  setShippingPrice,
-  useQrCodeTracking,
-  setUseQrCodeTracking
-}) => {
-
-  const handleCourierSelect = (courier: string, defaultPrice: string) => {
-    setSelectedCourier(courier);
-    setShippingPrice(defaultPrice);
-  };
-
-  return (
-    <div style={{ marginTop: '16px', borderTop: '1px solid #F4EEE8', paddingTop: '16px', textAlign: 'left' }}>
-      <label style={{ display: 'block', fontWeight: 600, color: '#114E60', marginBottom: '8px' }}>
-        Shipping Methods & Rates Context
-      </label>
-
-      {/* Courier Fast Selector Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-        <button
-          type="button"
-          onClick={() => handleCourierSelect('Royal Mail', '4.45')}
-          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Royal Mail' ? '#325288' : '#fff', color: selectedCourier === 'Royal Mail' ? '#fff' : '#325288' }}
-        >
-          ✉️ Royal Mail
-        </button>
-        <button
-          type="button"
-          onClick={() => handleCourierSelect('Evri', '3.20')}
-          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Evri' ? '#325288' : '#fff', color: selectedCourier === 'Evri' ? '#fff' : '#325288' }}
-        >
-          📦 Evri Tracked
-        </button>
-        <button
-          type="button"
-          onClick={() => handleCourierSelect('Collection Only', '0.00')}
-          style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer', border: '1px solid #325288', fontWeight: 600, background: selectedCourier === 'Collection Only' ? '#325288' : '#fff', color: selectedCourier === 'Collection Only' ? '#fff' : '#325288' }}
-        >
-          🤝 Collection
-        </button>
-      </div>
-
-      {/* Shipping Rate Dynamic Input Adjustment Row */}
-      <div style={{ marginBottom: '12px' }}>
-        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
-          Delivery Price (£)
-        </label>
-        <input
-          type="number"
-          step="0.01"
-          value={shippingPrice}
-          onChange={(e) => setShippingPrice(e.target.value)}
-          placeholder="0.00"
-          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-        />
-      </div>
-
-      {/* Secure Tracking Integration Selection Node */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-        <input
-          id="qr-tracking-toggle"
-          type="checkbox"
-          checked={useQrCodeTracking}
-          onChange={(e) => setUseQrCodeTracking(e.target.value === 'on' || e.target.checked)}
-          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-        />
-        <label htmlFor="qr-tracking-toggle" style={{ fontSize: '0.85rem', color: '#114E60', fontWeight: 600, cursor: 'pointer' }}>
-          📱 Generate Delivery confirmation tracking QR Code for package label receipt scan
-        </label>
-      </div>
-    </div>
-  );
-};
-// ========================================================
-// 📦 13. EXTRA SHIPPING & COLLECTION DETAILS MANAGER (Paste at bottom)
-// ========================================================
-interface ExtraRulesProps {
-  rulesType: string;
-  setRulesType: (val: string) => void;
-  detailsText: string;
-  setDetailsText: (val: string) => void;
-}
-
-export const ExtraShippingDetailsManager: React.FC<ExtraRulesProps> = ({
-  rulesType,
-  setRulesType,
-  detailsText,
-  setDetailsText
-}) => {
-  return (
-    <div style={{ marginTop: '12px', textAlign: 'left' }}>
-      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-        ➕ Add Specific Delivery or Collection Instructions
-      </label>
-
-      <select
-        value={rulesType}
-        onChange={(e) => {
-          setRulesType(e.target.value);
-          if (e.target.value === 'none') setDetailsText('');
-        }}
-        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '8px', boxSizing: 'border-box' }}
-      >
-        <option value="none">No extra instructions needed</option>
-        <option value="collection">🏠 Provide Private Collection / Pickup Address</option>
-        <option value="shipping">📦 Provide Custom Shipping Rules (Packaging time, etc.)</option>
-      </select>
-
-      {rulesType !== 'none' && (
-        <textarea
-          rows={2}
-          value={detailsText}
-          onChange={(e) => setDetailsText(e.target.value)}
-          placeholder={rulesType === 'collection' ? "e.g. Collect from 123 High Street, London, open after 5 PM weekdays..." : "e.g. Ships within 48 hours in Bubble Wrap via tracking..."}
-          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box', resize: 'vertical', fontSize: '0.9rem' }}
-        />
-      )}
-    </div>
-  );
-};
-
