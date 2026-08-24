@@ -4,7 +4,7 @@ export default function SellerDashboard() {
   return (
     <div className="p-6 max-w-4xl mx-auto bg-white rounded-lg border border-[#E5E7EB] shadow-sm my-6 text-[#1F2937]">
       <h2 className="text-2xl font-bold mb-4">📦 Seller Fulfillment Dashboard</h2>
-      
+
       <div className="mb-6 p-4 bg-[#FAFAFA] border-l-4 border-[#D4AF37] rounded">
         <p className="text-sm font-semibold">Active Shipping Logistics Guidelines (UK Locked)</p>
       </div>
@@ -12,7 +12,7 @@ export default function SellerDashboard() {
       <div className="space-y-4">
         <p><strong>Step 1:</strong> Pack the Tarot Deck securely (use bubble wrap to protect the card box corners!).</p>
         <p><strong>Step 2:</strong> Copy the buyer's UK shipping address displayed below.</p>
-        
+
         <div className="p-4 bg-white border border-[#E5E7EB] rounded my-2 font-mono text-sm">
           [Buyer Delivery Address Block Manifests Here]
         </div>

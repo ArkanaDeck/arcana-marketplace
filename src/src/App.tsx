@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
 
 // 🟦 1. Blueprint Validation Data Schema
 interface DeckItem {
   id: number;
   title: string;
-  category: string; // Tarot, Trading Cards
+  category: string; // Tarot, Trading Cards,Deck 
   description: string;
   price: string;
   condition: string;
@@ -354,3 +355,211 @@ const DeleteListingButton = ({ itemId, setListingsState }: any) => {
     </button>
   );
 };
+// 🔮 1. Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
+const AuthContainer = () => {
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return alert("Please enter your credentials.");
+
+    if (authMode === 'signup') {
+      alert(`Welcome to Arkana, ${fullName || 'Collector'}! Your account has been initialized.`);
+    } else {
+      alert(`Welcome back! Session successfully authenticated.`);
+    }
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="auth-tabs">
+        <button
+          className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
+          onClick={() => setAuthMode('signin')}
+        >
+          Sign In
+        </button>
+        <button
+          className={`auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
+          onClick={() => setAuthMode('signup')}
+        >
+          Create Account
+        </button>
+      </div>
+
+      <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '20px', fontWeight: 800 }}>
+        {authMode === 'signin' ? 'Log In to Arkana' : 'Join the Marketplace'}
+      </h2>
+
+      <form onSubmit={handleAuthSubmit}>
+        {authMode === 'signup' && (
+          <div className="form-group">
+            <label>Full Name</label>
+            <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alex Crowley" />
+
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>Email Address</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com" required />
+        </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+        </div>
+
+        <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>
+          {authMode === 'signin' ? 'Sign In Securely' : 'Register Account'}
+        </button>
+      </form>
+
+      <div className="auth-divider">OR</div>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px' }}>
+        In a rush to secure a rare deck? Skip the queue safely.
+      </p>
+
+      <Link to="/listings" style={{ textDecoration: 'none' }}>
+        <button className="guest-btn">Continue as Guest Checkout 🚀</button>
+      </Link>
+    </div>
+  );
+};
+// 
+// 🔮 1. Upgraded Home Entry Portal Component Layout with Multi-Tab Auth
+const Home = () => {
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return alert("Please enter your credentials.");
+
+    if (authMode === 'signup') {
+      alert(`Welcome to Arkana, ${fullName || 'Collector'}! Your account has been initialized.`);
+    } else {
+      alert(`Welcome back! Session successfully authenticated.`);
+    }
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="auth-tabs">
+        <button
+          className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
+          onClick={() => setAuthMode('signin')}
+        >
+          Sign In
+        </button>
+        <button
+          className={`auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
+          onClick={() => setAuthMode('signup')}
+        >
+          Create Account
+        </button>
+      </div>
+
+      <h2 style={{ color: '#114E60', marginTop: 0, marginBottom: '20px', fontWeight: 800 }}>
+        {authMode === 'signin' ? 'Log In to Arkana' : 'Join the Marketplace'}
+      </h2>
+
+      <form onSubmit={handleAuthSubmit}>
+        {authMode === 'signup' && (
+          <div className="form-group">
+            <label>Full Name</label>
+            <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alex Crowley" />
+
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>Email Address</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com" required />
+        </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+        </div>
+
+        <button type="submit" className="stripe-btn" style={{ width: '100%', marginTop: '10px' }}>
+          {authMode === 'signin' ? 'Sign In Securely' : 'Register Account'}
+        </button>
+      </form>
+
+      <div className="auth-divider">OR</div>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '16px' }}>
+        In a rush to secure a rare deck? Skip the queue safely.
+      </p>
+
+      <Link to="/listings" style={{ textDecoration: 'none' }}>
+        <button className="guest-btn">Continue as Guest Checkout 🚀</button>
+      </Link>
+    </div>
+  );
+};
+
+// 📖 5. Terms & Conditions Policy View Component Layout
+const TermsView = () => (
+  <div className="brand-overlay-card" style={{ maxWidth: '650px', width: '100%', textAlign: 'left', maxHeight: '75vh', overflowY: 'auto' }}>
+    <h1 style={{ color: '#114E60', marginTop: 0, fontWeight: 800, textAlign: 'center' }}>Terms of Service</h1>
+    <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', marginBottom: '24px' }}>Last Updated: August 18, 2026</p>
+
+    <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px' }}>1. No Liability Disclaimer</h3>
+    <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+      Arkana Marketplace operates solely as an introductory peer-to-peer indexing directory. We do not own, inspect, hold, or ship any items. Under no circumstances shall Arkana Marketplace be liable for financial loss, fraudulent listings, or damaged goods. All interactions and trades are conducted entirely at your own risk.
+    </p>
+
+    <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>2. Dispute Resolution</h3>
+    <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+      Any transaction disputes regarding payments, conditions, or fake claims must be handled directly between the buyer and seller via email. Arkana Marketplace does not process refunds and cannot mediate user conflicts.
+    </p>
+
+    <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>3. Delivery & Shipping Policies</h3>
+    <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+      Sellers are completely responsible for shipping items safely and sharing valid tracked delivery numbers. Buyers are responsible for any international custom fees or local VAT charges.
+    </p>
+
+    <h3 style={{ color: '#114E60', borderBottom: '1px solid #F4EEE8', paddingBottom: '6px', marginTop: '20px' }}>4. Listing Fees</h3>
+    <p style={{ color: '#325288', fontSize: '0.9rem', lineHeight: 1.5 }}>
+      Your first 3 active deck slots are 100% free. Additional listings require a non-refundable deployment fee of £0.66 paid via Stripe or PayPal.
+    </p>
+
+    <Link to="/" className="stripe-btn" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', margin: '24px auto 0 auto', maxWidth: '200px' }}>
+      Accept & Return
+    </Link>
+  </div>
+);
+
+return (
+  <BrowserRouter>
+    <nav className="navbar">
+      <div style={{ fontWeight: 800, fontSize: '1.4rem', color: '#114E60', letterSpacing: '-0.5px' }}>ARKANA</div>
+      <div className="nav-links">
+        <NavLink to="/" end>Home</NavLink>
+        <NavLink to="/dashboard">Dashboard</NavLink>
+        <NavLink to="/listings">Listings</NavLink>
+        <NavLink to="/sell">Sell</NavLink>
+        <NavLink to="/terms">T&Cs</NavLink>
+        <div className="gold-avatar">A</div>
+      </div>
+    </nav>
+
+    <main className="full-background-canvas">
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/listings" element={<ListingsView />} />
+        <Route path="/sell" element={<SellView />} />
+        <Route path="/terms" element={<TermsView />} />
+        <Route path="*" element={<Home />} />
+      </Routes>
+    </main>
+  </BrowserRouter>
+);
