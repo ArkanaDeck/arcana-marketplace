@@ -2,7 +2,7 @@
 import './main-layout.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import { MainLayout } from './main-layout';
 
 const container = document.getElementById('app');
 
@@ -13,6 +13,6 @@ if (!container) {
 const root = createRoot(container);
 root.render(
     <React.StrictMode>
-        <App />
+        <MainLayout />
     </React.StrictMode>
 );
