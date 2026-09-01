@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import './main-layout.css';
+import { getProductionChecklist } from './production-checklist';
+import { createCheckoutSession } from './lib/stripe';
+import { signInWithEmail } from './lib/auth';
+import { getRuntimeConfig } from './lib/config';
 
-const navItems = ['Home', 'Dashboard', 'Listings', 'Sell', 'Checkout', 'Fulfillment'];
+const navItems = ['Home', 'Dashboard', 'Listings', 'Sell', 'Checkout', 'Fulfillment', 'Production'];
 
 interface DeckListing {
     id: string;
@@ -12,17 +16,35 @@ interface DeckListing {
 }
 
 export const MainLayout: React.FC = () => {
+    const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
+    const hasSecureBackend = runtimeConfig.supabaseEnabled;
+    const isSecureCheckoutEnabled = runtimeConfig.isSecureMode;
+    const productionChecklist = getProductionChecklist({
+        VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        VITE_STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+        VITE_APP_URL: import.meta.env.VITE_APP_URL,
+        VITE_SITE_NAME: import.meta.env.VITE_SITE_NAME,
+    });
 
     // Marketplace core states
     const [listings, setListings] = useState<DeckListing[]>(() => {
-        const savedListings = localStorage.getItem('arkana_listings');
-        return savedListings ? JSON.parse(savedListings) : [];
+        try {
+            const savedListings = localStorage.getItem('arkana_listings');
+            return savedListings ? JSON.parse(savedListings) : [];
+        } catch {
+            return [];
+        }
     });
 
     const [totalRevenue, setTotalRevenue] = useState<number>(() => {
-        const savedRevenue = localStorage.getItem('arkana_revenue');
-        return savedRevenue ? parseFloat(savedRevenue) : 0;
+        try {
+            const savedRevenue = localStorage.getItem('arkana_revenue');
+            return savedRevenue ? parseFloat(savedRevenue) : 0;
+        } catch {
+            return 0;
+        }
     });
 
     const [deckName, setDeckName] = useState('');
@@ -40,11 +62,19 @@ export const MainLayout: React.FC = () => {
     const [password, setPassword] = useState('');
 
     useEffect(() => {
-        localStorage.setItem('arkana_listings', JSON.stringify(listings));
+        try {
+            localStorage.setItem('arkana_listings', JSON.stringify(listings));
+        } catch {
+            // Ignore storage write failures in private/incognito mode.
+        }
     }, [listings]);
 
     useEffect(() => {
-        localStorage.setItem('arkana_revenue', totalRevenue.toString());
+        try {
+            localStorage.setItem('arkana_revenue', totalRevenue.toString());
+        } catch {
+            // Ignore storage write failures in private/incognito mode.
+        }
     }, [totalRevenue]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,6 +92,10 @@ export const MainLayout: React.FC = () => {
         e.preventDefault();
         if (!deckName.trim() || !deckPrice.trim()) {
             alert('Please fill out all fields before publishing.');
+            return;
+        }
+        if (!runtimeConfig.isSecureMode) {
+            alert('Publishing listings is disabled until Supabase and Stripe are configured for production.');
             return;
         }
         const newListing: DeckListing = {
@@ -86,30 +120,61 @@ export const MainLayout: React.FC = () => {
         setCheckoutStep(isAuthenticated ? 'delivery' : 'auth');
     };
 
-    const handleLoginSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email.trim() || !password.trim()) {
             alert('Please enter your details to sign in.');
             return;
         }
-        setIsAuthenticated(true);
-        setCheckoutStep('delivery');
+
+        if (!hasSecureBackend) {
+            alert('Authentication is disabled until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are configured.');
+            return;
+        }
+
+        try {
+            await signInWithEmail(email, password);
+            setIsAuthenticated(true);
+            setCheckoutStep('delivery');
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to sign in. Please check your credentials.');
+        }
     };
 
     const handleGuestCheckout = () => {
         setCheckoutStep('delivery');
     };
 
-    const handleFinalisePayment = (gateway: 'Stripe' | 'PayPal') => {
+    const handleFinalisePayment = async (gateway: 'Stripe' | 'PayPal') => {
         if (!selectedItem) return;
+
+        if (!isSecureCheckoutEnabled) {
+            alert('Checkout is disabled until Stripe and Supabase are configured for production.');
+            return;
+        }
 
         const dynamicDeliveryCost = deliveryMethod === 'express' ? 5.50 : 2.99;
         const totalCharged = selectedItem.price + dynamicDeliveryCost;
 
-        setTotalRevenue(prevRevenue => prevRevenue + totalCharged);
-        setListings(listings.filter(listing => listing.id !== selectedItem.id));
+        try {
+            const response = await createCheckoutSession({
+                amount: totalCharged,
+                currency: 'gbp',
+                itemName: selectedItem.name,
+                successUrl: `${window.location.origin}/success?item=${encodeURIComponent(selectedItem.name)}`,
+                cancelUrl: `${window.location.origin}/cancel`,
+            });
 
-        alert(`Success! Securely processed £${totalCharged.toFixed(2)} via ${gateway} Gateway.`);
+            if (response?.url) {
+                window.location.href = response.url;
+                return;
+            }
+
+            alert(`Success! Securely processed £${totalCharged.toFixed(2)} via ${gateway} Gateway.`);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Checkout could not be created.');
+            return;
+        }
 
         setSelectedItem(null);
         setCheckoutStep(null);
@@ -118,6 +183,15 @@ export const MainLayout: React.FC = () => {
     return (
         <div className="container">
             <div className="frame">
+                {runtimeConfig.warnings.length > 0 && (
+                    <div className="runtime-warning-banner" role="alert">
+                        <span className="runtime-warning-title">Production blockers:</span>
+                        {runtimeConfig.warnings.map((warning) => (
+                            <span key={warning} className="runtime-warning-item">• {warning}</span>
+                        ))}
+                    </div>
+                )}
+
                 <header className="topbar">
                     <div className="brand">
                         <div className="brand-mark">A</div>
@@ -279,6 +353,10 @@ export const MainLayout: React.FC = () => {
                     {/* 6. FULFILLMENT/SELLER DASHBOARD VIEW */}
                     {activeView === 'Fulfillment' && (
                         <SellerDashboardIntegrated />
+                    )}
+
+                    {activeView === 'Production' && (
+                        <ProductionChecklistView checklist={productionChecklist} />
                     )}
                 </main>
 
@@ -474,6 +552,64 @@ const CheckoutViewIntegrated: React.FC = () => {
 // ========================================================
 // 6. INTEGRATED SELLER DASHBOARD COMPONENT
 // ========================================================
+const ProductionChecklistView: React.FC<{ checklist: ReturnType<typeof getProductionChecklist> }> = ({ checklist }) => {
+    return (
+        <div className="production-checklist-panel">
+            <div className="production-header">
+                <div>
+                    <p className="eyebrow">Launch readiness</p>
+                    <h2>Production checklist for ArkanaDeck</h2>
+                </div>
+                <span className="production-badge">Secure launch gates</span>
+            </div>
+
+            <div className="checklist-status-grid">
+                <div className="status-card status-card--ok">
+                    <strong>Secure app state</strong>
+                    <span>UI builds successfully and is ready for hardening.</span>
+                </div>
+                <div className="status-card status-card--warn">
+                    <strong>Live transactions</strong>
+                    <span>Server-side payment and database auth still required before launch.</span>
+                </div>
+            </div>
+
+            <div className="checklist-list">
+                {checklist.map((item) => (
+                    <div key={item.title} className={`checklist-item checklist-item--${item.status}`}>
+                        <div className="checklist-marker" aria-label={item.status}>{item.status === 'complete' ? '✓' : item.status === 'warning' ? '!' : '•'}</div>
+                        <div>
+                            <h3>{item.title}</h3>
+                            <p>{item.detail}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="production-actions">
+                <div className="production-action-block">
+                    <h4>Required before public launch</h4>
+                    <ul>
+                        <li>Supabase Auth + protected sessions</li>
+                        <li>Stripe or PayPal server confirmations</li>
+                        <li>Listings, orders, and payments tables with RLS</li>
+                        <li>HTTPS + secure headers + env secrets</li>
+                    </ul>
+                </div>
+                <div className="production-action-block">
+                    <h4>Release gate</h4>
+                    <ul>
+                        <li>QA payment test flow</li>
+                        <li>Seller payout review</li>
+                        <li>Incident logging and monitoring</li>
+                        <li>Launch approval sign-off</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SellerDashboardIntegrated: React.FC = () => {
     return (
         <div className="p-6 max-w-4xl mx-auto bg-white rounded-lg border border-[#E5E7EB] shadow-sm my-6 text-[#1F2937]">
