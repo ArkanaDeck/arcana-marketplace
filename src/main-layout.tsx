@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 // @ts-ignore
 import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
 import { createCheckoutSession } from './lib/stripe';
+import { buyListingCredits } from './lib/listing-credits';
 import { signInWithEmail } from './lib/auth';
 import { getRuntimeConfig } from './lib/config';
 
@@ -50,12 +52,19 @@ export const MainLayout: React.FC = () => {
     const [deckName, setDeckName] = useState('');
     const [deckPrice, setDeckPrice] = useState('');
     const [deckImage, setDeckImage] = useState<string>('');
+    const listingFee = listings.length < 3 ? 0 : 0.66;
+    const listingsInCurrentBundle = listings.length % 3;
+    const [isBuyingListingCredits, setIsBuyingListingCredits] = useState(false);
 
     // Checkout Flow States
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
     const [checkoutStep, setCheckoutStep] = useState<'auth' | 'delivery' | 'payment' | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [deliveryMethod, setDeliveryMethod] = useState<'standard' | 'express'>('standard');
+    const [flashMessage, setFlashMessage] = useState<string | null>(null);
+    const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
+    const [showTermsModal, setShowTermsModal] = useState<boolean>(false);
+    const [activeLegalPage, setActiveLegalPage] = useState<'terms' | 'privacy' | 'refunds' | 'shipping' | null>(null);
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
@@ -77,6 +86,12 @@ export const MainLayout: React.FC = () => {
         }
     }, [totalRevenue]);
 
+    useEffect(() => {
+        if (!flashMessage) return;
+        const timer = window.setTimeout(() => setFlashMessage(null), 2800);
+        return () => window.clearTimeout(timer);
+    }, [flashMessage]);
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -94,6 +109,15 @@ export const MainLayout: React.FC = () => {
             alert('Please fill out all fields before publishing.');
             return;
         }
+        const parsedPrice = Number(deckPrice);
+        if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+            alert('Please enter a valid price greater than zero.');
+            return;
+        }
+        if (listingFee > 0) {
+            alert('Buy a three-listing credit bundle before publishing additional listings.');
+            return;
+        }
         if (!runtimeConfig.isSecureMode) {
             alert('Publishing listings is disabled until Supabase and Stripe are configured for production.');
             return;
@@ -101,22 +125,39 @@ export const MainLayout: React.FC = () => {
         const newListing: DeckListing = {
             id: Date.now().toString(),
             name: deckName,
-            price: parseFloat(deckPrice),
+            price: parsedPrice,
             image: deckImage || undefined
         };
         setListings([...listings, newListing]);
         setDeckName('');
         setDeckPrice('');
         setDeckImage('');
+        setFlashMessage(listingFee === 0 ? `Published: ${newListing.name}` : `Published: ${newListing.name}. Listing fee: £${listingFee.toFixed(2)}`);
         setActiveView('Listings');
     };
 
+    const handleBuyListingCredits = async () => {
+        setIsBuyingListingCredits(true);
+        try {
+            const checkout = await buyListingCredits();
+            window.location.assign(checkout.url);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to start listing credit checkout.');
+            setIsBuyingListingCredits(false);
+        }
+    };
+
     const handleDelete = (idToDelete: string) => {
+        const target = listings.find(item => item.id === idToDelete);
         setListings(listings.filter(item => item.id !== idToDelete));
+        if (target) {
+            setFlashMessage(`Removed ${target.name}`);
+        }
     };
 
     const handleInitiateCheckout = (item: DeckListing) => {
         setSelectedItem(item);
+        setFlashMessage(`Checkout: ${item.name}`);
         setCheckoutStep(isAuthenticated ? 'delivery' : 'auth');
     };
 
@@ -135,6 +176,7 @@ export const MainLayout: React.FC = () => {
         try {
             await signInWithEmail(email, password);
             setIsAuthenticated(true);
+            setFlashMessage('Signed in. Continue to delivery details.');
             setCheckoutStep('delivery');
         } catch (error) {
             alert(error instanceof Error ? error.message : 'Unable to sign in. Please check your credentials.');
@@ -143,10 +185,18 @@ export const MainLayout: React.FC = () => {
 
     const handleGuestCheckout = () => {
         setCheckoutStep('delivery');
+        setTermsAccepted(false);
     };
+
+    const deliveryFee = deliveryMethod === 'express' ? 5.50 : 2.99;
+    const orderTotal = selectedItem ? selectedItem.price + deliveryFee : 0;
 
     const handleFinalisePayment = async (gateway: 'Stripe' | 'PayPal') => {
         if (!selectedItem) return;
+        if (!termsAccepted) {
+            alert('Please agree to the Terms & Conditions before paying.');
+            return;
+        }
 
         if (!isSecureCheckoutEnabled) {
             alert('Checkout is disabled until Stripe and Supabase are configured for production.');
@@ -192,6 +242,18 @@ export const MainLayout: React.FC = () => {
                     </div>
                 )}
 
+                {flashMessage && (
+                    <div className="flash-banner" role="status" aria-live="polite">
+                        {flashMessage}
+                    </div>
+                )}
+
+                <div className="trust-badges" aria-label="Trust markers">
+                    <span>Secure checkout</span>
+                    <span>UK shipping</span>
+                    <span>No hidden fees</span>
+                </div>
+
                 <header className="topbar">
                     <div className="brand">
                         <div className="brand-mark">A</div>
@@ -212,7 +274,7 @@ export const MainLayout: React.FC = () => {
                         ))}
                     </nav>
                     <button className="primary-btn" onClick={() => setActiveView('Sell')}>
-                        Create listing
+                        Create Listing
                     </button>
                 </header>
 
@@ -224,7 +286,7 @@ export const MainLayout: React.FC = () => {
                                 <h1>Welcome to Arkana</h1>
                                 <p>Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
                                 <button className="secondary-btn" onClick={() => setActiveView('Listings')}>
-                                    Explore our listings
+                                    Browse listings
                                 </button>
                             </div>
                             <div className="hero-img"></div>
@@ -267,11 +329,19 @@ export const MainLayout: React.FC = () => {
                     {/* 3. LISTINGS VIEW */}
                     {activeView === 'Listings' && (
                         <section className="listings-section">
-                            <h2>Marketplace Listings</h2>
-                            <p>Browse authentic tarot and oracle decks from the community.</p>
+                            <div className="section-header-row">
+                                <div>
+                                    <h2>Marketplace Listings</h2>
+                                    <p>Browse authentic tarot and oracle decks from the community.</p>
+                                </div>
+                                <div className="listing-summary-badge">{listings.length} live decks</div>
+                            </div>
                             {listings.length === 0 ? (
-                                <div className="items-placeholder-grid">
-                                    <p className="empty-message">No listings available at the moment.</p>
+                                <div className="items-placeholder-grid empty-state-card">
+                                    <p className="empty-message">No decks listed yet.</p>
+                                    <button className="primary-btn" onClick={() => setActiveView('Sell')}>
+                                        Add your first deck
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="listings-live-grid">
@@ -312,6 +382,19 @@ export const MainLayout: React.FC = () => {
                     {activeView === 'Sell' && (
                         <section className="sell-section">
                             <h2>Create New Listing</h2>
+                            <div className="listing-fee-notice">
+                                <div>
+                                    <strong>{listingFee === 0 ? 'Your next listing is free' : 'Buy 3 listing credits for £0.66'}</strong>
+                                    <span>First 3 listings are free. Each following bundle of 3 listings is £0.66.</span>
+                                </div>
+                                {listingFee === 0 ? (
+                                    <span className="listing-fee-badge">{3 - listingsInCurrentBundle} free left</span>
+                                ) : (
+                                    <button type="button" className="listing-credit-btn" onClick={handleBuyListingCredits} disabled={isBuyingListingCredits}>
+                                        {isBuyingListingCredits ? 'Opening payment...' : 'Buy 3 credits - £0.66'}
+                                    </button>
+                                )}
+                            </div>
                             <form onSubmit={handlePublish} className="sell-form">
                                 <div className="form-group">
                                     <label>Deck Name</label>
@@ -339,8 +422,9 @@ export const MainLayout: React.FC = () => {
                                         accept="image/*"
                                         onChange={handleImageChange}
                                     />
+                                    {deckImage && <div className="image-status">Image selected and ready to publish</div>}
                                 </div>
-                                <button type="submit" className="primary-btn">Publish Listing</button>
+                                <button type="submit" className="primary-btn">{listingFee === 0 ? 'Publish Free Listing' : 'Buy credits to publish'}</button>
                             </form>
                         </section>
                     )}
@@ -360,6 +444,18 @@ export const MainLayout: React.FC = () => {
                     )}
                 </main>
 
+                <footer className="site-footer">
+                    <div className="site-footer-inner">
+                        <p className="footer-brand">Arkana</p>
+                        <div className="footer-links" aria-label="Legal information">
+                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
+                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('refunds')}>Refunds</button>
+                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('shipping')}>Shipping</button>
+                        </div>
+                    </div>
+                </footer>
+
                 {/* OVERLAY CHECKOUT MODAL WINDOW */}
                 {checkoutStep !== null && selectedItem && (
                     <div className="modal-backdrop">
@@ -373,6 +469,7 @@ export const MainLayout: React.FC = () => {
                             {checkoutStep === 'auth' && (
                                 <div className="modal-step-view">
                                     <p className="step-instruction-text">Sign in to your account or continue as a guest.</p>
+                                    <div className="trust-inline-copy">Fast checkout • Secure payments • Clear shipping updates</div>
                                     <form onSubmit={handleLoginSubmit} className="modal-auth-form">
                                         <div className="form-group">
                                             <label>Email Address</label>
@@ -424,6 +521,9 @@ export const MainLayout: React.FC = () => {
                                             <span className="delivery-price">£5.50</span>
                                         </label>
                                     </div>
+                                    <div className="order-inline-total">
+                                        Order total updates live: <strong>£{(selectedItem.price + deliveryFee).toFixed(2)}</strong>
+                                    </div>
                                     <button className="buy-btn action-forward-btn" onClick={() => setCheckoutStep('payment')}>
                                         Proceed to Payment →
                                     </button>
@@ -436,20 +536,107 @@ export const MainLayout: React.FC = () => {
                                     <p className="step-instruction-text">Review your order total and select a payment method:</p>
                                     <div className="order-summary-box">
                                         <div className="summary-row"><span>Deck Subtotal</span><span>£{selectedItem.price.toFixed(2)}</span></div>
-                                        <div className="summary-row"><span>Shipping</span><span>£{deliveryMethod === 'express' ? '5.50' : '2.99'}</span></div>
-                                        <div className="summary-row total-row"><strong>Final Total</strong><strong>£{(selectedItem.price + (deliveryMethod === 'express' ? 5.50 : 2.99)).toFixed(2)}</strong></div>
+                                        <div className="summary-row"><span>Shipping</span><span>£{deliveryFee.toFixed(2)}</span></div>
+                                        <div className="summary-row total-row"><strong>Final Total</strong><strong>£{orderTotal.toFixed(2)}</strong></div>
+                                    </div>
+
+                                    <div className="terms-row">
+                                        <input
+                                            id="terms-checkbox"
+                                            type="checkbox"
+                                            checked={termsAccepted}
+                                            onChange={(e) => setTermsAccepted(e.target.checked)}
+                                        />
+                                        <label htmlFor="terms-checkbox">
+                                            I agree to the <button type="button" className="terms-link-btn" onClick={() => setShowTermsModal(true)}>Terms & Conditions</button>
+                                        </label>
                                     </div>
 
                                     <div className="payment-gateway-buttons">
-                                        <button className="buy-btn secure-payment-final-btn" onClick={() => handleFinalisePayment('Stripe')}>
+                                        <button className="buy-btn secure-payment-final-btn" onClick={() => handleFinalisePayment('Stripe')} disabled={!termsAccepted}>
                                             🛡️ Pay with Stripe
                                         </button>
-                                        <button className="paypal-btn" onClick={() => handleFinalisePayment('PayPal')}>
+                                        <button className="paypal-btn" onClick={() => handleFinalisePayment('PayPal')} disabled={!termsAccepted}>
                                             🟨 Pay with PayPal
                                         </button>
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {showTermsModal && (
+                    <div className="modal-backdrop terms-modal-backdrop" onClick={() => setShowTermsModal(false)}>
+                        <div className="terms-modal-panel" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header terms-modal-header">
+                                <h3>Terms & Conditions</h3>
+                                <button className="close-modal-btn" onClick={() => setShowTermsModal(false)}>✕</button>
+                            </div>
+                            <div className="terms-modal-body">
+                                <p>By using ArkanaDeck, you agree to comply with our marketplace rules, shipping policies, and payment terms.</p>
+                                <p>Payments are processed securely via Stripe. Sellers are responsible for accurate listings, safe packaging, and timely dispatch.</p>
+                                <p>Buyers are responsible for providing correct shipping details and confirming their order before payment.</p>
+                                <p>We are not liable for delays caused by couriers, incorrect address information, or circumstances beyond our reasonable control.</p>
+                                <p>Refunds are subject to our returns and dispute policy. Accounts may be suspended if marketplace rules are violated.</p>
+                                <p>By continuing, you confirm that you understand the platform terms and complete the purchase at your own risk.</p>
+                            </div>
+                            <button className="primary-btn terms-accept-btn" onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }}>
+                                I agree
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {activeLegalPage && (
+                    <div className="modal-backdrop terms-modal-backdrop" onClick={() => setActiveLegalPage(null)}>
+                        <div className="terms-modal-panel legal-modal-panel" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header terms-modal-header">
+                                <h3>
+                                    {activeLegalPage === 'terms' && 'Terms & Conditions'}
+                                    {activeLegalPage === 'privacy' && 'Privacy Policy'}
+                                    {activeLegalPage === 'refunds' && 'Refund Policy'}
+                                    {activeLegalPage === 'shipping' && 'Shipping Policy'}
+                                </h3>
+                                <button className="close-modal-btn" onClick={() => setActiveLegalPage(null)}>✕</button>
+                            </div>
+                            <div className="terms-modal-body legal-modal-body">
+                                {activeLegalPage === 'terms' && (
+                                    <>
+                                        <p>By using Arkana, you agree to comply with our marketplace rules, payment terms, and seller obligations.</p>
+                                        <p>All listings must be accurate, lawful, and clearly described. Sellers are responsible for dispatching items in a safe and timely manner.</p>
+                                        <p>Buyers are responsible for providing accurate delivery details and confirming the order before payment is processed.</p>
+                                        <p>We are not liable for delays caused by courier services, incomplete address information, or circumstances outside of our reasonable control.</p>
+                                    </>
+                                )}
+
+                                {activeLegalPage === 'privacy' && (
+                                    <>
+                                        <p>We collect your name, email address, order details, and delivery information to process purchases and maintain a secure marketplace account.</p>
+                                        <p>Information is stored securely and used only for order fulfilment, customer support, and platform administration.</p>
+                                        <p>We do not sell personal data to third parties. Payment processing is handled through our trusted gateway services.</p>
+                                    </>
+                                )}
+
+                                {activeLegalPage === 'refunds' && (
+                                    <>
+                                        <p>Refunds may be issued when an item is damaged, incorrect, or not received within the stated service window.</p>
+                                        <p>Claims must be raised within 48 hours of delivery and must include proof of issue such as a photograph or parcel description.</p>
+                                        <p>Refunds are reviewed case by case. If a seller has fulfilled the order correctly, the refund may be denied.</p>
+                                    </>
+                                )}
+
+                                {activeLegalPage === 'shipping' && (
+                                    <>
+                                        <p>Standard UK delivery is typically completed within 3 to 5 working days. Express delivery is available at checkout.</p>
+                                        <p>Dispatch times may vary depending on the seller and stock availability. Orders are packed and shipped with care, but courier delays remain outside our control.</p>
+                                        <p>Customers are responsible for ensuring their address is complete and accurate before final payment.</p>
+                                    </>
+                                )}
+                            </div>
+                            <button className="primary-btn terms-accept-btn" onClick={() => setActiveLegalPage(null)}>
+                                Close
+                            </button>
                         </div>
                     </div>
                 )}
@@ -468,7 +655,16 @@ const CheckoutViewIntegrated: React.FC = () => {
     const [shipping, setShipping] = React.useState<number>(2.99);
     const [postcode, setPostcode] = React.useState<string>('');
     const [isPostcodeValid, setIsPostcodeValid] = React.useState<boolean>(true);
-    const [isOrdered, setIsOrdered] = React.useState<boolean>(false);
+    const [fullName, setFullName] = React.useState<string>('');
+    const [email, setEmail] = React.useState<string>('');
+    const [addressLineOne, setAddressLineOne] = React.useState<string>('');
+    const [addressLineTwo, setAddressLineTwo] = React.useState<string>('');
+    const [townOrCity, setTownOrCity] = React.useState<string>('');
+    const [termsAccepted, setTermsAccepted] = React.useState<boolean>(false);
+    const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
+    const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
+    const [deliveryReference] = React.useState(() => `ARK-${Date.now().toString().slice(-6)}`);
+    const runtimeConfig = getRuntimeConfig();
 
     // Validate UK Postcode format
     const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,72 +676,135 @@ const CheckoutViewIntegrated: React.FC = () => {
 
     const deckTotal = basket.reduce((sum, item) => sum + item.price, 0);
     const totalCost = deckTotal + shipping;
+    const deliveryQrValue = JSON.stringify({
+        reference: deliveryReference,
+        courier: shipping === 2.99 ? 'Evri Standard' : shipping === 3.65 ? 'Royal Mail Tracked 48' : 'Royal Mail Tracked 24',
+        postcode: postcode || 'Awaiting postcode',
+    });
 
-    if (isOrdered) {
-        return (
-            <div className="p-6 max-w-xl mx-auto bg-white rounded-lg border border-[#E5E7EB] text-center my-12 text-[#1F2937]">
-                <h2 className="text-3xl font-bold text-[#D4AF37] mb-2">🎉 Order Placed!</h2>
-                <p className="mb-6">Thank you for your guest checkout order. 100% of your funds went straight to the seller.</p>
-                <div className="bg-[#FAFAFA] p-6 rounded border border-[#E5E7EB] mb-6">
-                    <p className="text-sm font-semibold mb-2">Save Your Details</p>
-                    <p className="text-xs text-gray-500 mb-4">Type a password below to turn this guest order into a free permanent account.</p>
-                    <input type="password" placeholder="Choose a password" className="p-2 border border-[#E5E7EB] rounded w-full mb-3" />
-                    <button className="w-full bg-[#D4AF37] text-white py-2 rounded font-semibold hover:bg-opacity-90">Create Free Account</button>
-                </div>
-            </div>
-        );
-    }
+    const handleCheckoutSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setCheckoutError(null);
+
+        if (!basket.length) {
+            setCheckoutError('Your basket is empty. Add a deck before checking out.');
+            return;
+        }
+        if (!isPostcodeValid || !postcode || !fullName.trim() || !email.trim() || !addressLineOne.trim() || !townOrCity.trim() || !termsAccepted) {
+            setCheckoutError('Complete your delivery details and accept the Terms & Conditions to continue.');
+            return;
+        }
+        if (!runtimeConfig.isSecureMode) {
+            setCheckoutError('Secure checkout is unavailable until production payment settings are configured.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const response = await createCheckoutSession({
+                amount: totalCost,
+                currency: 'gbp',
+                itemName: `Arkana order for ${fullName.trim()}`,
+                successUrl: `${window.location.origin}/success`,
+                cancelUrl: `${window.location.origin}/cancel`,
+            });
+            if (!response?.url) throw new Error('Payment session did not return a checkout URL.');
+            window.location.assign(response.url);
+        } catch (error) {
+            setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be created.');
+            setIsSubmitting(false);
+        }
+    };
 
     return (
-        <div className="p-6 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-[#1F2937]">
-            <div className="md:col-span-2 bg-white p-6 rounded-lg border border-[#E5E7EB]">
-                <h2 className="text-xl font-bold mb-4">🇬🇧 Secure UK Guest Checkout</h2>
-                <form onSubmit={(e) => { e.preventDefault(); if (isPostcodeValid && postcode) setIsOrdered(true); }} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-semibold mb-1">Full Name</label>
-                        <input type="text" required className="w-full p-2 border border-[#E5E7EB] rounded" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold mb-1">Email Address</label>
-                        <input type="email" required className="w-full p-2 border border-[#E5E7EB] rounded" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-semibold mb-1">Country</label>
-                            <input type="text" value="United Kingdom" disabled className="w-full p-2 border border-[#E5E7EB] rounded bg-gray-100 cursor-not-allowed" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold mb-1">UK Postcode</label>
-                            <input type="text" value={postcode} onChange={handlePostcodeChange} required className={`w-full p-2 border rounded ${!isPostcodeValid ? 'border-red-500' : 'border-[#E5E7EB]'}`} />
-                            {!isPostcodeValid && <p className="text-red-500 text-xs mt-1">Invalid UK Postcode format</p>}
-                        </div>
-                    </div>
-                    <button type="submit" disabled={!isPostcodeValid || !postcode} className="w-full mt-4 bg-[#D4AF37] text-white py-3 rounded font-semibold disabled:opacity-50">Pay Now (£{totalCost.toFixed(2)})</button>
-                </form>
+        <section className="checkout-page-shell">
+            <div className="checkout-page-heading">
+                <p className="checkout-page-kicker">Guest checkout</p>
+                <h2>Delivery and payment</h2>
+                <p>Enter your details, choose a courier, then pay securely through Stripe.</p>
             </div>
 
-            <div className="bg-[#FAFAFA] p-6 rounded-lg border border-[#E5E7EB] h-fit">
-                <h3 className="text-lg font-bold mb-4">Shopping Basket</h3>
-                {basket.map(item => (
-                    <div key={item.id} className="flex justify-between text-sm py-2 border-b border-gray-200">
-                        <span>{item.name}</span>
-                        <span className="font-semibold">£{item.price.toFixed(2)}</span>
+            <div className="checkout-page-grid">
+                <form onSubmit={handleCheckoutSubmit} className="checkout-details-panel">
+                    <div className="checkout-section-heading">
+                        <span>1</span>
+                        <div><h3>Delivery details</h3><p>Used only for dispatch and order updates.</p></div>
                     </div>
-                ))}
-                <div className="mt-4 space-y-2">
-                    <label className="block text-xs font-semibold">Select Postage courier</label>
-                    <select value={shipping} onChange={(e) => setShipping(parseFloat(e.target.value))} className="w-full p-2 bg-white border border-[#E5E7EB] rounded text-sm">
-                        <option value={2.99}>Evri Standard Drop-off — £2.99</option>
-                        <option value={3.65}>Royal Mail Tracked 48 — £3.65</option>
-                        <option value={4.65}>Royal Mail Tracked 24 — £4.65</option>
-                    </select>
-                </div>
-                <div className="mt-6 pt-4 border-t border-gray-300 flex justify-between font-bold text-lg">
-                    <span>Total:</span>
-                    <span>£{totalCost.toFixed(2)}</span>
-                </div>
+                    <div className="checkout-field-grid">
+                        <label className="checkout-field checkout-field-wide">Full name
+                            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required placeholder="Your full name" />
+                        </label>
+                        <label className="checkout-field checkout-field-wide">Email address
+                            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" />
+                        </label>
+                        <label className="checkout-field checkout-field-wide">Address line 1
+                            <input type="text" value={addressLineOne} onChange={(event) => setAddressLineOne(event.target.value)} autoComplete="address-line1" required placeholder="House number and street" />
+                        </label>
+                        <label className="checkout-field checkout-field-wide">Address line 2 <span className="checkout-field-optional">Optional</span>
+                            <input type="text" value={addressLineTwo} onChange={(event) => setAddressLineTwo(event.target.value)} autoComplete="address-line2" placeholder="Flat, building, or area" />
+                        </label>
+                        <label className="checkout-field">Town or city
+                            <input type="text" value={townOrCity} onChange={(event) => setTownOrCity(event.target.value)} autoComplete="address-level2" required placeholder="London" />
+                        </label>
+                        <label className="checkout-field">Country
+                            <input type="text" value="United Kingdom" disabled />
+                        </label>
+                        <label className="checkout-field">UK postcode
+                            <input type="text" value={postcode} onChange={handlePostcodeChange} autoComplete="postal-code" required placeholder="SW1A 1AA" aria-invalid={!isPostcodeValid} />
+                            {!isPostcodeValid && <span className="checkout-validation">Enter a valid UK postcode.</span>}
+                        </label>
+                    </div>
+                    <div className="checkout-section-heading checkout-section-heading--courier">
+                        <span>2</span>
+                        <div><h3>Delivery service</h3><p>Select the tracking speed that suits you.</p></div>
+                    </div>
+                    <label className="checkout-field">Courier
+                        <select value={shipping} onChange={(event) => setShipping(parseFloat(event.target.value))}>
+                            <option value={2.99}>Evri Standard Drop-off - £2.99</option>
+                            <option value={3.65}>Royal Mail Tracked 48 - £3.65</option>
+                            <option value={4.65}>Royal Mail Tracked 24 - £4.65</option>
+                        </select>
+                    </label>
+                    <label className="checkout-terms">
+                        <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
+                        <span>I agree to the marketplace Terms & Conditions and Refund Policy.</span>
+                    </label>
+                    {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
+                    <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
+                        {isSubmitting ? 'Opening secure payment...' : `Pay securely - £${totalCost.toFixed(2)}`}
+                    </button>
+                    <p className="checkout-security-note">Payments are securely processed by Stripe. Card details are never stored by Arkana.</p>
+                </form>
+
+                <aside className="checkout-summary-panel">
+                    <div className="checkout-section-heading">
+                        <span>Order</span>
+                        <div><h3>Your basket</h3><p>{basket.length} item{basket.length === 1 ? '' : 's'} ready to ship.</p></div>
+                    </div>
+                    <div className="checkout-items">
+                        {basket.map(item => (
+                            <div key={item.id} className="checkout-item-row">
+                                <div><strong>{item.name}</strong><span>Tarot deck</span></div>
+                                <div className="checkout-item-price"><strong>£{item.price.toFixed(2)}</strong><button type="button" onClick={() => setBasket(basket.filter((basketItem) => basketItem.id !== item.id))}>Remove</button></div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="checkout-total-list">
+                        <div><span>Items</span><strong>£{deckTotal.toFixed(2)}</strong></div>
+                        <div><span>Shipping</span><strong>£{shipping.toFixed(2)}</strong></div>
+                        <div className="checkout-grand-total"><span>Total</span><strong>£{totalCost.toFixed(2)}</strong></div>
+                    </div>
+                    <div className="delivery-qr-panel">
+                        <div>
+                            <p className="delivery-qr-kicker">Delivery reference</p>
+                            <strong>{deliveryReference}</strong>
+                            <p>Keep this code for your order records. A carrier label and tracking link are issued after dispatch.</p>
+                        </div>
+                        <QRCodeSVG value={deliveryQrValue} size={84} level="M" includeMargin aria-label={`Delivery reference ${deliveryReference}`} />
+                    </div>
+                </aside>
             </div>
-        </div>
+        </section>
     );
 };
 
@@ -612,37 +871,47 @@ const ProductionChecklistView: React.FC<{ checklist: ReturnType<typeof getProduc
 
 const SellerDashboardIntegrated: React.FC = () => {
     return (
-        <div className="p-6 max-w-4xl mx-auto bg-white rounded-lg border border-[#E5E7EB] shadow-sm my-6 text-[#1F2937]">
-            <h2 className="text-2xl font-bold mb-4">📦 Seller Fulfillment Dashboard</h2>
-
-            <div className="mb-6 p-4 bg-[#FAFAFA] border-l-4 border-[#D4AF37] rounded">
-                <p className="text-sm font-semibold">Active Shipping Logistics Guidelines (UK Locked)</p>
-            </div>
-
-            <div className="space-y-4">
-                <p><strong>Step 1:</strong> Pack the Tarot Deck securely (use bubble wrap to protect the card box corners!).</p>
-                <p><strong>Step 2:</strong> Copy the buyer's UK shipping address displayed below.</p>
-
-                <div className="p-4 bg-white border border-[#E5E7EB] rounded my-2 font-mono text-sm">
-                    [Buyer Delivery Address Block Manifests Here]
+        <div className="fulfillment-shell">
+            <div className="fulfillment-header">
+                <div>
+                    <p className="fulfillment-kicker">Fulfillment</p>
+                    <h2>Seller dispatch workflow</h2>
                 </div>
-
-                <p><strong>Step 3:</strong> Head to the official courier page to buy your label:</p>
-                <ul className="list-disc pl-6 space-y-2">
-                    <li>If the buyer chose Evri: <a href="https://evri.com" target="_blank" rel="noreferrer" className="text-[#D4AF37] hover:underline font-semibold">Click here to open Evri Send (evri.com)</a></li>
-                    <li>If the buyer chose Royal Mail: <a href="https://royalmail.com" target="_blank" rel="noreferrer" className="text-[#D4AF37] hover:underline font-semibold">Click here to open Royal Mail Click & Drop (royalmail.com)</a></li>
-                </ul>
-
-                <p><strong>Step 4:</strong> Choose the 'Drop off at shop / No printer needed' option. The courier will email a digital QR Code to your phone.</p>
-                <p><strong>Step 5:</strong> Take your parcel to your local Post Office or Evri ParcelShop. They will scan your phone's QR code and print the sticky shipping label for free!</p>
-                <p><strong>Step 6:</strong> Once dropped off, paste your tracking reference number in the box below to notify the buyer.</p>
+                <span className="fulfillment-badge">UK locked</span>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#E5E7EB]">
-                <label className="block text-sm font-medium mb-2">Tracking Reference Number</label>
-                <div className="flex gap-2">
-                    <input type="text" placeholder="e.g. 123456789012345" className="p-2 border border-[#E5E7EB] rounded w-full focus:outline-none focus:border-[#D4AF37]" />
-                    <button className="bg-[#D4AF37] text-white px-4 py-2 rounded font-semibold hover:bg-opacity-90 transition">Submit</button>
+            <div className="fulfillment-brief">
+                Fulfillment is the post-sale step where the seller packs, ships, and tracks the order until it reaches the buyer.
+            </div>
+
+            <div className="fulfillment-grid">
+                <div className="fulfillment-card">
+                    <h3>1. Pack</h3>
+                    <p>Wrap the deck securely and protect the card box corners before sealing the parcel.</p>
+                </div>
+                <div className="fulfillment-card">
+                    <h3>2. Customer address</h3>
+                    <div className="address-box">
+                        <span>Arkana Customer</span>
+                        <span>18 Oak Row</span>
+                        <span>Leeds, LS1 4AA</span>
+                        <span>United Kingdom</span>
+                    </div>
+                </div>
+                <div className="fulfillment-card">
+                    <h3>3. Courier</h3>
+                    <ul className="fulfillment-links">
+                        <li><a href="https://evri.com" target="_blank" rel="noreferrer">Evri Send</a></li>
+                        <li><a href="https://royalmail.com" target="_blank" rel="noreferrer">Royal Mail Click & Drop</a></li>
+                    </ul>
+                </div>
+                <div className="fulfillment-card">
+                    <h3>4. Tracking</h3>
+                    <label className="tracking-label">Tracking reference</label>
+                    <div className="tracking-row">
+                        <input type="text" placeholder="e.g. 123456789012345" />
+                        <button>Submit</button>
+                    </div>
                 </div>
             </div>
         </div>
