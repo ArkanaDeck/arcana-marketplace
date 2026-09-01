@@ -36,6 +36,16 @@ create table if not exists public.orders (
   subtotal numeric(10,2) not null default 0,
   shipping numeric(10,2) not null default 0,
   total numeric(10,2) not null default 0,
+  delivery_name text,
+  delivery_email text,
+  delivery_address_line_1 text,
+  delivery_address_line_2 text,
+  delivery_city text,
+  delivery_postcode text,
+  delivery_country text not null default 'United Kingdom',
+  delivery_service text,
+  tracking_reference text,
+  dispatched_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -45,6 +55,16 @@ alter table public.orders add column if not exists status text not null default 
 alter table public.orders add column if not exists subtotal numeric(10,2) not null default 0;
 alter table public.orders add column if not exists shipping numeric(10,2) not null default 0;
 alter table public.orders add column if not exists total numeric(10,2) not null default 0;
+alter table public.orders add column if not exists delivery_name text;
+alter table public.orders add column if not exists delivery_email text;
+alter table public.orders add column if not exists delivery_address_line_1 text;
+alter table public.orders add column if not exists delivery_address_line_2 text;
+alter table public.orders add column if not exists delivery_city text;
+alter table public.orders add column if not exists delivery_postcode text;
+alter table public.orders add column if not exists delivery_country text not null default 'United Kingdom';
+alter table public.orders add column if not exists delivery_service text;
+alter table public.orders add column if not exists tracking_reference text;
+alter table public.orders add column if not exists dispatched_at timestamptz;
 
 do $$
 begin
@@ -66,6 +86,10 @@ create table if not exists public.payments (
   amount numeric(10,2) not null,
   created_at timestamptz not null default now()
 );
+
+create unique index if not exists payments_provider_payment_id_key
+on public.payments (provider_payment_id)
+where provider_payment_id is not null;
 
 alter table public.profiles enable row level security;
 alter table public.listings enable row level security;

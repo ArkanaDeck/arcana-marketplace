@@ -5,17 +5,13 @@ import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
 import { createCheckoutSession } from './lib/stripe';
 import { buyListingCredits } from './lib/listing-credits';
+import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
 import { signInWithEmail } from './lib/auth';
 import { getRuntimeConfig } from './lib/config';
 
 const navItems = ['Home', 'Dashboard', 'Listings', 'Sell', 'Checkout', 'Fulfillment', 'Production'];
 
-interface DeckListing {
-    id: string;
-    name: string;
-    price: number;
-    image?: string;
-}
+type DeckListing = MarketplaceListing;
 
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
@@ -71,6 +67,14 @@ export const MainLayout: React.FC = () => {
     const [password, setPassword] = useState('');
 
     useEffect(() => {
+        if (!hasSecureBackend) return;
+        loadListings()
+            .then(setListings)
+            .catch((error) => setFlashMessage(error instanceof Error ? error.message : 'Unable to load marketplace listings.'));
+    }, [hasSecureBackend]);
+
+    useEffect(() => {
+        if (hasSecureBackend) return;
         try {
             localStorage.setItem('arkana_listings', JSON.stringify(listings));
         } catch {
@@ -103,7 +107,7 @@ export const MainLayout: React.FC = () => {
         }
     };
 
-    const handlePublish = (e: React.FormEvent) => {
+    const handlePublish = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!deckName.trim() || !deckPrice.trim()) {
             alert('Please fill out all fields before publishing.');
@@ -122,18 +126,17 @@ export const MainLayout: React.FC = () => {
             alert('Publishing listings is disabled until Supabase and Stripe are configured for production.');
             return;
         }
-        const newListing: DeckListing = {
-            id: Date.now().toString(),
-            name: deckName,
-            price: parsedPrice,
-            image: deckImage || undefined
-        };
-        setListings([...listings, newListing]);
-        setDeckName('');
-        setDeckPrice('');
-        setDeckImage('');
-        setFlashMessage(listingFee === 0 ? `Published: ${newListing.name}` : `Published: ${newListing.name}. Listing fee: £${listingFee.toFixed(2)}`);
-        setActiveView('Listings');
+        try {
+            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, image: deckImage || undefined });
+            setListings((currentListings) => [newListing, ...currentListings]);
+            setDeckName('');
+            setDeckPrice('');
+            setDeckImage('');
+            setFlashMessage(`Published: ${newListing.name}`);
+            setActiveView('Listings');
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to publish your listing.');
+        }
     };
 
     const handleBuyListingCredits = async () => {
@@ -147,11 +150,14 @@ export const MainLayout: React.FC = () => {
         }
     };
 
-    const handleDelete = (idToDelete: string) => {
+    const handleDelete = async (idToDelete: string) => {
         const target = listings.find(item => item.id === idToDelete);
-        setListings(listings.filter(item => item.id !== idToDelete));
-        if (target) {
-            setFlashMessage(`Removed ${target.name}`);
+        try {
+            await deleteListing(idToDelete);
+            setListings((currentListings) => currentListings.filter(item => item.id !== idToDelete));
+            if (target) setFlashMessage(`Removed ${target.name}`);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to remove this listing.');
         }
     };
 
@@ -870,6 +876,16 @@ const ProductionChecklistView: React.FC<{ checklist: ReturnType<typeof getProduc
 };
 
 const SellerDashboardIntegrated: React.FC = () => {
+    const [trackingReference, setTrackingReference] = React.useState('');
+    const [savedTrackingReference, setSavedTrackingReference] = React.useState('');
+    const [isDispatched, setIsDispatched] = React.useState(false);
+
+    const handleSaveTracking = () => {
+        if (!trackingReference.trim()) return;
+        setSavedTrackingReference(trackingReference.trim());
+        setIsDispatched(true);
+    };
+
     return (
         <div className="fulfillment-shell">
             <div className="fulfillment-header">
@@ -901,17 +917,22 @@ const SellerDashboardIntegrated: React.FC = () => {
                 <div className="fulfillment-card">
                     <h3>3. Courier</h3>
                     <ul className="fulfillment-links">
-                        <li><a href="https://evri.com" target="_blank" rel="noreferrer">Evri Send</a></li>
-                        <li><a href="https://royalmail.com" target="_blank" rel="noreferrer">Royal Mail Click & Drop</a></li>
+                        <li><a href="https://www.evri.com/send" target="_blank" rel="noreferrer">Evri Send</a></li>
+                        <li><a href="https://send.royalmail.com" target="_blank" rel="noreferrer">Royal Mail Click & Drop</a></li>
+                        <li><a href="https://inpost.co.uk/send-a-parcel" target="_blank" rel="noreferrer">InPost lockers</a></li>
+                        <li><a href="https://www.parcel2go.com" target="_blank" rel="noreferrer">Parcel2Go</a></li>
+                        <li><a href="https://www.yodel.co.uk/send" target="_blank" rel="noreferrer">Yodel Direct</a></li>
                     </ul>
                 </div>
                 <div className="fulfillment-card">
                     <h3>4. Tracking</h3>
+                    <p className="tracking-helper">Buy the label with your chosen courier, then add its tracking reference here.</p>
                     <label className="tracking-label">Tracking reference</label>
                     <div className="tracking-row">
-                        <input type="text" placeholder="e.g. 123456789012345" />
-                        <button>Submit</button>
+                        <input type="text" value={trackingReference} onChange={(event) => setTrackingReference(event.target.value)} placeholder="e.g. 123456789012345" />
+                        <button type="button" onClick={handleSaveTracking} disabled={!trackingReference.trim()}>Mark dispatched</button>
                     </div>
+                    {isDispatched && <p className="dispatch-confirmation" role="status">Dispatched. Buyer tracking: {savedTrackingReference}</p>}
                 </div>
             </div>
         </div>

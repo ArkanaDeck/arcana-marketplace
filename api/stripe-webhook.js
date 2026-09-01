@@ -35,6 +35,25 @@ export default async function handler(req, res) {
                 });
                 if (error) throw error;
             }
+            if (session.metadata?.product === 'marketplace_order' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const orderId = session.metadata.order_id;
+                const { error: orderError } = await supabase
+                    .from('orders')
+                    .update({ status: 'paid' })
+                    .eq('id', orderId)
+                    .eq('status', 'pending_payment');
+                if (orderError) throw orderError;
+
+                const { error: paymentError } = await supabase.from('payments').upsert({
+                    order_id: orderId,
+                    provider: 'stripe',
+                    provider_payment_id: session.payment_intent || session.id,
+                    status: 'paid',
+                    amount: (session.amount_total || 0) / 100,
+                }, { onConflict: 'provider_payment_id' });
+                if (paymentError) throw paymentError;
+            }
         }
         return res.status(200).json({ received: true });
     } catch (error) {

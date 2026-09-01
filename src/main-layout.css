@@ -1762,6 +1762,13 @@ select {
     color: var(--indigo);
 }
 
+.tracking-helper {
+    margin: -4px 0 14px !important;
+    color: var(--muted) !important;
+    font-size: 0.8rem;
+    line-height: 1.5 !important;
+}
+
 .tracking-label {
     display: block;
     margin-bottom: 8px;
@@ -1799,6 +1806,22 @@ select {
     padding: 0 16px;
     font-weight: 700;
     cursor: pointer;
+}
+
+.tracking-row button:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+.dispatch-confirmation {
+    margin: 12px 0 0 !important;
+    padding: 10px 12px;
+    border: 1px solid rgba(65, 144, 92, 0.25);
+    border-radius: 10px;
+    background: #f0faf2;
+    color: #256f40 !important;
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 @media (max-width: 720px) {
