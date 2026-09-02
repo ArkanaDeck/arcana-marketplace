@@ -5,7 +5,7 @@ import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
-import { createOrderCheckout } from './lib/order-checkout';
+import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
@@ -116,6 +116,29 @@ export const MainLayout: React.FC = () => {
         setAccountMode('signin');
         setAccountStatus('Email confirmed. Sign in to continue.');
         window.history.replaceState({}, '', window.location.pathname);
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('paypal') !== 'success') return;
+        const paypalOrderId = params.get('token');
+        if (!paypalOrderId || !supabase) return;
+
+        getSupabaseSession()
+            .then(async (session) => {
+                if (!session?.access_token) throw new Error('Sign in again to confirm your PayPal payment.');
+                const response = await fetch('/api/capture-paypal-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ paypalOrderId }),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
+                setActiveView('Checkout');
+                setFlashMessage('PayPal payment confirmed. Your order is being prepared.');
+            })
+            .catch((error) => setFlashMessage(error instanceof Error ? error.message : 'Unable to confirm PayPal payment.'))
+            .finally(() => window.history.replaceState({}, '', window.location.pathname));
     }, []);
 
     useEffect(() => {
@@ -361,8 +384,8 @@ export const MainLayout: React.FC = () => {
             return;
         }
 
-        if (!isSecureCheckoutEnabled) {
-            alert('Checkout is disabled until Stripe and Supabase are configured for production.');
+        if (!isSecureCheckoutEnabled || (gateway === 'PayPal' && !runtimeConfig.paypalEnabled)) {
+            alert('Checkout is disabled until Supabase and at least one payment provider are configured for production.');
             return;
         }
 
@@ -938,6 +961,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     const handleCheckoutSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCheckoutError(null);
+        const paymentMethod = new FormData(event.currentTarget).get('paymentMethod') || 'stripe';
 
         if (!basket.length) {
             setCheckoutError('Your basket is empty. Add a deck before checking out.');
@@ -955,7 +979,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
         setIsSubmitting(true);
         try {
             if (basket.length < 1 || basket.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
-            const response = await createOrderCheckout({
+            const checkoutInput = {
                 listingIds: basket.map((item) => item.id),
                 shippingOption,
                 deliveryAddress: {
@@ -966,7 +990,10 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                     city: townOrCity.trim(),
                     postcode: postcode.trim(),
                 },
-            });
+            };
+            const response = paymentMethod === 'paypal'
+                ? await createPayPalOrder(checkoutInput)
+                : await createOrderCheckout(checkoutInput);
             if (!response?.url) throw new Error('Payment session did not return a checkout URL.');
             window.location.assign(response.url);
         } catch (error) {
@@ -1030,10 +1057,15 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <span>I agree to the marketplace Terms & Conditions and Refund Policy.</span>
                     </label>
                     {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-                    <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
-                        {isSubmitting ? 'Opening secure payment...' : `Pay securely - £${totalCost.toFixed(2)}`}
-                    </button>
-                    <p className="checkout-security-note">Payments are securely processed by Stripe. Card details are never stored by Arkana.</p>
+                    <div className="checkout-payment-actions">
+                        <button type="submit" name="paymentMethod" value="stripe" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
+                            {isSubmitting ? 'Opening secure payment...' : `Pay with Stripe - £${totalCost.toFixed(2)}`}
+                        </button>
+                        <button type="submit" name="paymentMethod" value="paypal" className="paypal-btn" disabled={isSubmitting || !basket.length}>
+                            Pay with PayPal
+                        </button>
+                    </div>
+                    <p className="checkout-security-note">Payments are securely processed by Stripe or PayPal. Card details are never stored by Arkana.</p>
                 </form>
 
                 <aside className="checkout-summary-panel">

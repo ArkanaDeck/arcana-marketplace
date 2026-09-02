@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node ./node_modules/vite/bin/vite.js build",
+    "test": "node --test server/checkout.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,7 +27,8 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.3",
     "typescript": "^5.6.3",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
     "esbuild@0.21.5": true,

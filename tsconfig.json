@@ -27,9 +27,6 @@
         "src/**/*",
         "vite.config.js"
     ],
-    "exclude": [
-        "src/paypal-api.ts",
-        "src/paypal-api.test.ts"
-    ],
+    "exclude": [],
     "references": []
 }
