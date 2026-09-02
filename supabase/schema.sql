@@ -4,11 +4,29 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
+  legal_name text,
+  seller_address_line_1 text,
+  seller_address_line_2 text,
+  seller_city text,
+  seller_postcode text,
+  date_of_birth date,
+  seller_terms_accepted_at timestamptz,
+  seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted')),
+  stripe_connect_account_id text unique,
   listing_credits integer not null default 3 check (listing_credits >= 0),
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles add column if not exists listing_credits integer not null default 3 check (listing_credits >= 0);
+alter table public.profiles add column if not exists legal_name text;
+alter table public.profiles add column if not exists seller_address_line_1 text;
+alter table public.profiles add column if not exists seller_address_line_2 text;
+alter table public.profiles add column if not exists seller_city text;
+alter table public.profiles add column if not exists seller_postcode text;
+alter table public.profiles add column if not exists date_of_birth date;
+alter table public.profiles add column if not exists seller_terms_accepted_at timestamptz;
+alter table public.profiles add column if not exists seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted'));
+alter table public.profiles add column if not exists stripe_connect_account_id text unique;
 
 create table if not exists public.listing_credit_purchases (
   id uuid primary key default gen_random_uuid(),
@@ -23,9 +41,20 @@ create table if not exists public.listings (
   id uuid primary key default gen_random_uuid(),
   seller_id uuid references public.profiles(id) on delete set null,
   name text not null,
-  price numeric(10,2) not null check (price > 0),
+  price numeric(10,2) not null check (price >= 0),
+  description text,
+  listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free')),
   image text,
   created_at timestamptz not null default now()
+);
+
+alter table public.listings add column if not exists description text;
+alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
+alter table public.listings drop constraint if exists listings_price_check;
+alter table public.listings drop constraint if exists listings_price_matches_type;
+alter table public.listings add constraint listings_price_matches_type check (
+  (listing_type = 'sale' and price > 0)
+  or (listing_type in ('swap', 'free') and price = 0)
 );
 
 create table if not exists public.orders (
@@ -46,6 +75,10 @@ create table if not exists public.orders (
   delivery_service text,
   tracking_reference text,
   dispatched_at timestamptz,
+  buyer_confirmed_at timestamptz,
+  dispute_reason text,
+  payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked')),
+  stripe_transfer_id text unique,
   created_at timestamptz not null default now()
 );
 
@@ -65,6 +98,10 @@ alter table public.orders add column if not exists delivery_country text not nul
 alter table public.orders add column if not exists delivery_service text;
 alter table public.orders add column if not exists tracking_reference text;
 alter table public.orders add column if not exists dispatched_at timestamptz;
+alter table public.orders add column if not exists buyer_confirmed_at timestamptz;
+alter table public.orders add column if not exists dispute_reason text;
+alter table public.orders add column if not exists payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked'));
+alter table public.orders add column if not exists stripe_transfer_id text unique;
 
 do $$
 begin

@@ -15,13 +15,20 @@ export async function signInWithEmail(email: string, password: string) {
     return data;
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(email: string, password: string, acceptedTerms = false) {
     if (!email || !password) {
         throw new Error('Email and password are required.');
     }
+    if (!acceptedTerms) {
+        throw new Error('Accept the Terms & Conditions before creating an account.');
+    }
 
     assertSupabaseConfigured();
-    const { data, error } = await supabase!.auth.signUp({ email, password });
+    const { data, error } = await supabase!.auth.signUp({
+        email,
+        password,
+        options: { data: { terms_accepted_at: new Date().toISOString() } },
+    });
 
     if (error) {
         throw new Error(error.message || 'Unable to create account.');

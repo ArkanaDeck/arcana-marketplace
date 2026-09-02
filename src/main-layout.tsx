@@ -52,7 +52,10 @@ export const MainLayout: React.FC = () => {
 
     const [deckName, setDeckName] = useState('');
     const [deckPrice, setDeckPrice] = useState('');
+    const [deckDescription, setDeckDescription] = useState('');
+    const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImage, setDeckImage] = useState<string>('');
+    const [basket, setBasket] = useState<DeckListing[]>([]);
     const listingFee = listings.length < 3 ? 0 : 0.66;
     const listingsInCurrentBundle = listings.length % 3;
     const [isBuyingListingCredits, setIsBuyingListingCredits] = useState(false);
@@ -61,7 +64,7 @@ export const MainLayout: React.FC = () => {
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
     const [checkoutStep, setCheckoutStep] = useState<'auth' | 'delivery' | 'payment' | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [deliveryMethod, setDeliveryMethod] = useState<'standard' | 'express'>('standard');
+    const [deliveryMethod, setDeliveryMethod] = useState<'standard' | 'express' | 'collection'>('standard');
     const [flashMessage, setFlashMessage] = useState<string | null>(null);
     const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
     const [showTermsModal, setShowTermsModal] = useState<boolean>(false);
@@ -69,8 +72,18 @@ export const MainLayout: React.FC = () => {
     const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin');
     const [accountEmail, setAccountEmail] = useState('');
     const [accountPassword, setAccountPassword] = useState('');
+    const [accountTermsAccepted, setAccountTermsAccepted] = useState(false);
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
+    const [legalName, setLegalName] = useState('');
+    const [sellerAddressLineOne, setSellerAddressLineOne] = useState('');
+    const [sellerAddressLineTwo, setSellerAddressLineTwo] = useState('');
+    const [sellerCity, setSellerCity] = useState('');
+    const [sellerPostcode, setSellerPostcode] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [sellerTermsAccepted, setSellerTermsAccepted] = useState(false);
+    const [isSavingSellerProfile, setIsSavingSellerProfile] = useState(false);
+    const [isStartingConnect, setIsStartingConnect] = useState(false);
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
@@ -86,7 +99,10 @@ export const MainLayout: React.FC = () => {
     useEffect(() => {
         if (!supabase) return;
         getSupabaseSession()
-            .then((session) => setIsAuthenticated(Boolean(session)))
+            .then((session) => {
+                setIsAuthenticated(Boolean(session));
+                setAccountEmail(session?.user.email || '');
+            })
             .catch(() => setIsAuthenticated(false));
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setIsAuthenticated(Boolean(session));
@@ -130,11 +146,11 @@ export const MainLayout: React.FC = () => {
 
     const handlePublish = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!deckName.trim() || !deckPrice.trim()) {
-            alert('Please fill out all fields before publishing.');
+        if (!deckName.trim() || (listingType === 'sale' && !deckPrice.trim())) {
+            alert('Add a deck name and a price for sale listings before publishing.');
             return;
         }
-        const parsedPrice = Number(deckPrice);
+        const parsedPrice = listingType === 'sale' ? Number(deckPrice) : 0;
         if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
             alert('Please enter a valid price greater than zero.');
             return;
@@ -148,10 +164,12 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, image: deckImage || undefined });
+            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined });
             setListings((currentListings) => [newListing, ...currentListings]);
             setDeckName('');
             setDeckPrice('');
+            setDeckDescription('');
+            setListingType('sale');
             setDeckImage('');
             setFlashMessage(`Published: ${newListing.name}`);
             setActiveView('Listings');
@@ -180,6 +198,15 @@ export const MainLayout: React.FC = () => {
         } catch (error) {
             alert(error instanceof Error ? error.message : 'Unable to remove this listing.');
         }
+    };
+
+    const handleAddToBasket = (item: DeckListing) => {
+        if (basket.some((basketItem) => basketItem.id === item.id)) {
+            setFlashMessage(`${item.name} is already in your basket.`);
+            return;
+        }
+        setBasket((currentBasket) => [...currentBasket, item]);
+        setFlashMessage(`Added ${item.name} to your basket.`);
     };
 
     const handleInitiateCheckout = (item: DeckListing) => {
@@ -220,7 +247,7 @@ export const MainLayout: React.FC = () => {
         setIsAccountSubmitting(true);
         try {
             if (accountMode === 'signup') {
-                const result = await signUpWithEmail(accountEmail.trim(), accountPassword);
+                const result = await signUpWithEmail(accountEmail.trim(), accountPassword, accountTermsAccepted);
                 if (result.session) {
                     setIsAuthenticated(true);
                     setAccountStatus('Account created. You are ready to sell.');
@@ -250,18 +277,71 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const handleSaveSellerProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!supabase) return;
+        setIsSavingSellerProfile(true);
+        setAccountStatus(null);
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.user) throw new Error('Sign in before saving seller information.');
+            const { error } = await supabase.from('profiles').update({
+                legal_name: legalName.trim(),
+                seller_address_line_1: sellerAddressLineOne.trim(),
+                seller_address_line_2: sellerAddressLineTwo.trim() || null,
+                seller_city: sellerCity.trim(),
+                seller_postcode: sellerPostcode.trim().toUpperCase(),
+                date_of_birth: dateOfBirth,
+                seller_terms_accepted_at: new Date().toISOString(),
+                seller_payout_status: 'pending_connect',
+            }).eq('id', session.user.id);
+            if (error) throw error;
+            setAccountStatus('Seller information saved. Complete Stripe Connect onboarding before receiving payouts.');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to save seller information.');
+        } finally {
+            setIsSavingSellerProfile(false);
+        }
+    };
+
+    const handleStartConnect = async () => {
+        setIsStartingConnect(true);
+        setAccountStatus(null);
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.access_token) throw new Error('Sign in before setting up payouts.');
+            const response = await fetch('/api/create-connect-onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start Stripe Connect onboarding.');
+            window.location.assign(payload.url);
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.');
+            setIsStartingConnect(false);
+        }
+    };
+
     const handleGuestCheckout = () => {
         setCheckoutStep('delivery');
         setTermsAccepted(false);
     };
 
-    const deliveryFee = deliveryMethod === 'express' ? 5.50 : 2.99;
+    const deliveryFee = deliveryMethod === 'express' ? 5.50 : deliveryMethod === 'collection' ? 0 : 2.99;
     const orderTotal = selectedItem ? selectedItem.price + deliveryFee : 0;
 
-    const handleFinalisePayment = async (gateway: 'Stripe' | 'PayPal') => {
+    const handleFinalisePayment = async (gateway: 'Stripe' | 'PayPal' | 'Cash') => {
         if (!selectedItem) return;
         if (!termsAccepted) {
             alert('Please agree to the Terms & Conditions before paying.');
+            return;
+        }
+
+        if (gateway === 'Cash') {
+            setFlashMessage(`Collection request sent for ${selectedItem.name}. The seller will confirm a safe collection time and address.`);
+            setSelectedItem(null);
+            setCheckoutStep(null);
             return;
         }
 
@@ -270,7 +350,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
 
-        const dynamicDeliveryCost = deliveryMethod === 'express' ? 5.50 : 2.99;
+        const dynamicDeliveryCost = deliveryMethod === 'express' ? 5.50 : deliveryMethod === 'collection' ? 0 : 2.99;
         const totalCharged = selectedItem.price + dynamicDeliveryCost;
 
         try {
@@ -340,6 +420,9 @@ export const MainLayout: React.FC = () => {
                             </button>
                         ))}
                     </nav>
+                    <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>
+                        Basket <span>{basket.length}</span>
+                    </button>
                     <button className="primary-btn" onClick={() => setActiveView(isAuthenticated ? 'Sell' : 'Account')}>
                         {isAuthenticated ? 'Create Listing' : 'Sign in'}
                     </button>
@@ -374,6 +457,24 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
+                                        <form className="seller-verification-form" onSubmit={handleSaveSellerProfile}>
+                                            <div className="seller-verification-heading">
+                                                <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
+                                                <span>Pending Stripe Connect</span>
+                                            </div>
+                                            <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required placeholder="Full legal name" /></label>
+                                            <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required placeholder="House number and street" /></label>
+                                            <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" placeholder="Flat, building, or area" /></label>
+                                            <div className="seller-verification-grid">
+                                                <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required /></label>
+                                                <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required /></label>
+                                            </div>
+                                            <label>Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} autoComplete="bday" required /></label>
+                                            <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Seller Terms, payout-hold policy, and Refund Policy.</span></label>
+                                            <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
+                                            <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
+                                        </form>
+                                        <BuyerOrdersPanel />
                                     </div>
                                 ) : (
                                     <>
@@ -384,6 +485,12 @@ export const MainLayout: React.FC = () => {
                                         <form className="account-form" onSubmit={handleAccountSubmit}>
                                             <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" /></label>
                                             <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} placeholder="At least 6 characters" /></label>
+                                            {accountMode === 'signup' && (
+                                                <label className="account-terms-check">
+                                                    <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
+                                                    <span>I agree to the <button type="button" className="terms-link-btn" onClick={() => setShowTermsModal(true)}>Terms & Conditions</button>, Privacy Policy, and Refund Policy.</span>
+                                                </label>
+                                            )}
                                             {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
                                             <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
                                         </form>
@@ -456,13 +563,14 @@ export const MainLayout: React.FC = () => {
                                             </div>
                                             <div className="product-details">
                                                 <h4>{item.name}</h4>
-                                                <span className="price-tag">£{item.price.toFixed(2)}</span>
+                                                <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+                                                {item.description && <p className="listing-description">{item.description}</p>}
                                                 <div className="product-footer">
                                                     <button
                                                         className="buy-btn"
-                                                        onClick={() => handleInitiateCheckout(item)}
+                                                        onClick={() => item.listingType === 'sale' ? handleAddToBasket(item) : setFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`)}
                                                     >
-                                                        💳 Checkout
+                                                        {item.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === item.id) ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
                                                     </button>
                                                     <button
                                                         className="delete-btn"
@@ -497,6 +605,14 @@ export const MainLayout: React.FC = () => {
                             </div>
                             <form onSubmit={handlePublish} className="sell-form">
                                 <div className="form-group">
+                                    <label>Listing type</label>
+                                    <div className="listing-type-controls">
+                                        <button type="button" className={listingType === 'sale' ? 'active' : ''} onClick={() => setListingType('sale')}>For sale</button>
+                                        <button type="button" className={listingType === 'swap' ? 'active' : ''} onClick={() => setListingType('swap')}>Swap</button>
+                                        <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => setListingType('free')}>Free</button>
+                                    </div>
+                                </div>
+                                <div className="form-group">
                                     <label>Deck Name</label>
                                     <input
                                         type="text"
@@ -506,14 +622,19 @@ export const MainLayout: React.FC = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Price (£)</label>
+                                    <label>Price (£){listingType !== 'sale' && ' - not needed'}</label>
                                     <input
                                         type="number"
                                         value={deckPrice}
                                         onChange={(e) => setDeckPrice(e.target.value)}
                                         placeholder="0.00"
                                         step="0.01"
+                                        disabled={listingType !== 'sale'}
                                     />
+                                </div>
+                                <div className="form-group">
+                                    <label>Description</label>
+                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder="Condition, edition, missing cards, or what you would swap for." rows={4} />
                                 </div>
                                 <div className="form-group">
                                     <label>Deck Cover Image</label>
@@ -531,7 +652,7 @@ export const MainLayout: React.FC = () => {
 
                     {/* 5. CHECKOUT VIEW */}
                     {activeView === 'Checkout' && (
-                        <CheckoutViewIntegrated />
+                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} />
                     )}
 
                     {/* 6. FULFILLMENT/SELLER DASHBOARD VIEW */}
@@ -620,9 +741,23 @@ export const MainLayout: React.FC = () => {
                                             </div>
                                             <span className="delivery-price">£5.50</span>
                                         </label>
+
+                                        <label className={`delivery-card-option ${deliveryMethod === 'collection' ? 'selected' : ''}`}>
+                                            <input
+                                                type="radio"
+                                                name="delivery"
+                                                checked={deliveryMethod === 'collection'}
+                                                onChange={() => setDeliveryMethod('collection')}
+                                            />
+                                            <div className="delivery-card-details">
+                                                <strong>Collect in person</strong>
+                                                <span>Arrange a collection time with the seller after requesting the deck</span>
+                                            </div>
+                                            <span className="delivery-price">Free</span>
+                                        </label>
                                     </div>
                                     <div className="order-inline-total">
-                                        Order total updates live: <strong>£{(selectedItem.price + deliveryFee).toFixed(2)}</strong>
+                                        {deliveryMethod === 'collection' ? 'No delivery charge. Payment is arranged safely with the seller.' : <>Order total updates live: <strong>£{(selectedItem.price + deliveryFee).toFixed(2)}</strong></>}
                                     </div>
                                     <button className="buy-btn action-forward-btn" onClick={() => setCheckoutStep('payment')}>
                                         Proceed to Payment →
@@ -636,8 +771,8 @@ export const MainLayout: React.FC = () => {
                                     <p className="step-instruction-text">Review your order total and select a payment method:</p>
                                     <div className="order-summary-box">
                                         <div className="summary-row"><span>Deck Subtotal</span><span>£{selectedItem.price.toFixed(2)}</span></div>
-                                        <div className="summary-row"><span>Shipping</span><span>£{deliveryFee.toFixed(2)}</span></div>
-                                        <div className="summary-row total-row"><strong>Final Total</strong><strong>£{orderTotal.toFixed(2)}</strong></div>
+                                        <div className="summary-row"><span>{deliveryMethod === 'collection' ? 'Collection' : 'Shipping'}</span><span>{deliveryMethod === 'collection' ? 'Free' : `£${deliveryFee.toFixed(2)}`}</span></div>
+                                        <div className="summary-row total-row"><strong>{deliveryMethod === 'collection' ? 'Pay on collection' : 'Final Total'}</strong><strong>£{orderTotal.toFixed(2)}</strong></div>
                                     </div>
 
                                     <div className="terms-row">
@@ -652,14 +787,21 @@ export const MainLayout: React.FC = () => {
                                         </label>
                                     </div>
 
-                                    <div className="payment-gateway-buttons">
-                                        <button className="buy-btn secure-payment-final-btn" onClick={() => handleFinalisePayment('Stripe')} disabled={!termsAccepted}>
-                                            🛡️ Pay with Stripe
-                                        </button>
-                                        <button className="paypal-btn" onClick={() => handleFinalisePayment('PayPal')} disabled={!termsAccepted}>
-                                            🟨 Pay with PayPal
-                                        </button>
-                                    </div>
+                                    {deliveryMethod === 'collection' ? (
+                                        <div className="collection-payment-panel">
+                                            <p>Pay the seller in cash when you collect. The seller confirms the collection time and address after accepting your request.</p>
+                                            <button className="buy-btn secure-payment-final-btn" onClick={() => handleFinalisePayment('Cash')} disabled={!termsAccepted}>Request collection and pay cash</button>
+                                        </div>
+                                    ) : (
+                                        <div className="payment-gateway-buttons">
+                                            <button className="buy-btn secure-payment-final-btn" onClick={() => handleFinalisePayment('Stripe')} disabled={!termsAccepted}>
+                                                Pay with Stripe
+                                            </button>
+                                            <button className="paypal-btn" onClick={() => handleFinalisePayment('PayPal')} disabled={!termsAccepted}>
+                                                Pay with PayPal
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -748,10 +890,7 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
-const CheckoutViewIntegrated: React.FC = () => {
-    const [basket, setBasket] = React.useState<{ id: string; name: string; price: number }[]>([
-        { id: '1', name: 'Arkana Golden Tarot Deck (Example)', price: 25.00 }
-    ]);
+const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void }> = ({ basket, onRemoveFromBasket }) => {
     const [shipping, setShipping] = React.useState<number>(2.99);
     const [postcode, setPostcode] = React.useState<string>('');
     const [isPostcodeValid, setIsPostcodeValid] = React.useState<boolean>(true);
@@ -885,7 +1024,7 @@ const CheckoutViewIntegrated: React.FC = () => {
                         {basket.map(item => (
                             <div key={item.id} className="checkout-item-row">
                                 <div><strong>{item.name}</strong><span>Tarot deck</span></div>
-                                <div className="checkout-item-price"><strong>£{item.price.toFixed(2)}</strong><button type="button" onClick={() => setBasket(basket.filter((basketItem) => basketItem.id !== item.id))}>Remove</button></div>
+                                <div className="checkout-item-price"><strong>£{item.price.toFixed(2)}</strong><button type="button" onClick={() => onRemoveFromBasket(item.id)}>Remove</button></div>
                             </div>
                         ))}
                     </div>
@@ -904,6 +1043,72 @@ const CheckoutViewIntegrated: React.FC = () => {
                     </div>
                 </aside>
             </div>
+        </section>
+    );
+};
+
+type BuyerOrder = {
+    id: string;
+    status: string;
+    total: number;
+    tracking_reference: string | null;
+    listings: { name: string }[];
+};
+
+const BuyerOrdersPanel: React.FC = () => {
+    const [orders, setOrders] = React.useState<BuyerOrder[]>([]);
+    const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!supabase) return;
+        supabase.from('orders').select('id, status, total, tracking_reference, listings(name)').order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+                if (error) setStatusMessage(error.message);
+                else setOrders((data || []) as BuyerOrder[]);
+            });
+    }, []);
+
+    const submitOrderAction = async (endpoint: string, orderId: string, reason?: string) => {
+        setStatusMessage(null);
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.access_token) throw new Error('Sign in before updating an order.');
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify({ orderId, reason }),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload?.error || 'Unable to update this order.');
+            setOrders((currentOrders) => currentOrders.map((order) => order.id === orderId ? { ...order, status: endpoint.includes('confirm') ? 'completed' : 'disputed' } : order));
+            setStatusMessage(endpoint.includes('confirm') ? 'Receipt confirmed. The seller payout is being released.' : 'Problem reported. The seller payout is now on hold.');
+        } catch (error) {
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to update this order.');
+        }
+    };
+
+    const handleReportProblem = (orderId: string) => {
+        const reason = window.prompt('Tell us what was wrong with the item or delivery.');
+        if (reason?.trim()) submitOrderAction('/api/report-order-problem', orderId, reason);
+    };
+
+    return (
+        <section className="buyer-orders-panel">
+            <div className="buyer-orders-heading"><div><h3>Your purchases</h3><p>Confirm when an item arrives as described. Problems pause the seller payout for review.</p></div></div>
+            {statusMessage && <p className="account-status" role="status">{statusMessage}</p>}
+            {orders.length === 0 ? <p className="buyer-orders-empty">No purchases yet.</p> : (
+                <div className="buyer-orders-list">
+                    {orders.map((order) => (
+                        <article className="buyer-order" key={order.id}>
+                            <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.status.replace(/_/g, ' ')}{order.tracking_reference ? ` - Tracking: ${order.tracking_reference}` : ''}</span></div>
+                            <div className="buyer-order-actions">
+                                <strong>£{Number(order.total).toFixed(2)}</strong>
+                                {['dispatched', 'delivered'].includes(order.status) && <><button type="button" onClick={() => submitOrderAction('/api/confirm-order-received', order.id)}>Received as described</button><button type="button" className="buyer-report-btn" onClick={() => handleReportProblem(order.id)}>Report a problem</button></>}
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
         </section>
     );
 };
