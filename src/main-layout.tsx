@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 // @ts-ignore
 import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
-import { buyListingCredits } from
+import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
