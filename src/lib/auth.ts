@@ -27,7 +27,10 @@ export async function signUpWithEmail(email: string, password: string, acceptedT
     const { data, error } = await supabase!.auth.signUp({
         email,
         password,
-        options: { data: { terms_accepted_at: new Date().toISOString() } },
+        options: {
+            data: { terms_accepted_at: new Date().toISOString() },
+            emailRedirectTo: `${window.location.origin}/?auth=confirmed`,
+        },
     });
 
     if (error) {

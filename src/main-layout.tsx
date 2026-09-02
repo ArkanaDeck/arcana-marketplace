@@ -111,6 +111,14 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('auth') !== 'confirmed') return;
+        setActiveView('Account');
+        setAccountMode('signin');
+        setAccountStatus('Email confirmed. Sign in to continue.');
+        window.history.replaceState({}, '', window.location.pathname);
+    }, []);
+
+    useEffect(() => {
         if (hasSecureBackend) return;
         try {
             localStorage.setItem('arkana_listings', JSON.stringify(listings));
