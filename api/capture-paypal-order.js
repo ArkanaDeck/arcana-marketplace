@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { paypalRequest } from './lib/paypal.js';
+import { paypalRequest } from '../src/lib/server-paypal.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });

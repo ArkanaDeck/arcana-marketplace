@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { sendTransactionalEmail } from './lib/email.js';
+import { sendTransactionalEmail } from '../src/lib/server-email.js';
 
 const HOLD_WINDOW_MS = 48 * 60 * 60 * 1000;
 

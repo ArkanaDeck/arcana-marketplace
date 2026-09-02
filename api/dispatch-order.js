@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendTransactionalEmail } from './lib/email.js';
+import { sendTransactionalEmail } from '../src/lib/server-email.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
