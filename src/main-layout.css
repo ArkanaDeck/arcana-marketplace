@@ -67,6 +67,11 @@ select {
     align-items: center;
     gap: 12px;
     min-width: 180px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
 }
 
 .brand-mark {
@@ -97,6 +102,133 @@ select {
     display: grid;
     gap: 18px;
     padding: 18px 0 0;
+}
+
+.account-page {
+    display: grid;
+    place-items: center;
+    min-height: 500px;
+    padding: 24px 0;
+}
+
+.account-panel {
+    width: min(480px, 100%);
+    padding: 28px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(17, 78, 96, 0.1);
+    border-radius: 18px;
+    box-shadow: 0 16px 32px rgba(17, 78, 96, 0.06);
+}
+
+.account-kicker {
+    margin: 0 0 6px;
+    color: #325288;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.account-panel h2 {
+    margin: 0;
+    color: #114E60;
+    font-size: 1.7rem;
+}
+
+.account-intro {
+    margin: 8px 0 20px;
+    color: #325288;
+    line-height: 1.55;
+}
+
+.account-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid rgba(17, 78, 96, 0.14);
+    margin-bottom: 20px;
+}
+
+.account-tabs button {
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #54717b;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 10px;
+}
+
+.account-tabs button.active {
+    border-bottom-color: #114E60;
+    color: #114E60;
+}
+
+.account-form {
+    display: grid;
+    gap: 16px;
+}
+
+.account-form label {
+    display: grid;
+    gap: 7px;
+    color: #114E60;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.account-form input {
+    min-height: 44px;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #114E60;
+}
+
+.account-form input:focus {
+    outline: 2px solid rgba(50, 82, 136, 0.2);
+    border-color: #114E60;
+}
+
+.account-status {
+    margin: 0;
+    border: 1px solid rgba(17, 78, 96, 0.12);
+    border-radius: 10px;
+    background: rgba(17, 78, 96, 0.04);
+    color: #325288;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    padding: 10px 12px;
+}
+
+.account-form .primary-btn {
+    width: 100%;
+}
+
+.account-signed-in {
+    display: grid;
+    gap: 14px;
+    color: #114E60;
+}
+
+.account-signed-in p {
+    margin: 0;
+    color: #325288;
+}
+
+.account-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.account-text-btn {
+    border: none;
+    background: none;
+    color: #325288;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 8px 0;
+    text-decoration: underline;
 }
 
 .site-footer {

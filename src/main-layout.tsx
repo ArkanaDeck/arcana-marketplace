@@ -6,10 +6,15 @@ import { getProductionChecklist } from './production-checklist';
 import { createCheckoutSession } from './lib/stripe';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
-import { signInWithEmail } from './lib/auth';
+import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
+import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 
-const navItems = ['Home', 'Dashboard', 'Listings', 'Sell', 'Checkout', 'Fulfillment', 'Production'];
+const navItems = [
+    { label: 'Marketplace', view: 'Listings' },
+    { label: 'Sell', view: 'Sell' },
+    { label: 'Fulfillment', view: 'Fulfillment' },
+];
 
 type DeckListing = MarketplaceListing;
 
@@ -61,6 +66,11 @@ export const MainLayout: React.FC = () => {
     const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
     const [showTermsModal, setShowTermsModal] = useState<boolean>(false);
     const [activeLegalPage, setActiveLegalPage] = useState<'terms' | 'privacy' | 'refunds' | 'shipping' | null>(null);
+    const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin');
+    const [accountEmail, setAccountEmail] = useState('');
+    const [accountPassword, setAccountPassword] = useState('');
+    const [accountStatus, setAccountStatus] = useState<string | null>(null);
+    const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
@@ -72,6 +82,17 @@ export const MainLayout: React.FC = () => {
             .then(setListings)
             .catch((error) => setFlashMessage(error instanceof Error ? error.message : 'Unable to load marketplace listings.'));
     }, [hasSecureBackend]);
+
+    useEffect(() => {
+        if (!supabase) return;
+        getSupabaseSession()
+            .then((session) => setIsAuthenticated(Boolean(session)))
+            .catch(() => setIsAuthenticated(false));
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setIsAuthenticated(Boolean(session));
+        });
+        return () => subscription.unsubscribe();
+    }, []);
 
     useEffect(() => {
         if (hasSecureBackend) return;
@@ -189,6 +210,46 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const handleAccountSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setAccountStatus(null);
+        if (!hasSecureBackend) {
+            setAccountStatus('Account access is unavailable until Supabase is configured.');
+            return;
+        }
+        setIsAccountSubmitting(true);
+        try {
+            if (accountMode === 'signup') {
+                const result = await signUpWithEmail(accountEmail.trim(), accountPassword);
+                if (result.session) {
+                    setIsAuthenticated(true);
+                    setAccountStatus('Account created. You are ready to sell.');
+                } else {
+                    setAccountStatus('Account created. Check your email to confirm your address, then sign in.');
+                }
+            } else {
+                await signInWithEmail(accountEmail.trim(), accountPassword);
+                setIsAuthenticated(true);
+                setAccountStatus('Signed in successfully.');
+            }
+            setAccountPassword('');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to continue with your account.');
+        } finally {
+            setIsAccountSubmitting(false);
+        }
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await signOut();
+            setIsAuthenticated(false);
+            setAccountStatus('You are signed out.');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to sign out.');
+        }
+    };
+
     const handleGuestCheckout = () => {
         setCheckoutStep('delivery');
         setTermsAccepted(false);
@@ -261,26 +322,26 @@ export const MainLayout: React.FC = () => {
                 </div>
 
                 <header className="topbar">
-                    <div className="brand">
+                    <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
                         <div className="brand-mark">A</div>
                         <div>
                             <strong>Arkana</strong>
                             <span>Zero-commission marketplace</span>
                         </div>
-                    </div>
+                    </button>
                     <nav className="nav-links">
                         {navItems.map((item) => (
                             <button
-                                key={item}
-                                className={`nav-btn ${activeView === item ? 'active' : ''}`}
-                                onClick={() => setActiveView(item)}
+                                key={item.view}
+                                className={`nav-btn ${activeView === item.view ? 'active' : ''}`}
+                                onClick={() => setActiveView(item.view)}
                             >
-                                {item}
+                                {item.label}
                             </button>
                         ))}
                     </nav>
-                    <button className="primary-btn" onClick={() => setActiveView('Sell')}>
-                        Create Listing
+                    <button className="primary-btn" onClick={() => setActiveView(isAuthenticated ? 'Sell' : 'Account')}>
+                        {isAuthenticated ? 'Create Listing' : 'Sign in'}
                     </button>
                 </header>
 
@@ -296,6 +357,39 @@ export const MainLayout: React.FC = () => {
                                 </button>
                             </div>
                             <div className="hero-img"></div>
+                        </section>
+                    )}
+
+                    {activeView === 'Account' && (
+                        <section className="account-page">
+                            <div className="account-panel">
+                                <p className="account-kicker">Arkana account</p>
+                                <h2>{isAuthenticated ? 'Your account' : accountMode === 'signin' ? 'Welcome back' : 'Create your seller account'}</h2>
+                                <p className="account-intro">{isAuthenticated ? 'You can now manage listings and fulfil paid orders.' : 'Sign in to sell, manage listings, and receive order updates.'}</p>
+                                {isAuthenticated ? (
+                                    <div className="account-signed-in">
+                                        <strong>Signed in as {accountEmail || 'your Arkana account'}</strong>
+                                        {accountStatus && <p role="status">{accountStatus}</p>}
+                                        <div className="account-actions">
+                                            <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
+                                            <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="account-tabs" role="tablist" aria-label="Account option">
+                                            <button type="button" role="tab" aria-selected={accountMode === 'signin'} className={accountMode === 'signin' ? 'active' : ''} onClick={() => { setAccountMode('signin'); setAccountStatus(null); }}>Sign in</button>
+                                            <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
+                                        </div>
+                                        <form className="account-form" onSubmit={handleAccountSubmit}>
+                                            <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" /></label>
+                                            <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} placeholder="At least 6 characters" /></label>
+                                            {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
+                                            <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+                                        </form>
+                                    </>
+                                )}
+                            </div>
                         </section>
                     )}
 
