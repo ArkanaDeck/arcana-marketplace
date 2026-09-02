@@ -37,21 +37,21 @@ export default async function handler(req, res) {
             }
             if (session.metadata?.product === 'marketplace_order' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-                const orderId = session.metadata.order_id;
+                const orderIds = (session.metadata.order_ids || session.metadata.order_id || '').split(',').filter(Boolean);
+                if (!orderIds.length) throw new Error('Checkout session is missing order metadata.');
                 const { error: orderError } = await supabase
                     .from('orders')
                     .update({ status: 'paid' })
-                    .eq('id', orderId)
+                    .in('id', orderIds)
                     .eq('status', 'pending_payment');
                 if (orderError) throw orderError;
 
-                const { error: paymentError } = await supabase.from('payments').upsert({
-                    order_id: orderId,
-                    provider: 'stripe',
-                    provider_payment_id: session.payment_intent || session.id,
-                    status: 'paid',
-                    amount: (session.amount_total || 0) / 100,
-                }, { onConflict: 'provider_payment_id' });
+                const { data: paidOrders, error: paidOrdersError } = await supabase.from('orders').select('id, total').in('id', orderIds).eq('status', 'paid');
+                if (paidOrdersError) throw paidOrdersError;
+                const { error: paymentError } = await supabase.from('payments').upsert((paidOrders || []).map((order) => ({
+                    order_id: order.id, provider: 'stripe', provider_payment_id: `${session.payment_intent || session.id}:${order.id}`,
+                    status: 'paid', amount: Number(order.total),
+                })), { onConflict: 'provider_payment_id' });
                 if (paymentError) throw paymentError;
             }
         }

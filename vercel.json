@@ -8,5 +8,11 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/release-expired-payouts",
+      "schedule": "0 9 * * *"
+    }
   ]
 }

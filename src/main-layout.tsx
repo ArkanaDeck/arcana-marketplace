@@ -3,9 +3,9 @@ import { QRCodeSVG } from 'qrcode.react';
 // @ts-ignore
 import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
-import { createCheckoutSession } from './lib/stripe';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
+import { createOrderCheckout } from './lib/order-checkout';
 import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
@@ -13,7 +13,7 @@ import { getRuntimeConfig } from './lib/config';
 const navItems = [
     { label: 'Marketplace', view: 'Listings' },
     { label: 'Sell', view: 'Sell' },
-    { label: 'Fulfillment', view: 'Fulfillment' },
+    { label: 'Help & FAQ', view: 'Help' },
 ];
 
 type DeckListing = MarketplaceListing;
@@ -205,6 +205,14 @@ export const MainLayout: React.FC = () => {
             setFlashMessage(`${item.name} is already in your basket.`);
             return;
         }
+        if (basket.length && basket[0].sellerId !== item.sellerId) {
+            setFlashMessage('Complete the current seller order first. A basket can contain up to 3 decks from one seller.');
+            return;
+        }
+        if (basket.length === 3) {
+            setFlashMessage('Your basket already has the maximum 3 decks for this seller.');
+            return;
+        }
         setBasket((currentBasket) => [...currentBasket, item]);
         setFlashMessage(`Added ${item.name} to your basket.`);
     };
@@ -354,20 +362,8 @@ export const MainLayout: React.FC = () => {
         const totalCharged = selectedItem.price + dynamicDeliveryCost;
 
         try {
-            const response = await createCheckoutSession({
-                amount: totalCharged,
-                currency: 'gbp',
-                itemName: selectedItem.name,
-                successUrl: `${window.location.origin}/success?item=${encodeURIComponent(selectedItem.name)}`,
-                cancelUrl: `${window.location.origin}/cancel`,
-            });
-
-            if (response?.url) {
-                window.location.href = response.url;
-                return;
-            }
-
-            alert(`Success! Securely processed £${totalCharged.toFixed(2)} via ${gateway} Gateway.`);
+            alert(`Checkout for £${totalCharged.toFixed(2)} must be completed from your basket.`);
+            return;
         } catch (error) {
             alert(error instanceof Error ? error.message : 'Checkout could not be created.');
             return;
@@ -475,6 +471,7 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
                                         </form>
                                         <BuyerOrdersPanel />
+                                        <SellerOrdersPanel />
                                     </div>
                                 ) : (
                                     <>
@@ -652,12 +649,11 @@ export const MainLayout: React.FC = () => {
 
                     {/* 5. CHECKOUT VIEW */}
                     {activeView === 'Checkout' && (
-                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} />
+                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} />
                     )}
 
-                    {/* 6. FULFILLMENT/SELLER DASHBOARD VIEW */}
-                    {activeView === 'Fulfillment' && (
-                        <SellerDashboardIntegrated />
+                    {activeView === 'Help' && (
+                        <HelpView />
                     )}
 
                     {activeView === 'Production' && (
@@ -890,8 +886,8 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
-const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void }> = ({ basket, onRemoveFromBasket }) => {
-    const [shipping, setShipping] = React.useState<number>(2.99);
+const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void }> = ({ basket, onRemoveFromBasket, onSignIn }) => {
+    const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
     const [postcode, setPostcode] = React.useState<string>('');
     const [isPostcodeValid, setIsPostcodeValid] = React.useState<boolean>(true);
     const [fullName, setFullName] = React.useState<string>('');
@@ -913,6 +909,8 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
         setIsPostcodeValid(val === '' || ukPostcodeRegex.test(val));
     };
 
+    const shippingPrices = { evri_standard: 2.99, royal_mail_48: 3.65, royal_mail_24: 4.65 };
+    const shipping = shippingPrices[shippingOption];
     const deckTotal = basket.reduce((sum, item) => sum + item.price, 0);
     const totalCost = deckTotal + shipping;
     const deliveryQrValue = JSON.stringify({
@@ -940,12 +938,18 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
 
         setIsSubmitting(true);
         try {
-            const response = await createCheckoutSession({
-                amount: totalCost,
-                currency: 'gbp',
-                itemName: `Arkana order for ${fullName.trim()}`,
-                successUrl: `${window.location.origin}/success`,
-                cancelUrl: `${window.location.origin}/cancel`,
+            if (basket.length < 1 || basket.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
+            const response = await createOrderCheckout({
+                listingIds: basket.map((item) => item.id),
+                shippingOption,
+                deliveryAddress: {
+                    name: fullName.trim(),
+                    email: email.trim(),
+                    addressLineOne: addressLineOne.trim(),
+                    addressLineTwo: addressLineTwo.trim() || undefined,
+                    city: townOrCity.trim(),
+                    postcode: postcode.trim(),
+                },
             });
             if (!response?.url) throw new Error('Payment session did not return a checkout URL.');
             window.location.assign(response.url);
@@ -958,9 +962,10 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     return (
         <section className="checkout-page-shell">
             <div className="checkout-page-heading">
-                <p className="checkout-page-kicker">Guest checkout</p>
+                <p className="checkout-page-kicker">Secure checkout</p>
                 <h2>Delivery and payment</h2>
-                <p>Enter your details, choose a courier, then pay securely through Stripe.</p>
+                <p>Sign in to protect your purchase, confirm delivery, and keep your order history.</p>
+                <button type="button" className="guest-account-link" onClick={onSignIn}>Sign in or create an account</button>
             </div>
 
             <div className="checkout-page-grid">
@@ -998,10 +1003,10 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <div><h3>Delivery service</h3><p>Select the tracking speed that suits you.</p></div>
                     </div>
                     <label className="checkout-field">Courier
-                        <select value={shipping} onChange={(event) => setShipping(parseFloat(event.target.value))}>
-                            <option value={2.99}>Evri Standard Drop-off - £2.99</option>
-                            <option value={3.65}>Royal Mail Tracked 48 - £3.65</option>
-                            <option value={4.65}>Royal Mail Tracked 24 - £4.65</option>
+                        <select value={shippingOption} onChange={(event) => setShippingOption(event.target.value as typeof shippingOption)}>
+                            <option value="evri_standard">Evri Standard Drop-off - £2.99</option>
+                            <option value="royal_mail_48">Royal Mail Tracked 48 - £3.65</option>
+                            <option value="royal_mail_24">Royal Mail Tracked 24 - £4.65</option>
                         </select>
                     </label>
                     <label className="checkout-terms">
@@ -1066,6 +1071,7 @@ const BuyerOrdersPanel: React.FC = () => {
                 if (error) setStatusMessage(error.message);
                 else setOrders((data || []) as BuyerOrder[]);
             });
+
     }, []);
 
     const submitOrderAction = async (endpoint: string, orderId: string, reason?: string) => {
@@ -1103,7 +1109,8 @@ const BuyerOrdersPanel: React.FC = () => {
                             <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.status.replace(/_/g, ' ')}{order.tracking_reference ? ` - Tracking: ${order.tracking_reference}` : ''}</span></div>
                             <div className="buyer-order-actions">
                                 <strong>£{Number(order.total).toFixed(2)}</strong>
-                                {['dispatched', 'delivered'].includes(order.status) && <><button type="button" onClick={() => submitOrderAction('/api/confirm-order-received', order.id)}>Received as described</button><button type="button" className="buyer-report-btn" onClick={() => handleReportProblem(order.id)}>Report a problem</button></>}
+                                {order.status === 'dispatched' && <button type="button" onClick={() => submitOrderAction('/api/mark-order-delivered', order.id)}>Item has arrived</button>}
+                                {order.status === 'delivered' && <><button type="button" onClick={() => submitOrderAction('/api/confirm-order-received', order.id)}>Received as described</button><button type="button" className="buyer-report-btn" onClick={() => handleReportProblem(order.id)}>Report a problem</button></>}
                             </div>
                         </article>
                     ))}
@@ -1112,6 +1119,89 @@ const BuyerOrdersPanel: React.FC = () => {
         </section>
     );
 };
+
+type SellerOrder = {
+    id: string;
+    delivery_service: string | null;
+    delivery_city: string | null;
+    delivery_postcode: string | null;
+    listings: { name: string }[];
+};
+
+const SellerOrdersPanel: React.FC = () => {
+    const [orders, setOrders] = React.useState<SellerOrder[]>([]);
+    const [trackingValues, setTrackingValues] = React.useState<Record<string, string>>({});
+    const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!supabase) return;
+        supabase.from('orders').select('id, delivery_service, delivery_city, delivery_postcode, listings(name)').eq('status', 'paid').order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+                if (error) setStatusMessage(error.message);
+                else setOrders((data || []) as SellerOrder[]);
+            });
+    }, []);
+
+    const dispatchOrder = async (orderId: string) => {
+        const trackingReference = trackingValues[orderId]?.trim();
+        if (!trackingReference) return;
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.access_token) throw new Error('Sign in before dispatching an order.');
+            const response = await fetch('/api/dispatch-order', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ orderId, trackingReference }) });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload?.error || 'Unable to dispatch this order.');
+            setOrders((currentOrders) => currentOrders.filter((order) => order.id !== orderId));
+            setStatusMessage('Order dispatched. The buyer can now confirm receipt.');
+        } catch (error) {
+            setStatusMessage(error instanceof Error ? error.message : 'Unable to dispatch this order.');
+        }
+    };
+
+    return <section className="seller-orders-panel">
+        <div className="buyer-orders-heading"><div><h3>Orders to dispatch</h3><p>Buy postage through Parcel2Go or your preferred courier, then add the tracking reference.</p></div></div>
+        {statusMessage && <p className="account-status" role="status">{statusMessage}</p>}
+        {orders.length === 0 ? <p className="buyer-orders-empty">No paid orders waiting for dispatch.</p> : <div className="buyer-orders-list">{orders.map((order) => <article className="buyer-order" key={order.id}>
+            <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.delivery_service} to {order.delivery_city}, {order.delivery_postcode}</span></div>
+            <div className="seller-dispatch-actions"><input value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
+        </article>)}</div>}
+    </section>;
+};
+
+const HelpView: React.FC = () => (
+    <section className="help-page">
+        <div className="help-page-heading">
+            <p>Help & FAQ</p>
+            <h2>Buying and selling on Arkana</h2>
+        </div>
+        <div className="help-grid">
+            <article className="help-card">
+                <h3>How do I sell a deck?</h3>
+                <ol><li>Create an account and complete seller information.</li><li>Choose Sale, Swap, or Free and publish your listing.</li><li>For paid orders, package the deck and buy postage through Parcel2Go or your preferred courier.</li><li>Add the courier tracking reference to the order.</li></ol>
+            </article>
+            <article className="help-card">
+                <h3>Who pays for delivery?</h3>
+                <p>The buyer chooses and pays the delivery option at checkout. The seller uses the delivery budget to buy the postage label. Collection in person has no delivery charge.</p>
+            </article>
+            <article className="help-card">
+                <h3>How are sellers paid?</h3>
+                <p>For paid orders, funds are held until the buyer confirms the deck arrived and matches its description. Sellers set up payouts securely with Stripe Connect.</p>
+            </article>
+            <article className="help-card">
+                <h3>What if there is a problem?</h3>
+                <p>Buyers can report a delivery or description problem from their account. This pauses the seller payout while the issue is reviewed.</p>
+            </article>
+            <article className="help-card">
+                <h3>How do swaps and free decks work?</h3>
+                <p>Swap and Free listings do not use checkout. Use the request button to arrange the exchange or collection directly with the seller.</p>
+            </article>
+            <article className="help-card">
+                <h3>Where do I find Terms & Conditions?</h3>
+                <p>Use the footer links for Terms & Conditions, Privacy Policy, Refunds, and Shipping information.</p>
+            </article>
+        </div>
+    </section>
+);
 
 // ========================================================
 // 6. INTEGRATED SELLER DASHBOARD COMPONENT

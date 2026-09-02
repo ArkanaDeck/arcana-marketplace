@@ -4,7 +4,7 @@
 
 html,
 body {
-    height: 100%;
+    min-height: 100%;
     margin: 0;
     padding: 0;
     font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -427,6 +427,107 @@ select {
     background: #fff;
     border: 1px solid rgba(163, 62, 45, 0.35);
     color: #a33e2d;
+}
+
+.seller-orders-panel {
+    display: grid;
+    gap: 12px;
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(17, 78, 96, 0.12);
+}
+
+.seller-dispatch-actions {
+    display: grid;
+    justify-items: end;
+    gap: 7px;
+}
+
+.seller-dispatch-actions input {
+    width: 150px;
+    min-height: 32px;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 7px;
+    color: #114E60;
+    font-size: 0.76rem;
+    padding: 7px;
+}
+
+.seller-dispatch-actions button {
+    border: none;
+    border-radius: 7px;
+    background: #114E60;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 7px 8px;
+}
+
+.help-page {
+    display: grid;
+    gap: 18px;
+}
+
+.help-page-heading,
+.help-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(17, 78, 96, 0.08);
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(17, 78, 96, 0.04);
+}
+
+.help-page-heading {
+    padding: 24px;
+}
+
+.help-page-heading p {
+    margin: 0 0 6px;
+    color: #325288;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.help-page-heading h2 {
+    margin: 0;
+    color: #114E60;
+    font-size: 1.8rem;
+}
+
+.help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.help-card {
+    padding: 18px;
+}
+
+.help-card h3 {
+    margin: 0 0 9px;
+    color: #114E60;
+    font-size: 1rem;
+}
+
+.help-card p,
+.help-card ol {
+    margin: 0;
+    color: #325288;
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+.help-card ol {
+    padding-left: 20px;
+}
+
+@media (max-width: 720px) {
+    .help-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 520px) {
@@ -1583,6 +1684,19 @@ select {
     color: #325288;
     font-size: 0.88rem;
     line-height: 1.5;
+}
+
+.guest-account-link {
+    width: fit-content;
+    margin-top: 12px;
+    border: none;
+    background: none;
+    color: #114E60;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 800;
+    padding: 0;
+    text-decoration: underline;
 }
 
 .checkout-page-grid {

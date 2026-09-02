@@ -1,7 +1,7 @@
 import { getSupabaseSession } from './supabase';
 
 export async function createOrderCheckout(input: {
-    listingId: string;
+    listingIds: string[];
     shippingOption: 'evri_standard' | 'royal_mail_48' | 'royal_mail_24';
     deliveryAddress: {
         name: string;
@@ -26,5 +26,5 @@ export async function createOrderCheckout(input: {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload?.error || 'Unable to start checkout.');
-    return payload as { orderId: string; url: string };
+    return payload as { orderIds: string[]; url: string };
 }

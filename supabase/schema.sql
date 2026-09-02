@@ -75,6 +75,7 @@ create table if not exists public.orders (
   delivery_service text,
   tracking_reference text,
   dispatched_at timestamptz,
+  delivered_at timestamptz,
   buyer_confirmed_at timestamptz,
   dispute_reason text,
   payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked')),
@@ -98,6 +99,7 @@ alter table public.orders add column if not exists delivery_country text not nul
 alter table public.orders add column if not exists delivery_service text;
 alter table public.orders add column if not exists tracking_reference text;
 alter table public.orders add column if not exists dispatched_at timestamptz;
+alter table public.orders add column if not exists delivered_at timestamptz;
 alter table public.orders add column if not exists buyer_confirmed_at timestamptz;
 alter table public.orders add column if not exists dispute_reason text;
 alter table public.orders add column if not exists payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked'));

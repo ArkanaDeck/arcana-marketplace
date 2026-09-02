@@ -23,45 +23,36 @@ export default async function handler(req, res) {
         const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
         const shipping = SHIPPING_OPTIONS[body.shippingOption];
         const address = body.deliveryAddress || {};
-        if (!body.listingId || !shipping || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
-            return res.status(400).json({ error: 'Listing, delivery address, and shipping option are required.' });
+        const listingIds = [...new Set(Array.isArray(body.listingIds) ? body.listingIds : [])];
+        if (listingIds.length < 1 || listingIds.length > 3 || !shipping || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
+            return res.status(400).json({ error: 'Choose 1 to 3 listings, then provide a delivery address and shipping option.' });
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         if (userError || !user) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
 
-        const { data: listing, error: listingError } = await supabase
+        const { data: listings, error: listingError } = await supabase
             .from('listings')
-            .select('id, name, price, seller_id')
-            .eq('id', body.listingId)
-            .maybeSingle();
-        if (listingError || !listing || !listing.seller_id) return res.status(404).json({ error: 'This listing is no longer available.' });
-        if (listing.seller_id === user.id) return res.status(400).json({ error: 'You cannot buy your own listing.' });
+            .select('id, name, price, seller_id, listing_type')
+            .in('id', listingIds);
+        if (listingError || !listings || listings.length !== listingIds.length || listings.some((listing) => !listing.seller_id || listing.listing_type !== 'sale' || Number(listing.price) <= 0)) {
+            return res.status(404).json({ error: 'One or more listings are no longer available for sale.' });
+        }
+        const sellerId = listings[0].seller_id;
+        if (sellerId === user.id || listings.some((listing) => listing.seller_id !== sellerId)) return res.status(400).json({ error: 'Choose up to 3 listings from the same seller.' });
 
-        const subtotal = Number(listing.price);
-        const total = subtotal + shipping.amount;
-        const { data: order, error: orderError } = await supabase
+        const { data: orders, error: orderError } = await supabase
             .from('orders')
-            .insert({
-                buyer_id: user.id,
-                listing_id: listing.id,
-                status: 'pending_payment',
-                subtotal,
-                shipping: shipping.amount,
-                total,
-                delivery_name: address.name,
-                delivery_email: address.email,
-                delivery_address_line_1: address.addressLineOne,
-                delivery_address_line_2: address.addressLineTwo || null,
-                delivery_city: address.city,
-                delivery_postcode: address.postcode,
-                delivery_country: 'United Kingdom',
-                delivery_service: shipping.label,
-            })
-            .select('id')
-            .single();
-        if (orderError || !order) throw orderError || new Error('Unable to create the pending order.');
+            .insert(listings.map((listing, index) => ({
+                buyer_id: user.id, listing_id: listing.id, status: 'pending_payment', subtotal: Number(listing.price),
+                shipping: index === 0 ? shipping.amount : 0, total: Number(listing.price) + (index === 0 ? shipping.amount : 0),
+                delivery_name: address.name, delivery_email: address.email, delivery_address_line_1: address.addressLineOne,
+                delivery_address_line_2: address.addressLineTwo || null, delivery_city: address.city, delivery_postcode: address.postcode,
+                delivery_country: 'United Kingdom', delivery_service: shipping.label,
+            })))
+            .select('id');
+        if (orderError || !orders?.length) throw orderError || new Error('Unable to create pending orders.');
 
         const appUrl = process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:5173';
         const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
@@ -69,15 +60,15 @@ export default async function handler(req, res) {
             mode: 'payment',
             customer_email: user.email || address.email,
             line_items: [
-                { price_data: { currency: 'gbp', product_data: { name: listing.name }, unit_amount: Math.round(subtotal * 100) }, quantity: 1 },
+                ...listings.map((listing) => ({ price_data: { currency: 'gbp', product_data: { name: listing.name }, unit_amount: Math.round(Number(listing.price) * 100) }, quantity: 1 })),
                 { price_data: { currency: 'gbp', product_data: { name: shipping.label }, unit_amount: Math.round(shipping.amount * 100) }, quantity: 1 },
             ],
-            success_url: `${body.successUrl || `${appUrl}/success`}?order_id=${order.id}`,
+            success_url: `${body.successUrl || `${appUrl}/success`}?order_id=${orders[0].id}`,
             cancel_url: body.cancelUrl || `${appUrl}/cancel`,
-            metadata: { product: 'marketplace_order', order_id: order.id },
+            metadata: { product: 'marketplace_order', order_ids: orders.map((order) => order.id).join(',') },
         });
 
-        return res.status(200).json({ orderId: order.id, url: session.url });
+        return res.status(200).json({ orderIds: orders.map((order) => order.id), url: session.url });
     } catch (error) {
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start checkout.' });
     }
