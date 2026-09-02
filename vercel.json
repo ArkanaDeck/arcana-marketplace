@@ -5,6 +5,10 @@
       "handle": "filesystem"
     },
     {
+      "src": "^/api/create-checkout-session$",
+      "dest": "/api/create-order-checkout?retired=1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

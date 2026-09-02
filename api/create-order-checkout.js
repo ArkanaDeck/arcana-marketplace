@@ -8,6 +8,9 @@ const SHIPPING_OPTIONS = {
 };
 
 export default async function handler(req, res) {
+    if (req.query?.retired === '1') {
+        return res.status(410).json({ error: 'This checkout route is retired. Use /api/create-order-checkout.' });
+    }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
