@@ -106,6 +106,7 @@ export const MainLayout: React.FC = () => {
             .catch(() => setIsAuthenticated(false));
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setIsAuthenticated(Boolean(session));
+            setAccountEmail(session?.user.email || '');
         });
         return () => subscription.unsubscribe();
     }, []);
@@ -280,7 +281,7 @@ export const MainLayout: React.FC = () => {
         event.preventDefault();
         setAccountStatus(null);
         if (!hasSecureBackend) {
-            setAccountStatus('Account access is unavailable until Supabase is configured.');
+            setAccountStatus('Sign in is unavailable because Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
             return;
         }
         setIsAccountSubmitting(true);
@@ -296,6 +297,7 @@ export const MainLayout: React.FC = () => {
             } else {
                 await signInWithEmail(accountEmail.trim(), accountPassword);
                 setIsAuthenticated(true);
+                setAccountEmail(accountEmail.trim());
                 setAccountStatus('Signed in successfully.');
             }
             setAccountPassword('');
