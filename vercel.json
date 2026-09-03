@@ -2,6 +2,10 @@
   "version": 2,
   "routes": [
     {
+      "src": "^/api/checkout/paypal/create-order$",
+      "dest": "/api/create-paypal-order"
+    },
+    {
       "handle": "filesystem"
     },
     {

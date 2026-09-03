@@ -10,6 +10,13 @@ const SHIPPING_OPTIONS = {
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
+    let requestBody;
+    try {
+        requestBody = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    } catch {
+        return res.status(400).json({ error: 'Request body must be valid JSON.' });
+    }
+    if (requestBody.deckPriceGbp !== undefined) return createMarketplacePayPalOrder(req, res, requestBody);
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -19,7 +26,7 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'Sign in before checking out.' });
 
     try {
-        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        const body = requestBody;
         const shipping = SHIPPING_OPTIONS[body.shippingOption];
         const address = body.deliveryAddress || {};
         const listingIds = [...new Set(Array.isArray(body.listingIds) ? body.listingIds : [])];
@@ -75,5 +82,64 @@ export default async function handler(req, res) {
         return res.status(200).json({ orderIds: orders.map((order) => order.id), paypalOrderId: paypalOrder.id, url: approvalUrl });
     } catch (error) {
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start PayPal checkout.' });
+    }
+}
+
+async function createMarketplacePayPalOrder(req, res, body) {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_SECRET_KEY;
+    if (!supabaseUrl || !serviceRoleKey || !process.env.PAYPAL_CLIENT_ID || !clientSecret) {
+        return res.status(503).json({ error: 'PayPal checkout is not configured yet.' });
+    }
+
+    const deckPrice = Number(body.deckPriceGbp);
+    const sellerMerchantId = String(body.sellerPaypalMerchantId || '').trim();
+    const listingId = String(body.tarotDeckListingId || '').trim();
+    const buyerId = String(body.buyerUserId || '').trim();
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    if (!Number.isFinite(deckPrice) || deckPrice <= 0 || !sellerMerchantId || !listingId || !buyerId || !token) {
+        return res.status(400).json({ error: 'deckPriceGbp, sellerPaypalMerchantId, tarotDeckListingId, and buyerUserId are required.' });
+    }
+
+    try {
+        const supabase = createClient(supabaseUrl, serviceRoleKey);
+        const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+        if (userError || !user || user.id !== buyerId) return res.status(401).json({ error: 'The buyer account could not be verified.' });
+        const total = Math.ceil(((deckPrice + 0.30) / (1 - 0.029)) * 100) / 100;
+        const platformFee = total - deckPrice;
+        const paypalOrder = await paypalRequest('/v2/checkout/orders', {
+            method: 'POST',
+            body: JSON.stringify({
+                intent: 'CAPTURE',
+                purchase_units: [{
+                    reference_id: listingId,
+                    amount: { currency_code: 'GBP', value: total.toFixed(2) },
+                    payee: { merchant_id: sellerMerchantId },
+                    payment_instruction: {
+                        disbursement_mode: 'INSTANT',
+                        platform_fees: [{
+                            amount: { currency_code: 'GBP', value: platformFee.toFixed(2) },
+                            payee: { merchant_id: 'JZW463HESXSPS' },
+                        }],
+                    },
+                }],
+            }),
+        });
+
+        const { data: order, error } = await supabase.from('orders').insert({
+            paypal_order_id: paypalOrder.id,
+            listing_id: listingId,
+            buyer_id: buyerId,
+            base_price: deckPrice.toFixed(2),
+            platform_fee: platformFee.toFixed(2),
+            grand_total: total.toFixed(2),
+            status: 'pending',
+        }).select('paypal_order_id, listing_id, buyer_id, base_price, platform_fee, grand_total, status').single();
+        if (error) throw error;
+
+        return res.status(200).json({ order, paypalOrderId: paypalOrder.id, url: paypalOrder.links?.find((link) => link.rel === 'approve')?.href });
+    } catch (error) {
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to create PayPal marketplace order.' });
     }
 }

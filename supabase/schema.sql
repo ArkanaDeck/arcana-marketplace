@@ -82,6 +82,10 @@ create table if not exists public.orders (
   dispute_reason text,
   payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked')),
   stripe_transfer_id text unique,
+  paypal_order_id text unique,
+  base_price numeric(10,2),
+  platform_fee numeric(10,2),
+  grand_total numeric(10,2),
   created_at timestamptz not null default now()
 );
 
@@ -106,6 +110,10 @@ alter table public.orders add column if not exists buyer_confirmed_at timestampt
 alter table public.orders add column if not exists dispute_reason text;
 alter table public.orders add column if not exists payout_status text not null default 'held' check (payout_status in ('held', 'released', 'blocked'));
 alter table public.orders add column if not exists stripe_transfer_id text unique;
+alter table public.orders add column if not exists paypal_order_id text unique;
+alter table public.orders add column if not exists base_price numeric(10,2);
+alter table public.orders add column if not exists platform_fee numeric(10,2);
+alter table public.orders add column if not exists grand_total numeric(10,2);
 
 do $$
 begin
