@@ -4,7 +4,7 @@ const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'live'
 
 export async function getPayPalAccessToken() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
-    const secret = process.env.PAYPAL_SECRET_KEY;
+    const secret = process.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_SECRET_KEY;
     if (!clientId || !secret) throw new Error('PayPal is not configured yet.');
 
     const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {

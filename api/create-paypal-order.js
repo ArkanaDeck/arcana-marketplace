@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-    if (!supabaseUrl || !serviceRoleKey || !process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_SECRET_KEY) {
+    if (!supabaseUrl || !serviceRoleKey || !process.env.PAYPAL_CLIENT_ID || !(process.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_SECRET_KEY)) {
         return res.status(503).json({ error: 'PayPal checkout is not configured yet.' });
     }
     if (!token) return res.status(401).json({ error: 'Sign in before checking out.' });
