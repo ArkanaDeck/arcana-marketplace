@@ -694,7 +694,7 @@ export const MainLayout: React.FC = () => {
                                         checked={freeDelivery}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFreeDelivery(e.target.checked)}
                                     />
-                                    <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery (Include postage charges in the listing price)</label>
+                                    <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery. Include delivery charges in the listing price.</label>
                                 </div>}
                                 <div className="form-group">
                                     <label>Description</label>

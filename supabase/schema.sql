@@ -51,7 +51,6 @@ create table if not exists public.listings (
   condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
   created_at timestamptz not null default now()
 );
-
 alter table public.listings add column if not exists description text;
 alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap'));
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
