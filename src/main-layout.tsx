@@ -928,7 +928,9 @@ export const MainLayout: React.FC = () => {
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
 const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void }> = ({ basket, onRemoveFromBasket, onSignIn }) => {
+    type PaymentGateway = 'stripe' | 'paypal';
     const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
+    const [selectedGateway, setSelectedGateway] = React.useState<PaymentGateway>('stripe');
     const [postcode, setPostcode] = React.useState<string>('');
     const [isPostcodeValid, setIsPostcodeValid] = React.useState<boolean>(true);
     const [fullName, setFullName] = React.useState<string>('');
@@ -953,7 +955,9 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     const shippingPrices = { evri_standard: 2.99, royal_mail_48: 3.65, royal_mail_24: 4.65 };
     const shipping = shippingPrices[shippingOption];
     const deckTotal = basket.reduce((sum, item) => sum + item.price, 0);
-    const totalCost = deckTotal + shipping;
+    const subtotal = deckTotal + shipping;
+    const grandTotal = Math.ceil(((subtotal + (selectedGateway === 'stripe' ? 0.20 : 0.30)) / (1 - (selectedGateway === 'stripe' ? 0.015 : 0.029))) * 100) / 100;
+    const platformServiceFee = grandTotal - subtotal;
     const deliveryQrValue = JSON.stringify({
         reference: deliveryReference,
         courier: shipping === 2.99 ? 'Evri Standard' : shipping === 3.65 ? 'Royal Mail Tracked 48' : 'Royal Mail Tracked 24',
@@ -963,8 +967,6 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     const handleCheckoutSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCheckoutError(null);
-        const paymentMethod = new FormData(event.currentTarget).get('paymentMethod') || 'stripe';
-
         if (!basket.length) {
             setCheckoutError('Your basket is empty. Add a deck before checking out.');
             return;
@@ -993,7 +995,8 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                     postcode: postcode.trim(),
                 },
             };
-            const response = paymentMethod === 'paypal'
+            console.log('Checkout gateway selected', { gateway: selectedGateway });
+            const response = selectedGateway === 'paypal'
                 ? await createPayPalOrder(checkoutInput)
                 : await createOrderCheckout(checkoutInput);
             if (!response?.url) throw new Error('Payment session did not return a checkout URL.');
@@ -1059,14 +1062,36 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <span>I agree to the marketplace Terms & Conditions and Refund Policy.</span>
                     </label>
                     {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-                    <div className="checkout-payment-actions">
-                        <button type="submit" name="paymentMethod" value="stripe" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
-                            {isSubmitting ? 'Opening secure payment...' : `Pay with Stripe - £${totalCost.toFixed(2)}`}
-                        </button>
-                        <button type="submit" name="paymentMethod" value="paypal" className="paypal-btn" disabled={isSubmitting || !basket.length}>
-                            Pay with PayPal
-                        </button>
+                    <div className="payment-gateway-grid" role="radiogroup" aria-label="Choose payment method">
+                        {(['stripe', 'paypal'] as const).map((gateway) => (
+                            <label key={gateway} className={`payment-gateway-card${selectedGateway === gateway ? ' payment-gateway-card--selected' : ''}`}>
+                                <input
+                                    type="radio"
+                                    name="paymentGateway"
+                                    value={gateway}
+                                    checked={selectedGateway === gateway}
+                                    onChange={() => {
+                                        setSelectedGateway(gateway);
+                                        console.log('Payment gateway toggled', { gateway });
+                                    }}
+                                />
+                                <span className="payment-gateway-card__copy">
+                                    <strong>{gateway === 'stripe' ? 'Credit Card' : 'PayPal'}</strong>
+                                    <small>{gateway === 'stripe' ? 'Secure card payment via Stripe' : 'Pay securely with PayPal'}</small>
+                                </span>
+                                <span className="payment-gateway-card__mark" aria-hidden="true">{selectedGateway === gateway ? 'Selected' : ''}</span>
+                            </label>
+                        ))}
                     </div>
+                    {selectedGateway === 'stripe' ? (
+                        <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
+                            {isSubmitting ? 'Opening secure payment...' : 'Continue with Credit Card'}
+                        </button>
+                    ) : (
+                        <button type="submit" className="paypal-btn" disabled={isSubmitting || !basket.length}>
+                            {isSubmitting ? 'Opening PayPal...' : 'Continue with PayPal'}
+                        </button>
+                    )}
                     <p className="checkout-security-note">Payments are securely processed by Stripe or PayPal. Card details are never stored by Arkana.</p>
                 </form>
 
@@ -1084,9 +1109,9 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         ))}
                     </div>
                     <div className="checkout-total-list">
-                        <div><span>Items</span><strong>£{deckTotal.toFixed(2)}</strong></div>
-                        <div><span>Shipping</span><strong>£{shipping.toFixed(2)}</strong></div>
-                        <div className="checkout-grand-total"><span>Total</span><strong>£{totalCost.toFixed(2)}</strong></div>
+                        <div><span>Subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Platform service fee</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
+                        <div className="checkout-grand-total"><span>Grand total</span><strong>£{grandTotal.toFixed(2)}</strong></div>
                     </div>
                     <div className="delivery-qr-panel">
                         <div>
@@ -1097,8 +1122,8 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <QRCodeSVG value={deliveryQrValue} size={84} level="M" includeMargin aria-label={`Delivery reference ${deliveryReference}`} />
                     </div>
                 </aside>
-            </div>
-        </section>
+            </div >
+        </section >
     );
 };
 

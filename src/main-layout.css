@@ -1835,6 +1835,59 @@ select {
     opacity: 0.62;
 }
 
+.payment-gateway-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.payment-gateway-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 76px;
+    padding: 14px;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 10px;
+    background: #fff;
+    color: #114E60;
+    cursor: pointer;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.payment-gateway-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(17, 78, 96, 0.4);
+}
+
+.payment-gateway-card--selected {
+    border-color: #114E60;
+    box-shadow: 0 0 0 2px rgba(17, 78, 96, 0.12);
+}
+
+.payment-gateway-card input {
+    margin-top: 3px;
+    accent-color: #114E60;
+}
+
+.payment-gateway-card__copy {
+    display: grid;
+    gap: 4px;
+}
+
+.payment-gateway-card__copy small {
+    color: #54717b;
+    font-size: 0.74rem;
+    line-height: 1.35;
+}
+
+.payment-gateway-card__mark {
+    margin-left: auto;
+    color: #2d765c;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
 .checkout-security-note {
     margin: -6px 0 0;
     color: #54717b;
@@ -1960,6 +2013,10 @@ select {
 
     .checkout-field-wide {
         grid-column: auto;
+    }
+
+    .payment-gateway-grid {
+        grid-template-columns: 1fr;
     }
 }
 
