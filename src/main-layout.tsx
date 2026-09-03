@@ -53,6 +53,7 @@ export const MainLayout: React.FC = () => {
     const [deckName, setDeckName] = useState('');
     const [deckPrice, setDeckPrice] = useState('');
     const [deckDescription, setDeckDescription] = useState('');
+    const [condition, setCondition] = useState<string>('good');
     const [freeDelivery, setFreeDelivery] = useState<boolean>(false);
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImage, setDeckImage] = useState<string>('');
@@ -197,11 +198,12 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined, freeDelivery });
+            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined, freeDelivery, condition });
             setListings((currentListings) => [newListing, ...currentListings]);
             setDeckName('');
             setDeckPrice('');
             setDeckDescription('');
+            setCondition('good');
             setFreeDelivery(false);
             setListingType('sale');
             setDeckImage('');
@@ -672,6 +674,15 @@ export const MainLayout: React.FC = () => {
                                         disabled={listingType !== 'sale'}
                                     />
                                 </div>
+                                <div className="form-group">
+                                    <label htmlFor="deck-condition">Deck Condition</label>
+                                    <select id="deck-condition" value={condition} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCondition(e.target.value)}>
+                                        <option value="mint">Mint / Like New</option>
+                                        <option value="good">Good Condition</option>
+                                        <option value="fair">Fair Condition</option>
+                                        <option value="wear_and_tear">Heavy Wear and Tear</option>
+                                    </select>
+                                </div>
                                 <div className="form-group checkbox-group">
                                     <input
                                         id="free-delivery"
@@ -683,7 +694,7 @@ export const MainLayout: React.FC = () => {
                                 </div>
                                 <div className="form-group">
                                     <label>Description</label>
-                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder="Condition, edition, missing cards, or what you would swap for." rows={4} />
+                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder={condition === 'wear_and_tear' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'mint' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
                                 </div>
                                 <div className="form-group">
                                     <label>Deck Cover Image</label>

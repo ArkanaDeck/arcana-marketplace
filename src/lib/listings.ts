@@ -9,15 +9,16 @@ export type MarketplaceListing = {
     listingType: 'sale' | 'swap' | 'free';
     image?: string;
     freeDelivery: boolean;
+    condition: string;
 };
 
-function mapListing(listing: { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; is_free_delivery: boolean }): MarketplaceListing {
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: listing.image || undefined, freeDelivery: Boolean(listing.is_free_delivery) };
+function mapListing(listing: { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; is_free_delivery: boolean; condition: string }): MarketplaceListing {
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: listing.image || undefined, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition };
 }
 
 export async function loadListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, is_free_delivery').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, is_free_delivery, condition').order('created_at', { ascending: false });
     if (error) throw new Error(error.message || 'Unable to load listings.');
     return data.map(mapListing);
 }
@@ -29,8 +30,8 @@ export async function createListing(input: Omit<MarketplaceListing, 'id' | 'sell
 
     const { data, error } = await supabase
         .from('listings')
-        .insert({ seller_id: session.user.id, name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: input.image || null, is_free_delivery: input.freeDelivery })
-        .select('id, seller_id, name, price, description, listing_type, image, is_free_delivery')
+        .insert({ seller_id: session.user.id, name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: input.image || null, is_free_delivery: input.freeDelivery, condition: input.condition })
+        .select('id, seller_id, name, price, description, listing_type, image, is_free_delivery, condition')
         .single();
     if (error || !data) throw new Error(error?.message || 'Unable to create listing.');
     return mapListing(data);
