@@ -1295,6 +1295,24 @@ select {
     border-color: rgba(17, 78, 96, 0.35);
 }
 
+.checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin-top: 3px;
+}
+
+.checkbox-label {
+    margin-left: 2px;
+    margin-bottom: 0;
+    font-size: 14px;
+    cursor: pointer;
+}
+
 .listing-type-controls {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

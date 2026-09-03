@@ -53,6 +53,7 @@ export const MainLayout: React.FC = () => {
     const [deckName, setDeckName] = useState('');
     const [deckPrice, setDeckPrice] = useState('');
     const [deckDescription, setDeckDescription] = useState('');
+    const [freeDelivery, setFreeDelivery] = useState<boolean>(false);
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImage, setDeckImage] = useState<string>('');
     const [basket, setBasket] = useState<DeckListing[]>([]);
@@ -196,11 +197,12 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined });
+            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined, freeDelivery });
             setListings((currentListings) => [newListing, ...currentListings]);
             setDeckName('');
             setDeckPrice('');
             setDeckDescription('');
+            setFreeDelivery(false);
             setListingType('sale');
             setDeckImage('');
             setFlashMessage(`Published: ${newListing.name}`);
@@ -669,6 +671,15 @@ export const MainLayout: React.FC = () => {
                                         step="0.01"
                                         disabled={listingType !== 'sale'}
                                     />
+                                </div>
+                                <div className="form-group checkbox-group">
+                                    <input
+                                        id="free-delivery"
+                                        type="checkbox"
+                                        checked={freeDelivery}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFreeDelivery(e.target.checked)}
+                                    />
+                                    <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery (Include postage charges in the listing price)</label>
                                 </div>
                                 <div className="form-group">
                                     <label>Description</label>

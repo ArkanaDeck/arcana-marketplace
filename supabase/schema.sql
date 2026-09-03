@@ -47,11 +47,13 @@ create table if not exists public.listings (
   description text,
   listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free')),
   image text,
+  is_free_delivery boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 alter table public.listings add column if not exists description text;
 alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
+alter table public.listings add column if not exists is_free_delivery boolean not null default false;
 alter table public.listings drop constraint if exists listings_price_check;
 alter table public.listings drop constraint if exists listings_price_matches_type;
 alter table public.listings add constraint listings_price_matches_type check (
