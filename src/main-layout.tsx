@@ -128,7 +128,7 @@ export const MainLayout: React.FC = () => {
         getSupabaseSession()
             .then(async (session) => {
                 if (!session?.access_token) throw new Error('Sign in again to confirm your PayPal payment.');
-                const response = await fetch('/api/capture-paypal-order', {
+                const response = await fetch('/api/checkout/paypal/capture-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
                     body: JSON.stringify({ paypalOrderId }),

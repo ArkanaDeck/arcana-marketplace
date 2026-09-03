@@ -6,6 +6,10 @@
       "dest": "/api/create-paypal-order"
     },
     {
+      "src": "^/api/checkout/paypal/capture-order$",
+      "dest": "/api/capture-paypal-order?marketplace=1"
+    },
+    {
       "handle": "filesystem"
     },
     {
