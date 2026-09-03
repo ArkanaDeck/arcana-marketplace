@@ -13,6 +13,7 @@ create table if not exists public.profiles (
   seller_terms_accepted_at timestamptz,
   seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted')),
   stripe_connect_account_id text unique,
+  paypal_merchant_id text unique,
   listing_credits integer not null default 3 check (listing_credits >= 0),
   created_at timestamptz not null default now()
 );
@@ -27,6 +28,7 @@ alter table public.profiles add column if not exists date_of_birth date;
 alter table public.profiles add column if not exists seller_terms_accepted_at timestamptz;
 alter table public.profiles add column if not exists seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted'));
 alter table public.profiles add column if not exists stripe_connect_account_id text unique;
+alter table public.profiles add column if not exists paypal_merchant_id text unique;
 
 create table if not exists public.listing_credit_purchases (
   id uuid primary key default gen_random_uuid(),

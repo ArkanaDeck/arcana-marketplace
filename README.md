@@ -9,3 +9,5 @@
 5. Run `npm install`, then `npm run dev`.
 
 PayPal credentials are server-only and must not use the `VITE_` prefix. In Vercel, add `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET_KEY`, `PAYPAL_ENV`, `SUPABASE_SERVICE_ROLE_KEY`, and `VITE_PAYPAL_ENABLED` to the deployment environment, then redeploy.
+
+Seller PayPal payouts also require `profiles.paypal_merchant_id`. Configure the processing fee rates with `STRIPE_PROCESSING_FEE_PERCENT`, `STRIPE_PROCESSING_FEE_FIXED`, `PAYPAL_PROCESSING_FEE_PERCENT`, and `PAYPAL_PROCESSING_FEE_FIXED`; fixed values are in the account currency and default to zero.

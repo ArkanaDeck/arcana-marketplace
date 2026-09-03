@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { calculatePlatformFeeCents } from '../src/lib/server-fees.js';
 
 const SHIPPING_OPTIONS = {
     evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },
@@ -44,6 +45,8 @@ export default async function handler(req, res) {
         }
         const sellerId = listings[0].seller_id;
         if (sellerId === user.id || listings.some((listing) => listing.seller_id !== sellerId)) return res.status(400).json({ error: 'Choose up to 3 listings from the same seller.' });
+        const { data: seller, error: sellerError } = await supabase.from('profiles').select('stripe_connect_account_id').eq('id', sellerId).single();
+        if (sellerError || !seller?.stripe_connect_account_id) return res.status(409).json({ error: 'Seller payouts are not set up yet.' });
 
         const { data: orders, error: orderError } = await supabase
             .from('orders')
@@ -54,10 +57,11 @@ export default async function handler(req, res) {
                 delivery_address_line_2: address.addressLineTwo || null, delivery_city: address.city, delivery_postcode: address.postcode,
                 delivery_country: 'United Kingdom', delivery_service: shipping.label,
             })))
-            .select('id');
+            .select('id, total');
         if (orderError || !orders?.length) throw orderError || new Error('Unable to create pending orders.');
 
         const appUrl = process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:5173';
+        const orderTotal = orders.reduce((sum, order) => sum + Number(order.total), 0);
         const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
@@ -69,6 +73,10 @@ export default async function handler(req, res) {
             success_url: `${body.successUrl || `${appUrl}/success`}?order_id=${orders[0].id}`,
             cancel_url: body.cancelUrl || `${appUrl}/cancel`,
             metadata: { product: 'marketplace_order', order_ids: orders.map((order) => order.id).join(',') },
+            payment_intent_data: {
+                application_fee_amount: calculatePlatformFeeCents(orderTotal, 'stripe'),
+                transfer_data: { destination: seller.stripe_connect_account_id },
+            },
         });
 
         return res.status(200).json({ orderIds: orders.map((order) => order.id), url: session.url });

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { paypalRequest, toPayPalAmount } from '../src/lib/server-paypal.js';
+import { calculatePlatformFeeCents } from '../src/lib/server-fees.js';
 
 const SHIPPING_OPTIONS = {
     evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },
@@ -35,6 +36,8 @@ export default async function handler(req, res) {
         }
         const sellerId = listings[0].seller_id;
         if (sellerId === user.id || listings.some((listing) => listing.seller_id !== sellerId)) return res.status(400).json({ error: 'Choose up to 3 listings from the same seller.' });
+        const { data: seller, error: sellerError } = await supabase.from('profiles').select('paypal_merchant_id').eq('id', sellerId).single();
+        if (sellerError || !seller?.paypal_merchant_id) return res.status(409).json({ error: 'Seller PayPal payouts are not set up yet.' });
 
         const { data: orders, error: orderError } = await supabase.from('orders').insert(listings.map((listing, index) => ({
             buyer_id: user.id, listing_id: listing.id, status: 'pending_payment', subtotal: Number(listing.price),
@@ -51,7 +54,16 @@ export default async function handler(req, res) {
             method: 'POST',
             body: JSON.stringify({
                 intent: 'CAPTURE',
-                purchase_units: [{ reference_id: orders[0].id, custom_id: orders.map((order) => order.id).join(','), amount: { currency_code: 'GBP', value: toPayPalAmount(total) } }],
+                purchase_units: [{
+                    reference_id: orders[0].id,
+                    custom_id: orders.map((order) => order.id).join(','),
+                    payee: { merchant_id: seller.paypal_merchant_id },
+                    amount: { currency_code: 'GBP', value: toPayPalAmount(total) },
+                    payment_instruction: {
+                        disbursement_mode: 'INSTANT',
+                        platform_fees: [{ amount: { currency_code: 'GBP', value: toPayPalAmount(calculatePlatformFeeCents(total, 'paypal') / 100) } }],
+                    },
+                }],
                 application_context: {
                     brand_name: process.env.VITE_SITE_NAME || 'Arkana', user_action: 'PAY_NOW',
                     return_url: `${appUrl}/?paypal=success`, cancel_url: `${appUrl}/?paypal=cancelled`,
