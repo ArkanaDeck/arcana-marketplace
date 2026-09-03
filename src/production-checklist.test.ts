@@ -24,12 +24,17 @@ describe('production checklist', () => {
         ]));
     });
 
-    it('shows pending tasks when environment values are missing', () => {
+    it('shows configuration-dependent tasks as pending when environment values are missing', () => {
         const items = getProductionChecklist({});
         const hasPending = items.some(item => item.status === 'pending');
-        const hasComplete = items.some(item => item.status === 'complete');
 
         expect(hasPending).toBe(true);
-        expect(hasComplete).toBe(false);
+        expect(items.find(item => item.title === 'Secure auth and session handling')?.status).toBe('pending');
+    });
+
+    it('marks implemented order and payout handling complete', () => {
+        const lifecycle = getProductionChecklist({}).find(item => item.title === 'Order lifecycle and seller payouts');
+
+        expect(lifecycle?.status).toBe('complete');
     });
 });

@@ -43,7 +43,7 @@ export function getProductionChecklist(env: ProductionChecklistInput): Productio
         {
             title: 'HTTPS and security headers',
             status: 'warning',
-            detail: 'Ensure HTTPS, HSTS, CSP, X-Frame-Options, and secure cookie settings are enabled for production.'
+            detail: 'Security headers are configured in vercel.json. Verify them on the deployed HTTPS domain before launch.'
         },
         {
             title: 'Monitoring and incident response',
@@ -52,8 +52,8 @@ export function getProductionChecklist(env: ProductionChecklistInput): Productio
         },
         {
             title: 'Order lifecycle and seller payouts',
-            status: 'pending',
-            detail: 'Track order status from created → paid → packed → shipped → delivered and automate payout records.'
+            status: 'complete',
+            detail: 'Orders progress from payment through dispatch and delivery, with buyer confirmation and a scheduled payout release.'
         },
         {
             title: 'Final launch sign-off',
