@@ -47,15 +47,18 @@ create table if not exists public.listings (
   description text,
   listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free')),
   image text,
-  is_free_delivery boolean not null default false,
-  condition text not null default 'good' check (condition in ('mint', 'good', 'fair', 'wear_and_tear')),
+  is_free_delivery boolean not null default false check (listing_type <> 'free' or is_free_delivery = false),
+  condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
   created_at timestamptz not null default now()
 );
 
 alter table public.listings add column if not exists description text;
 alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
-alter table public.listings add column if not exists condition text not null default 'good' check (condition in ('mint', 'good', 'fair', 'wear_and_tear'));
+update public.listings set is_free_delivery = false where listing_type = 'free' and is_free_delivery = true;
+alter table public.listings drop constraint if exists listings_free_delivery_check;
+alter table public.listings add constraint listings_free_delivery_check check (listing_type <> 'free' or is_free_delivery = false);
+alter table public.listings add column if not exists condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor'));
 alter table public.listings drop constraint if exists listings_price_check;
 alter table public.listings drop constraint if exists listings_price_matches_type;
 alter table public.listings add constraint listings_price_matches_type check (
@@ -154,8 +157,10 @@ drop policy if exists "profiles_are_viewable_by_owners" on public.profiles;
 drop policy if exists "profiles_can_update_own_profile" on public.profiles;
 drop policy if exists "profiles_can_insert_own_profile" on public.profiles;
 drop policy if exists "listings_public_read" on public.listings;
+drop policy if exists "Allow public read access" on public.listings;
 drop policy if exists "sellers_can_manage_their_listings" on public.listings;
 drop policy if exists "sellers_can_update_their_listings" on public.listings;
+drop policy if exists "Allow owners to update their listings" on public.listings;
 drop policy if exists "sellers_can_delete_their_listings" on public.listings;
 drop policy if exists "buyers_can_view_own_orders" on public.orders;
 drop policy if exists "buyers_can_create_orders" on public.orders;
@@ -171,12 +176,18 @@ on public.profiles for update using (auth.uid() = id);
 create policy "profiles_can_insert_own_profile"
 on public.profiles for insert with check (auth.uid() = id);
 
-create policy "listings_public_read"
-on public.listings for select using (true);
+create policy "Allow public read access"
+on public.listings
+for select
+using (true);
 create policy "sellers_can_manage_their_listings"
 on public.listings for insert with check (auth.uid() = seller_id);
-create policy "sellers_can_update_their_listings"
-on public.listings for update using (auth.uid() = seller_id);
+create policy "Allow owners to update their listings"
+on public.listings
+for update
+to authenticated
+using ((select auth.uid()) = seller_id)
+with check ((select auth.uid()) = seller_id);
 create policy "sellers_can_delete_their_listings"
 on public.listings for delete using (auth.uid() = seller_id);
 

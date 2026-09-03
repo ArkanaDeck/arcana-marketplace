@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
-import { createListing, deleteListing, loadListings, type MarketplaceListing } from './lib/listings';
+import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
@@ -53,7 +53,7 @@ export const MainLayout: React.FC = () => {
     const [deckName, setDeckName] = useState('');
     const [deckPrice, setDeckPrice] = useState('');
     const [deckDescription, setDeckDescription] = useState('');
-    const [condition, setCondition] = useState<string>('good');
+    const [condition, setCondition] = useState<DeckCondition>('good');
     const [freeDelivery, setFreeDelivery] = useState<boolean>(false);
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImage, setDeckImage] = useState<string>('');
@@ -651,7 +651,7 @@ export const MainLayout: React.FC = () => {
                                     <div className="listing-type-controls">
                                         <button type="button" className={listingType === 'sale' ? 'active' : ''} onClick={() => setListingType('sale')}>For sale</button>
                                         <button type="button" className={listingType === 'swap' ? 'active' : ''} onClick={() => setListingType('swap')}>Swap</button>
-                                        <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => setListingType('free')}>Free</button>
+                                        <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => { setListingType('free'); setFreeDelivery(false); }}>Free</button>
                                     </div>
                                 </div>
                                 <div className="form-group">
@@ -676,14 +676,18 @@ export const MainLayout: React.FC = () => {
                                 </div>
                                 <div className="form-group">
                                     <label htmlFor="deck-condition">Deck Condition</label>
-                                    <select id="deck-condition" value={condition} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCondition(e.target.value)}>
-                                        <option value="mint">Mint / Like New</option>
+                                    <select id="deck-condition" value={condition} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                        const nextCondition = e.target.value;
+                                        if (['new', 'like new', 'good', 'fair', 'poor'].includes(nextCondition)) setCondition(nextCondition as DeckCondition);
+                                    }}>
+                                        <option value="new">New</option>
+                                        <option value="like new">Like New</option>
                                         <option value="good">Good Condition</option>
                                         <option value="fair">Fair Condition</option>
-                                        <option value="wear_and_tear">Heavy Wear and Tear</option>
+                                        <option value="poor">Poor Condition</option>
                                     </select>
                                 </div>
-                                <div className="form-group checkbox-group">
+                                {listingType !== 'free' && <div className="form-group checkbox-group">
                                     <input
                                         id="free-delivery"
                                         type="checkbox"
@@ -691,10 +695,10 @@ export const MainLayout: React.FC = () => {
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFreeDelivery(e.target.checked)}
                                     />
                                     <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery (Include postage charges in the listing price)</label>
-                                </div>
+                                </div>}
                                 <div className="form-group">
                                     <label>Description</label>
-                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder={condition === 'wear_and_tear' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'mint' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
+                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder={condition === 'poor' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'new' || condition === 'like new' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
                                 </div>
                                 <div className="form-group">
                                     <label>Deck Cover Image</label>
