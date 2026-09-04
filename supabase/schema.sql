@@ -57,11 +57,18 @@ alter table public.listings add column if not exists listing_type text not null 
 alter table public.listings add column if not exists images text[] not null default '{}';
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
 alter table public.listings drop constraint if exists listings_free_delivery_check;
-alter table public.listings add column if not exists condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor'));
+alter table public.listings add column if not exists condition text not null default 'good';
+alter table public.listings drop constraint if exists listings_condition_check;
+alter table public.listings drop constraint if exists check_condition_values;
+alter table public.listings add constraint check_condition_values check (condition in ('new', 'like new', 'good', 'fair', 'poor'));
 alter table public.listings drop constraint if exists listings_price_check;
 alter table public.listings drop constraint if exists listings_price_matches_type;
 alter table public.listings drop constraint if exists listings_listing_type_check;
+alter table public.listings drop constraint if exists listings_name_length_check;
+alter table public.listings drop constraint if exists listings_description_length_check;
 alter table public.listings add constraint listings_listing_type_check check (listing_type in ('sale', 'swap', 'free'));
+alter table public.listings add constraint listings_name_length_check check (length(trim(name)) between 1 and 120);
+alter table public.listings add constraint listings_description_length_check check (description is null or length(description) <= 2000);
 alter table public.listings add constraint listings_price_matches_type check (
   (listing_type = 'sale' and price > 0)
   or (listing_type in ('swap', 'free') and price = 0)
@@ -84,6 +91,26 @@ with check (bucket_id = 'listing-images' and (storage.foldername(name))[1] = (se
 create policy "users_can_delete_own_listing_images"
 on storage.objects for delete to authenticated
 using (bucket_id = 'listing-images' and (storage.foldername(name))[1] = (select auth.uid()::text));
+
+create table if not exists public.chat_rooms (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid references public.listings(id) on delete cascade,
+  buyer_id uuid not null references auth.users(id) on delete cascade,
+  seller_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  constraint unique_buyer_seller_listing unique (listing_id, buyer_id, seller_id),
+  constraint chat_room_participants_differ check (buyer_id <> seller_id)
+);
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references public.chat_rooms(id) on delete cascade,
+  sender_id uuid not null references auth.users(id) on delete cascade,
+  text_content text not null check (length(trim(text_content)) between 1 and 2000),
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+alter table public.messages drop constraint if exists messages_text_content_length_check;
+alter table public.messages add constraint messages_text_content_length_check check (length(trim(text_content)) between 1 and 2000);
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
@@ -168,6 +195,8 @@ where provider_payment_id is not null;
 
 alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
+alter table public.chat_rooms enable row level security;
+alter table public.messages enable row level security;
 alter table public.orders enable row level security;
 alter table public.payments enable row level security;
 alter table public.listing_credit_purchases enable row level security;
@@ -181,6 +210,10 @@ drop policy if exists "sellers_can_manage_their_listings" on public.listings;
 drop policy if exists "sellers_can_update_their_listings" on public.listings;
 drop policy if exists "Allow owners to update their listings" on public.listings;
 drop policy if exists "sellers_can_delete_their_listings" on public.listings;
+drop policy if exists "Users can view their own chat rooms" on public.chat_rooms;
+drop policy if exists "Authenticated users can create rooms" on public.chat_rooms;
+drop policy if exists "Participants can view messages" on public.messages;
+drop policy if exists "Participants can post messages" on public.messages;
 drop policy if exists "buyers_can_view_own_orders" on public.orders;
 drop policy if exists "buyers_can_create_orders" on public.orders;
 drop policy if exists "buyers_can_update_own_orders" on public.orders;
@@ -210,6 +243,37 @@ with check ((select auth.uid()) = seller_id);
 create policy "sellers_can_delete_their_listings"
 on public.listings for delete using (auth.uid() = seller_id);
 
+create policy "Users can view their own chat rooms"
+on public.chat_rooms for select to authenticated
+using ((select auth.uid()) = buyer_id or (select auth.uid()) = seller_id);
+create policy "Authenticated users can create rooms"
+on public.chat_rooms for insert to authenticated
+with check (
+  (select auth.uid()) = buyer_id
+  and buyer_id <> seller_id
+  and exists (select 1 from public.listings where id = listing_id and seller_id = chat_rooms.seller_id)
+);
+
+create policy "Participants can view messages"
+on public.messages for select to authenticated
+using (exists (
+  select 1
+  from public.chat_rooms
+  where chat_rooms.id = messages.room_id
+    and ((select auth.uid()) = buyer_id or (select auth.uid()) = seller_id)
+));
+create policy "Participants can post messages"
+on public.messages for insert to authenticated
+with check (
+  (select auth.uid()) = sender_id
+  and exists (
+    select 1
+    from public.chat_rooms
+    where chat_rooms.id = messages.room_id
+      and ((select auth.uid()) = buyer_id or (select auth.uid()) = seller_id)
+  )
+);
+
 create policy "buyers_can_view_own_orders"
 on public.orders for select using (auth.uid() = buyer_id or auth.uid() = (select seller_id from public.listings where id = listing_id));
 create policy "buyers_can_create_orders"
@@ -227,6 +291,20 @@ on public.payments for insert with check (true);
 
 create policy "sellers_can_view_own_credit_purchases"
 on public.listing_credit_purchases for select using (auth.uid() = seller_id);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end;
+$$;
 
 create or replace function public.add_listing_credits(
   purchase_seller_id uuid,

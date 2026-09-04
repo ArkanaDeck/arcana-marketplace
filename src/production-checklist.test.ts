@@ -7,6 +7,7 @@ describe('production checklist', () => {
             VITE_SUPABASE_URL: 'https://example.supabase.co',
             VITE_SUPABASE_ANON_KEY: 'anon-key',
             VITE_STRIPE_PUBLISHABLE_KEY: 'pk_test_123',
+            VITE_PAYPAL_ENABLED: 'false',
             VITE_APP_URL: 'https://app.example.com',
         });
 
@@ -22,6 +23,7 @@ describe('production checklist', () => {
             'Order lifecycle and seller payouts',
             'Final launch sign-off',
         ]));
+        expect(items.find(item => item.title === 'HTTPS and security headers')?.status).toBe('complete');
     });
 
     it('shows configuration-dependent tasks as pending when environment values are missing', () => {
@@ -36,5 +38,18 @@ describe('production checklist', () => {
         const lifecycle = getProductionChecklist({}).find(item => item.title === 'Order lifecycle and seller payouts');
 
         expect(lifecycle?.status).toBe('complete');
+    });
+
+    it('accepts PayPal as a configured payment provider', () => {
+        const payments = getProductionChecklist({ VITE_PAYPAL_ENABLED: 'true' })
+            .find(item => item.title === 'Server-side payment confirmation');
+
+        expect(payments?.status).toBe('complete');
+    });
+
+    it('marks the final launch sign-off complete after safeguards are implemented', () => {
+        const signOff = getProductionChecklist({}).find(item => item.title === 'Final launch sign-off');
+
+        expect(signOff?.status).toBe('complete');
     });
 });

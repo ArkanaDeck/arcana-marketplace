@@ -34,6 +34,8 @@ export async function createListing(input: CreateListingInput) {
     if (!session?.user) throw new Error('Sign in before creating a listing.');
     if (!supabase) throw new Error('Supabase is not configured.');
     if (!input.name.trim() || !Number.isFinite(input.price) || input.price < 0) throw new Error('Provide a valid listing name and price.');
+    if (input.name.trim().length > 120) throw new Error('Listing names must be 120 characters or fewer.');
+    if ((input.description || '').length > 2000) throw new Error('Descriptions must be 2,000 characters or fewer.');
     if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
     if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
     if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');

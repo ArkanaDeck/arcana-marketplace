@@ -27,6 +27,7 @@ export const MainLayout: React.FC = () => {
         VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
         VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
         VITE_STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+        VITE_PAYPAL_ENABLED: import.meta.env.VITE_PAYPAL_ENABLED,
         VITE_APP_URL: import.meta.env.VITE_APP_URL,
         VITE_SITE_NAME: import.meta.env.VITE_SITE_NAME,
     });
@@ -502,12 +503,12 @@ export const MainLayout: React.FC = () => {
                                                 <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
                                                 <span>Pending Stripe Connect</span>
                                             </div>
-                                            <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required placeholder="Full legal name" /></label>
-                                            <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required placeholder="House number and street" /></label>
-                                            <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" placeholder="Flat, building, or area" /></label>
+                                            <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Full legal name" /></label>
+                                            <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" /></label>
+                                            <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" /></label>
                                             <div className="seller-verification-grid">
-                                                <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required /></label>
-                                                <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required /></label>
+                                                <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required maxLength={80} /></label>
+                                                <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required maxLength={10} /></label>
                                             </div>
                                             <label>Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} autoComplete="bday" required /></label>
                                             <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Seller Terms, payout-hold policy, and Refund Policy.</span></label>
@@ -524,8 +525,8 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
                                         </div>
                                         <form className="account-form" onSubmit={handleAccountSubmit}>
-                                            <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" /></label>
-                                            <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} placeholder="At least 6 characters" /></label>
+                                            <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
+                                            <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" /></label>
                                             {accountMode === 'signup' && (
                                                 <label className="account-terms-check">
                                                     <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
@@ -659,6 +660,7 @@ export const MainLayout: React.FC = () => {
                                         type="text"
                                         value={deckName}
                                         onChange={(e) => setDeckName(e.target.value)}
+                                        maxLength={120}
                                         placeholder="e.g., Rider-Waite Tarot"
                                     />
                                 </div>
@@ -697,7 +699,7 @@ export const MainLayout: React.FC = () => {
                                 </div>}
                                 <div className="form-group">
                                     <label>Description</label>
-                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} placeholder={condition === 'poor' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'new' || condition === 'like new' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
+                                    <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} maxLength={2000} placeholder={condition === 'poor' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'new' || condition === 'like new' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
                                 </div>
                                 <div className="form-group">
                                     <label>Deck Cover Image</label>
@@ -757,11 +759,11 @@ export const MainLayout: React.FC = () => {
                                     <form onSubmit={handleLoginSubmit} className="modal-auth-form">
                                         <div className="form-group">
                                             <label>Email Address</label>
-                                            <input type="text" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                                            <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} maxLength={254} />
                                         </div>
                                         <div className="form-group">
                                             <label>Password</label>
-                                            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+                                            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} maxLength={128} />
                                         </div>
                                         <button type="submit" className="buy-btn">Sign In & Continue</button>
                                     </form>
@@ -1050,25 +1052,25 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                     </div>
                     <div className="checkout-field-grid">
                         <label className="checkout-field checkout-field-wide">Full name
-                            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required placeholder="Your full name" />
+                            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Your full name" />
                         </label>
                         <label className="checkout-field checkout-field-wide">Email address
-                            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" />
+                            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" />
                         </label>
                         <label className="checkout-field checkout-field-wide">Address line 1
-                            <input type="text" value={addressLineOne} onChange={(event) => setAddressLineOne(event.target.value)} autoComplete="address-line1" required placeholder="House number and street" />
+                            <input type="text" value={addressLineOne} onChange={(event) => setAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" />
                         </label>
                         <label className="checkout-field checkout-field-wide">Address line 2 <span className="checkout-field-optional">Optional</span>
-                            <input type="text" value={addressLineTwo} onChange={(event) => setAddressLineTwo(event.target.value)} autoComplete="address-line2" placeholder="Flat, building, or area" />
+                            <input type="text" value={addressLineTwo} onChange={(event) => setAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" />
                         </label>
                         <label className="checkout-field">Town or city
-                            <input type="text" value={townOrCity} onChange={(event) => setTownOrCity(event.target.value)} autoComplete="address-level2" required placeholder="London" />
+                            <input type="text" value={townOrCity} onChange={(event) => setTownOrCity(event.target.value)} autoComplete="address-level2" required maxLength={80} placeholder="London" />
                         </label>
                         <label className="checkout-field">Country
                             <input type="text" value="United Kingdom" disabled />
                         </label>
                         <label className="checkout-field">UK postcode
-                            <input type="text" value={postcode} onChange={handlePostcodeChange} autoComplete="postal-code" required placeholder="SW1A 1AA" aria-invalid={!isPostcodeValid} />
+                            <input type="text" value={postcode} onChange={handlePostcodeChange} autoComplete="postal-code" required maxLength={10} placeholder="SW1A 1AA" aria-invalid={!isPostcodeValid} />
                             {!isPostcodeValid && <span className="checkout-validation">Enter a valid UK postcode.</span>}
                         </label>
                     </div>
@@ -1264,7 +1266,7 @@ const SellerOrdersPanel: React.FC = () => {
         {statusMessage && <p className="account-status" role="status">{statusMessage}</p>}
         {orders.length === 0 ? <p className="buyer-orders-empty">No paid orders waiting for dispatch.</p> : <div className="buyer-orders-list">{orders.map((order) => <article className="buyer-order" key={order.id}>
             <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.delivery_service} to {order.delivery_city}, {order.delivery_postcode}</span></div>
-            <div className="seller-dispatch-actions"><input value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
+            <div className="seller-dispatch-actions"><input value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} maxLength={100} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
         </article>)}</div>}
     </section>;
 };
@@ -1422,7 +1424,7 @@ const SellerDashboardIntegrated: React.FC = () => {
                     <p className="tracking-helper">Buy the label with your chosen courier, then add its tracking reference here.</p>
                     <label className="tracking-label">Tracking reference</label>
                     <div className="tracking-row">
-                        <input type="text" value={trackingReference} onChange={(event) => setTrackingReference(event.target.value)} placeholder="e.g. 123456789012345" />
+                        <input type="text" value={trackingReference} onChange={(event) => setTrackingReference(event.target.value)} maxLength={100} placeholder="e.g. 123456789012345" />
                         <button type="button" onClick={handleSaveTracking} disabled={!trackingReference.trim()}>Mark dispatched</button>
                     </div>
                     {isDispatched && <p className="dispatch-confirmation" role="status">Dispatched. Buyer tracking: {savedTrackingReference}</p>}

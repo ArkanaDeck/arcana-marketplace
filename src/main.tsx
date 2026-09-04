@@ -3,6 +3,7 @@ import './main-layout.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { MainLayout } from './main-layout';
+import { RealtimeErrorBoundary } from './realtime-error-boundary';
 
 const container = document.getElementById('app');
 
@@ -13,6 +14,8 @@ if (!container) {
 const root = createRoot(container);
 root.render(
     <React.StrictMode>
-        <MainLayout />
+        <RealtimeErrorBoundary>
+            <MainLayout />
+        </RealtimeErrorBoundary>
     </React.StrictMode>
 );
