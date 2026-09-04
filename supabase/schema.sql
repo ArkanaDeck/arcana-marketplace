@@ -45,26 +45,45 @@ create table if not exists public.listings (
   name text not null,
   price numeric(10,2) not null check (price >= 0),
   description text,
-  listing_type text not null default 'sale' check (listing_type in ('sale', 'swap')),
+  listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free')),
   image text,
+  images text[] not null default '{}',
   is_free_delivery boolean not null default false,
   condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
   created_at timestamptz not null default now()
 );
 alter table public.listings add column if not exists description text;
-alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap'));
+alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
+alter table public.listings add column if not exists images text[] not null default '{}';
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
 alter table public.listings drop constraint if exists listings_free_delivery_check;
 alter table public.listings add column if not exists condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor'));
 alter table public.listings drop constraint if exists listings_price_check;
 alter table public.listings drop constraint if exists listings_price_matches_type;
 alter table public.listings drop constraint if exists listings_listing_type_check;
-update public.listings set listing_type = 'swap' where listing_type = 'free';
-alter table public.listings add constraint listings_listing_type_check check (listing_type in ('sale', 'swap'));
+alter table public.listings add constraint listings_listing_type_check check (listing_type in ('sale', 'swap', 'free'));
 alter table public.listings add constraint listings_price_matches_type check (
   (listing_type = 'sale' and price > 0)
-  or (listing_type = 'swap' and price = 0)
+  or (listing_type in ('swap', 'free') and price = 0)
 );
+
+insert into storage.buckets (id, name, public)
+values ('listing-images', 'listing-images', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "public_can_view_listing_images" on storage.objects;
+drop policy if exists "authenticated_users_can_upload_listing_images" on storage.objects;
+drop policy if exists "users_can_delete_own_listing_images" on storage.objects;
+
+create policy "public_can_view_listing_images"
+on storage.objects for select
+using (bucket_id = 'listing-images');
+create policy "authenticated_users_can_upload_listing_images"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'listing-images' and (storage.foldername(name))[1] = (select auth.uid()::text));
+create policy "users_can_delete_own_listing_images"
+on storage.objects for delete to authenticated
+using (bucket_id = 'listing-images' and (storage.foldername(name))[1] = (select auth.uid()::text));
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),

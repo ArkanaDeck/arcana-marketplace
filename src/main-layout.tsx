@@ -56,7 +56,7 @@ export const MainLayout: React.FC = () => {
     const [condition, setCondition] = useState<DeckCondition>('good');
     const [freeDelivery, setFreeDelivery] = useState<boolean>(false);
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
-    const [deckImage, setDeckImage] = useState<string>('');
+    const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
     const [basket, setBasket] = useState<DeckListing[]>([]);
     const listingFee = listings.length < 3 ? 0 : 0.66;
     const listingsInCurrentBundle = listings.length % 3;
@@ -168,14 +168,13 @@ export const MainLayout: React.FC = () => {
     }, [flashMessage]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setDeckImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+        const files = Array.from(e.target.files || []);
+        if (files.length > 3) {
+            setFlashMessage('Select up to three images.');
+            e.target.value = '';
+            return;
         }
+        setDeckImageFiles(files);
     };
 
     const handlePublish = async (e: React.FormEvent) => {
@@ -198,7 +197,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, image: deckImage || undefined, freeDelivery, condition });
+            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
             setListings((currentListings) => [newListing, ...currentListings]);
             setDeckName('');
             setDeckPrice('');
@@ -206,7 +205,7 @@ export const MainLayout: React.FC = () => {
             setCondition('good');
             setFreeDelivery(false);
             setListingType('sale');
-            setDeckImage('');
+            setDeckImageFiles([]);
             setFlashMessage(`Published: ${newListing.name}`);
             setActiveView('Listings');
         } catch (error) {
@@ -650,8 +649,8 @@ export const MainLayout: React.FC = () => {
                                     <label>Listing type</label>
                                     <div className="listing-type-controls">
                                         <button type="button" className={listingType === 'sale' ? 'active' : ''} onClick={() => setListingType('sale')}>For sale</button>
-                                        <button type="button" className={listingType === 'swap' ? 'active' : ''} onClick={() => setListingType('swap')}>Swap</button>
-                                        <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => { setListingType('free'); setFreeDelivery(false); }}>Free</button>
+                                        <button type="button" className={listingType === 'swap' ? 'active' : ''} onClick={() => { setListingType('swap'); setDeckPrice('0.00'); }}>Swap</button>
+                                        <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => { setListingType('free'); setDeckPrice('0.00'); setFreeDelivery(false); }}>Free</button>
                                     </div>
                                 </div>
                                 <div className="form-group">
@@ -705,9 +704,10 @@ export const MainLayout: React.FC = () => {
                                     <input
                                         type="file"
                                         accept="image/*"
+                                        multiple
                                         onChange={handleImageChange}
                                     />
-                                    {deckImage && <div className="image-status">Image selected and ready to publish</div>}
+                                    {deckImageFiles.length > 0 && <div className="image-status">{deckImageFiles.length} image{deckImageFiles.length === 1 ? '' : 's'} selected and ready to publish</div>}
                                 </div>
                                 <button type="submit" className="primary-btn">{listingFee === 0 ? 'Publish Free Listing' : 'Buy credits to publish'}</button>
                             </form>
@@ -1308,6 +1308,9 @@ const HelpView: React.FC = () => (
 // 6. INTEGRATED SELLER DASHBOARD COMPONENT
 // ========================================================
 const ProductionChecklistView: React.FC<{ checklist: ReturnType<typeof getProductionChecklist> }> = ({ checklist }) => {
+    const pendingItems = checklist.filter((item) => item.status === 'pending');
+    const warningItems = checklist.filter((item) => item.status === 'warning');
+
     return (
         <div className="production-checklist-panel">
             <div className="production-header">
@@ -1320,12 +1323,12 @@ const ProductionChecklistView: React.FC<{ checklist: ReturnType<typeof getProduc
 
             <div className="checklist-status-grid">
                 <div className="status-card status-card--ok">
-                    <strong>Secure app state</strong>
-                    <span>UI builds successfully and is ready for hardening.</span>
+                    <strong>{pendingItems.length === 0 ? 'Configuration complete' : 'Configuration required'}</strong>
+                    <span>{pendingItems.length === 0 ? 'Required runtime configuration is present.' : `${pendingItems.length} configuration gate${pendingItems.length === 1 ? '' : 's'} still need attention.`}</span>
                 </div>
                 <div className="status-card status-card--warn">
-                    <strong>Live transactions</strong>
-                    <span>Server-side payment and database auth still required before launch.</span>
+                    <strong>{warningItems.length === 0 ? 'Launch checks complete' : 'Deployment verification'}</strong>
+                    <span>{warningItems.length === 0 ? 'No deployment verification warnings remain.' : `${warningItems.length} deployment check${warningItems.length === 1 ? '' : 's'} still need verification.`}</span>
                 </div>
             </div>
 
