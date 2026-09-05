@@ -9,6 +9,7 @@ import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
+import { SellerProfilePage } from './seller-profile-page';
 
 const navItems = [
     { label: 'Marketplace', view: 'Listings' },
@@ -410,6 +411,11 @@ export const MainLayout: React.FC = () => {
         setCheckoutStep(null);
     };
 
+    const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
+    if (profileRouteMatch) {
+        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.location.href = '/'; }} />;
+    }
+
     return (
         <div className="container">
             <div className="frame">
@@ -605,6 +611,7 @@ export const MainLayout: React.FC = () => {
                                             </div>
                                             <div className="product-details">
                                                 <h4>{item.name}</h4>
+                                                <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`}>View seller profile</a>
                                                 <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
                                                 {item.description && <p className="listing-description">{item.description}</p>}
                                                 <div className="product-footer">

@@ -4,6 +4,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
+  avatar_url text,
+  bio text,
   legal_name text,
   seller_address_line_1 text,
   seller_address_line_2 text,
@@ -19,6 +21,8 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles add column if not exists listing_credits integer not null default 3 check (listing_credits >= 0);
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists legal_name text;
 alter table public.profiles add column if not exists seller_address_line_1 text;
 alter table public.profiles add column if not exists seller_address_line_2 text;
@@ -48,6 +52,7 @@ create table if not exists public.listings (
   listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free')),
   image text,
   images text[] not null default '{}',
+  is_active boolean not null default true,
   is_free_delivery boolean not null default false,
   condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
   created_at timestamptz not null default now()
@@ -55,6 +60,7 @@ create table if not exists public.listings (
 alter table public.listings add column if not exists description text;
 alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
 alter table public.listings add column if not exists images text[] not null default '{}';
+alter table public.listings add column if not exists is_active boolean not null default true;
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
 alter table public.listings drop constraint if exists listings_free_delivery_check;
 alter table public.listings add column if not exists condition text not null default 'good';
@@ -111,6 +117,11 @@ create table if not exists public.messages (
 );
 alter table public.messages drop constraint if exists messages_text_content_length_check;
 alter table public.messages add constraint messages_text_content_length_check check (length(trim(text_content)) between 1 and 2000);
+
+create or replace view public.public_profiles as
+select id, full_name, avatar_url, bio
+from public.profiles;
+grant select on public.public_profiles to anon, authenticated;
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),

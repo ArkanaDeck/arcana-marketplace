@@ -2479,6 +2479,129 @@ select {
     margin-top: 10px;
 }
 
+.seller-profile-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+}
+
+.seller-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin: 22px 0 40px;
+    padding: 30px;
+    border: 1px solid rgba(17, 78, 96, 0.14);
+    border-radius: 12px;
+    background: #fffaf7;
+}
+
+.seller-profile-header h1,
+.seller-profile-section-heading h2 {
+    color: #114e60;
+}
+
+.seller-profile-header p {
+    max-width: 620px;
+}
+
+.seller-profile-avatar {
+    width: 92px;
+    height: 92px;
+    flex: 0 0 92px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #f5cebe;
+}
+
+.seller-profile-avatar--fallback {
+    display: grid;
+    place-items: center;
+    color: #114e60;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.seller-profile-chat-btn {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.seller-profile-link {
+    display: inline-block;
+    margin: 4px 0 10px;
+    color: #114e60;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.seller-profile-section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.seller-profile-section-heading>span {
+    color: #6d7375;
+    font-weight: 700;
+}
+
+.seller-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.seller-chat-panel {
+    margin: 0 0 38px;
+    padding: 22px;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 12px;
+    background: #f4eee8;
+}
+
+.seller-chat-messages {
+    display: grid;
+    gap: 8px;
+    min-height: 48px;
+    margin: 14px 0;
+}
+
+.seller-chat-messages p {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.seller-chat-panel form {
+    display: flex;
+    gap: 10px;
+}
+
+.seller-chat-panel input {
+    min-width: 0;
+    flex: 1;
+}
+
+@media (max-width: 720px) {
+    .seller-profile-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .seller-profile-chat-btn {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .seller-profile-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .image-status {
     margin-top: 8px;
     color: #0f766e;
