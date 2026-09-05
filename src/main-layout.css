@@ -13,6 +13,10 @@ body {
     overflow-x: hidden;
 }
 
+body {
+    overflow-x: clip;
+}
+
 button,
 input,
 select {
@@ -23,12 +27,15 @@ select {
     min-height: 100vh;
     background: linear-gradient(180deg, #f7f4ef 0%, #f2efe9 100%);
     padding: 20px 14px 32px;
+    overflow-x: clip;
 }
 
 .frame {
+    width: min(1280px, 100%);
     max-width: 1280px;
     margin: 0 auto;
     padding: 8px 0 0;
+    min-width: 0;
 }
 
 .trust-badges {
@@ -137,12 +144,14 @@ select {
 }
 
 .account-panel {
-    width: min(480px, 100%);
+    width: min(680px, 100%);
+    max-width: 100%;
     padding: 28px;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(17, 78, 96, 0.1);
     border-radius: 18px;
     box-shadow: 0 16px 32px rgba(17, 78, 96, 0.06);
+    overflow-wrap: anywhere;
 }
 
 .account-kicker {
@@ -480,9 +489,11 @@ select {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+    min-width: 0;
     border: 1px solid rgba(17, 78, 96, 0.1);
     border-radius: 10px;
     padding: 12px;
+    overflow-wrap: anywhere;
 }
 
 .buyer-order>div>strong,
@@ -619,6 +630,90 @@ select {
     .help-grid {
         grid-template-columns: 1fr;
     }
+
+    .container {
+        padding: 14px 10px 24px;
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .account-page {
+        place-items: start center;
+        min-height: auto;
+        padding: 16px 0 24px;
+    }
+
+    .account-panel {
+        padding: 22px 18px;
+    }
+
+    .account-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding-bottom: 0;
+    }
+
+    .account-actions .primary-btn {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .account-actions .account-text-btn {
+        text-align: center;
+    }
+
+    .seller-payout-actions {
+        gap: 8px;
+    }
+
+    .listing-fee-notice,
+    .section-header-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .listings-live-grid,
+    .stats-placeholder-grid,
+    .seller-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .buyer-order {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .buyer-order-actions,
+    .seller-dispatch-actions {
+        justify-items: stretch;
+        width: 100%;
+    }
+
+    .seller-dispatch-actions input,
+    .seller-dispatch-actions button,
+    .buyer-order-actions button {
+        width: 100%;
+    }
+
+    .seller-chat-panel form {
+        flex-direction: column;
+    }
+
+    .seller-chat-panel form .secondary-btn {
+        width: 100%;
+    }
+
+    .seller-profile-page {
+        padding: 28px 16px 60px;
+    }
+
+    .seller-profile-header {
+        padding: 20px;
+    }
 }
 
 @media (max-width: 520px) {
@@ -637,6 +732,18 @@ select {
 
     .seller-verification-grid {
         grid-template-columns: 1fr;
+    }
+
+    .seller-verification-form {
+        padding: 4px 16px 18px;
+    }
+
+    .account-panel {
+        padding: 18px 14px;
+    }
+
+    .account-tabs button {
+        padding: 10px 8px;
     }
 }
 
@@ -892,6 +999,7 @@ select {
 }
 
 .live-product-card {
+    min-width: 0;
     background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
     border: 1px solid rgba(17, 78, 96, 0.08);
     border-radius: 18px;
