@@ -247,7 +247,7 @@ select {
 
 .account-signed-in {
     display: grid;
-    gap: 14px;
+    gap: 24px;
     color: #114E60;
 }
 
@@ -260,14 +260,102 @@ select {
     display: flex;
     align-items: center;
     gap: 14px;
+    padding-bottom: 8px;
+}
+
+.account-actions .primary-btn {
+    min-width: 190px;
+}
+
+.seller-setup-drawer {
+    overflow: hidden;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 12px;
+    background: #fffaf7;
+}
+
+.seller-setup-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 20px;
+    color: #114E60;
+    cursor: pointer;
+    list-style: none;
+}
+
+.seller-setup-summary::-webkit-details-marker {
+    display: none;
+}
+
+.seller-setup-summary::after {
+    content: '+';
+    flex: 0 0 auto;
+    color: #114E60;
+    font-size: 1.35rem;
+    font-weight: 400;
+}
+
+.seller-setup-drawer[open] .seller-setup-summary::after {
+    content: '−';
+}
+
+.seller-setup-summary>span:first-child {
+    display: grid;
+    gap: 4px;
+}
+
+.seller-setup-summary strong {
+    font-size: 0.98rem;
+}
+
+.seller-setup-summary small {
+    color: #54717b;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.seller-setup-status {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #fff1d9;
+    color: #8a4c09;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 6px 9px;
+}
+
+.payout-method-section {
+    display: grid;
+    gap: 9px;
+    margin-top: 6px;
+    padding: 18px 0 4px;
+    border-top: 1px solid rgba(17, 78, 96, 0.1);
+}
+
+.payout-method-section h3 {
+    margin: 0;
+    color: #114E60;
+    font-size: 0.96rem;
+}
+
+.payout-method-section p {
+    margin: 0;
+    color: #54717b;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.seller-payout-actions {
+    display: grid;
+    gap: 10px;
 }
 
 .seller-verification-form {
     display: grid;
     gap: 14px;
-    margin-top: 8px;
-    padding-top: 20px;
-    border-top: 1px solid rgba(17, 78, 96, 0.12);
+    padding: 4px 20px 22px;
 }
 
 .seller-verification-heading {
@@ -531,6 +619,15 @@ select {
 }
 
 @media (max-width: 520px) {
+    .seller-setup-summary {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .seller-setup-status {
+        order: 3;
+    }
+
     .seller-verification-heading {
         flex-direction: column;
     }

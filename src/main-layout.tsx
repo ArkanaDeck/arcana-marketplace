@@ -86,6 +86,8 @@ export const MainLayout: React.FC = () => {
     const [sellerPostcode, setSellerPostcode] = useState('');
     const [dateOfBirth, setDateOfBirth] = useState('');
     const [sellerTermsAccepted, setSellerTermsAccepted] = useState(false);
+    const [paypalMerchantId, setPaypalMerchantId] = useState('');
+    const [paypalEmail, setPaypalEmail] = useState('');
     const [isSavingSellerProfile, setIsSavingSellerProfile] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
 
@@ -338,6 +340,8 @@ export const MainLayout: React.FC = () => {
                 seller_city: sellerCity.trim(),
                 seller_postcode: sellerPostcode.trim().toUpperCase(),
                 date_of_birth: dateOfBirth,
+                paypal_merchant_id: paypalMerchantId.trim() || null,
+                paypal_email: paypalEmail.trim().toLowerCase() || null,
                 seller_terms_accepted_at: new Date().toISOString(),
                 seller_payout_status: 'pending_connect',
             }).eq('id', session.user.id);
@@ -504,23 +508,36 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
-                                        <form className="seller-verification-form" onSubmit={handleSaveSellerProfile}>
-                                            <div className="seller-verification-heading">
-                                                <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
-                                                <span>Pending Stripe Connect</span>
-                                            </div>
-                                            <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Full legal name" /></label>
-                                            <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" /></label>
-                                            <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" /></label>
-                                            <div className="seller-verification-grid">
-                                                <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required maxLength={80} /></label>
-                                                <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required maxLength={10} /></label>
-                                            </div>
-                                            <label>Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} autoComplete="bday" required /></label>
-                                            <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Seller Terms, payout-hold policy, and Refund Policy.</span></label>
-                                            <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
-                                            <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
-                                        </form>
+                                        <details className="seller-setup-drawer">
+                                            <summary className="seller-setup-summary">
+                                                <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
+                                                <span className="seller-setup-status">Pending Stripe Connect</span>
+                                            </summary>
+                                            <form className="seller-verification-form" onSubmit={handleSaveSellerProfile}>
+                                                <div className="seller-verification-heading">
+                                                    <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
+                                                </div>
+                                                <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Full legal name" /></label>
+                                                <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" /></label>
+                                                <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" /></label>
+                                                <div className="seller-verification-grid">
+                                                    <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required maxLength={80} /></label>
+                                                    <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required maxLength={10} /></label>
+                                                </div>
+                                                <label>Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} autoComplete="bday" required /></label>
+                                                <div className="payout-method-section">
+                                                    <h3>Payout methods</h3>
+                                                    <p>Connect Stripe for automated payouts, or add your verified PayPal merchant ID for PayPal settlements.</p>
+                                                    <label>PayPal merchant ID <em>Optional</em><input type="text" value={paypalMerchantId} onChange={(event) => setPaypalMerchantId(event.target.value)} maxLength={120} placeholder="Your PayPal merchant ID" /></label>
+                                                    <label>PayPal Email Address (Alternative Payout Mode) <em>Optional</em><input type="email" value={paypalEmail} onChange={(event) => setPaypalEmail(event.target.value)} maxLength={254} placeholder="your-paypal@email.com" autoComplete="email" /></label>
+                                                </div>
+                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Seller Terms, payout-hold policy, and Refund Policy.</span></label>
+                                                <div className="seller-payout-actions">
+                                                    <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
+                                                    <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
+                                                </div>
+                                            </form>
+                                        </details>
                                         <BuyerOrdersPanel />
                                         <SellerOrdersPanel />
                                     </div>
