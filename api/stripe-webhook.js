@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { logServerError } from './lib/server-logger.js';
+import { logServerError } from '../src/lib/server-logger.js';
 
 export const config = { api: { bodyParser: false } };
 

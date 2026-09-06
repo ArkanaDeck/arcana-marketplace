@@ -35,25 +35,22 @@
       ]
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "^/api/checkout/paypal/create-order$",
-      "dest": "/api/create-paypal-order"
+      "source": "/api/checkout/paypal/create-order",
+      "destination": "/api/create-paypal-order"
     },
     {
-      "src": "^/api/checkout/paypal/capture-order$",
-      "dest": "/api/capture-paypal-order?marketplace=1"
+      "source": "/api/checkout/paypal/capture-order",
+      "destination": "/api/capture-paypal-order?marketplace=1"
     },
     {
-      "handle": "filesystem"
+      "source": "/api/create-checkout-session",
+      "destination": "/api/create-order-checkout?retired=1"
     },
     {
-      "src": "^/api/create-checkout-session$",
-      "dest": "/api/create-order-checkout?retired=1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "crons": [

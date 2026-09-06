@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendTransactionalEmail } from '../src/lib/server-email.js';
-import { logServerError, logServerEvent } from './lib/server-logger.js';
+import { logServerError, logServerEvent } from '../src/lib/server-logger.js';
 
 const HOLD_WINDOW_MS = 48 * 60 * 60 * 1000;
 

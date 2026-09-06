@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { calculatePlatformFeeCents } from '../src/lib/server-fees.js';
-import { logServerError } from './lib/server-logger.js';
+import { logServerError } from '../src/lib/server-logger.js';
 
 const SHIPPING_OPTIONS = {
     evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },

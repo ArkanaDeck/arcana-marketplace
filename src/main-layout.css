@@ -127,6 +127,31 @@ select {
     color: #114E60;
 }
 
+.auth-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 8px;
+}
+
+.auth-link-btn {
+    border: none;
+    background: transparent;
+    color: #325288;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 8px 6px;
+    border-radius: 999px;
+}
+
+.auth-link-btn:hover,
+.auth-link-btn:focus-visible {
+    color: #114E60;
+    background: rgba(17, 78, 96, 0.05);
+    outline: none;
+}
+
 .brand span {
     display: block;
     font-size: 0.72rem;
@@ -821,6 +846,28 @@ select {
     .topbar {
         flex-wrap: wrap;
         gap: 12px;
+    }
+
+    .topbar .brand {
+        min-width: 0;
+        order: 0;
+    }
+
+    .topbar .nav-links {
+        order: 3;
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .topbar .auth-header-actions,
+    .topbar .basket-btn {
+        order: 1;
+        margin-left: auto;
+    }
+
+    .topbar .basket-btn {
+        order: 2;
     }
 
     .account-page {

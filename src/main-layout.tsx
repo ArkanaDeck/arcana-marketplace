@@ -515,17 +515,22 @@ export const MainLayout: React.FC = () => {
                     <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>
                         Basket <span>{basket.length}</span>
                     </button>
-                    <button className="primary-btn" onClick={() => {
-                        if (isAuthenticated) {
-                            setActiveView('Sell');
-                            return;
-                        }
-                        setAccountMode('signup');
-                        setAccountStatus(null);
-                        setActiveView('Account');
-                    }}>
-                        {isAuthenticated ? 'Create Listing' : 'Create account'}
-                    </button>
+                    <div className="auth-header-actions">
+                        {isAuthenticated ? (
+                            <button className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                        ) : (
+                            <>
+                                <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
+                                <button className="primary-btn" onClick={() => {
+                                    setAccountMode('signup');
+                                    setAccountStatus(null);
+                                    setIsEmailSent(false);
+                                    setIsResetView(false);
+                                    setActiveView('Account');
+                                }}>Create account</button>
+                            </>
+                        )}
+                    </div>
                 </header>
 
                 <main className="page-content">
