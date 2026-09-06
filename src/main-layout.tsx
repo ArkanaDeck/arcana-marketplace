@@ -495,7 +495,7 @@ export const MainLayout: React.FC = () => {
 
                 <header className="topbar">
                     <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
-                        <div className="brand-mark">A</div>
+                        <div className="brand-mark">ARK</div>
                         <div>
                             <strong>Arkana</strong>
                             <span>Zero-commission marketplace</span>

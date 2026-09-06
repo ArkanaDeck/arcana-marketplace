@@ -112,10 +112,13 @@ select {
     border-radius: 12px;
     display: grid;
     place-items: center;
-    background: linear-gradient(180deg, #114E60 0%, #0a3849 100%);
-    color: #fff;
+    background: #fff;
+    border: 1px solid rgba(253, 101, 116, 0.35);
+    color: #FD6574;
+    font-family: Inter, system-ui, Arial, sans-serif;
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
 }
 
 .brand strong {
@@ -1449,17 +1452,19 @@ select {
 }
 
 .gold-avatar {
-    background: #114E60;
-    /* 🌟 Deep Teal Profile Bubble */
-    color: #ffffff;
+    background: #fff;
+    border: 1px solid rgba(253, 101, 116, 0.35);
+    color: #FD6574;
     width: 38px;
     height: 38px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-family: Inter, system-ui, Arial, sans-serif;
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
     margin-left: 15px;
 }
 
@@ -2905,9 +2910,13 @@ select {
 .seller-profile-avatar--fallback {
     display: grid;
     place-items: center;
-    color: #114e60;
-    font-size: 2rem;
+    border: 1px solid rgba(253, 101, 116, 0.35);
+    background: #fff;
+    color: #FD6574;
+    font-family: Inter, system-ui, Arial, sans-serif;
+    font-size: 1.4rem;
     font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 .seller-profile-chat-btn {

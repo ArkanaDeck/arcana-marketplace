@@ -70,7 +70,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     return <section className="seller-profile-page">
         <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>
         <header className="seller-profile-header">
-            {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="seller-profile-avatar" /> : <div className="seller-profile-avatar seller-profile-avatar--fallback">{(profile.full_name || 'A').slice(0, 1).toUpperCase()}</div>}
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="seller-profile-avatar" /> : <div className="seller-profile-avatar seller-profile-avatar--fallback">ARK</div>}
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p></div>
             <button type="button" className="primary-btn seller-profile-chat-btn" onClick={startChat}>Message Seller</button>
         </header>
