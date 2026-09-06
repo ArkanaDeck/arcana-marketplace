@@ -250,6 +250,78 @@ select {
     padding: 10px 12px;
 }
 
+.email-verification-panel {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    padding: 28px 20px 24px;
+    border: 1px solid rgba(17, 78, 96, 0.12);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #f4eee8 0%, rgba(244, 238, 232, 0.4) 100%);
+    text-align: center;
+}
+
+.email-verification-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #114e60;
+    color: #fff;
+    font-size: 1.4rem;
+}
+
+.email-verification-panel h3 {
+    margin: 0;
+    color: #114e60;
+    font-size: 1.15rem;
+}
+
+.email-verification-panel>p {
+    margin: 0;
+    max-width: 340px;
+    color: #325288;
+    font-size: 0.86rem;
+    line-height: 1.6;
+}
+
+.email-verification-panel .account-status {
+    width: 100%;
+}
+
+.resend-verification-btn {
+    border: none;
+    background: none;
+    color: #114e60;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 4px;
+    text-decoration: underline;
+}
+
+.resend-verification-btn:hover:not(:disabled) {
+    color: #0a3849;
+}
+
+.resend-verification-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+@media (max-width: 520px) {
+    .email-verification-panel {
+        padding: 24px 16px 20px;
+    }
+
+    .email-verification-panel .resend-verification-btn,
+    .email-verification-panel .account-text-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
 .account-form .primary-btn {
     width: 100%;
 }
@@ -2754,6 +2826,80 @@ select {
 .seller-profile-section-heading>span {
     color: #6d7375;
     font-weight: 700;
+}
+
+.checkout-legal-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px 16px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(17, 78, 96, 0.08);
+}
+
+.checkout-legal-links .footer-link-btn {
+    font-size: 0.74rem;
+    color: #54717b;
+}
+
+.checkout-legal-links .footer-link-btn:hover {
+    color: #114e60;
+}
+
+.cookie-banner {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: min(720px, calc(100% - 20px));
+    padding: 14px 18px;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 14px 34px rgba(17, 78, 96, 0.14);
+}
+
+.cookie-banner p {
+    margin: 0;
+    color: #325288;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.cookie-accept-btn {
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 9px;
+    background: #114e60;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 10px 18px;
+}
+
+.cookie-accept-btn:hover {
+    background: #0a3849;
+}
+
+@media (max-width: 520px) {
+    .cookie-banner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        text-align: center;
+        bottom: 10px;
+    }
+
+    .cookie-accept-btn {
+        width: 100%;
+    }
 }
 
 .seller-profile-grid {

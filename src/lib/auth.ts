@@ -40,6 +40,22 @@ export async function signUpWithEmail(email: string, password: string, acceptedT
     return data;
 }
 
+export async function resendSignupConfirmation(email: string) {
+    if (!email) {
+        throw new Error('Email is required to resend the confirmation.');
+    }
+
+    assertSupabaseConfigured();
+    const { error } = await supabase!.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/?auth=confirmed` },
+    });
+    if (error) {
+        throw new Error(error.message || 'Unable to resend the confirmation email.');
+    }
+}
+
 export async function signOut() {
     assertSupabaseConfigured();
     const { error } = await supabase!.auth.signOut();

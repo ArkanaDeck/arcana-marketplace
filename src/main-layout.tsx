@@ -6,7 +6,7 @@ import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
-import { signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
+import { resendSignupConfirmation, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { SellerProfilePage } from './seller-profile-page';
@@ -77,7 +77,16 @@ export const MainLayout: React.FC = () => {
     const [accountEmail, setAccountEmail] = useState('');
     const [accountPassword, setAccountPassword] = useState('');
     const [accountTermsAccepted, setAccountTermsAccepted] = useState(false);
+    const [cookiesAccepted, setCookiesAccepted] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('arkana_cookies_accepted') === 'true';
+        } catch {
+            return false;
+        }
+    });
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
+    const [isEmailSent, setIsEmailSent] = useState(false);
+    const [isResendingVerification, setIsResendingVerification] = useState(false);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
     const [legalName, setLegalName] = useState('');
     const [sellerAddressLineOne, setSellerAddressLineOne] = useState('');
@@ -299,7 +308,8 @@ export const MainLayout: React.FC = () => {
                     setIsAuthenticated(true);
                     setAccountStatus('Account created. You are ready to sell.');
                 } else {
-                    setAccountStatus('Account created. Check your email to confirm your address, then sign in.');
+                    setIsEmailSent(true);
+                    setAccountStatus(null);
                 }
             } else {
                 await signInWithEmail(accountEmail.trim(), accountPassword);
@@ -312,6 +322,22 @@ export const MainLayout: React.FC = () => {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to continue with your account.');
         } finally {
             setIsAccountSubmitting(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!accountEmail.trim()) {
+            setAccountStatus('Enter your email address, then resend the confirmation.');
+            return;
+        }
+        setIsResendingVerification(true);
+        try {
+            await resendSignupConfirmation(accountEmail.trim());
+            setAccountStatus('Verification email sent again. Check your inbox and spam folder.');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to resend the verification email.');
+        } finally {
+            setIsResendingVerification(false);
         }
     };
 
@@ -531,7 +557,7 @@ export const MainLayout: React.FC = () => {
                                                     <label>PayPal merchant ID <em>Optional</em><input type="text" value={paypalMerchantId} onChange={(event) => setPaypalMerchantId(event.target.value)} maxLength={120} placeholder="Your PayPal merchant ID" /></label>
                                                     <label>PayPal Email Address (Alternative Payout Mode) <em>Optional</em><input type="email" value={paypalEmail} onChange={(event) => setPaypalEmail(event.target.value)} maxLength={254} placeholder="your-paypal@email.com" autoComplete="email" /></label>
                                                 </div>
-                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Seller Terms, payout-hold policy, and Refund Policy.</span></label>
+                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span></label>
                                                 <div className="seller-payout-actions">
                                                     <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
                                                     <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
@@ -547,18 +573,31 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" role="tab" aria-selected={accountMode === 'signin'} className={accountMode === 'signin' ? 'active' : ''} onClick={() => { setAccountMode('signin'); setAccountStatus(null); }}>Sign in</button>
                                             <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
                                         </div>
-                                        <form className="account-form" onSubmit={handleAccountSubmit}>
-                                            <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
-                                            <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" /></label>
-                                            {accountMode === 'signup' && (
-                                                <label className="account-terms-check">
-                                                    <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
-                                                    <span>I agree to the <button type="button" className="terms-link-btn" onClick={() => setShowTermsModal(true)}>Terms & Conditions</button>, Privacy Policy, and Refund Policy.</span>
-                                                </label>
-                                            )}
-                                            {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
-                                            <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
-                                        </form>
+                                        {isEmailSent ? (
+                                            <div className="email-verification-panel" role="status">
+                                                <div className="email-verification-icon" aria-hidden="true">✉</div>
+                                                <h3>Account created successfully!</h3>
+                                                <p>Account created successfully! Please check your email inbox to verify your account before logging in.</p>
+                                                {accountStatus && <p className="account-status">{accountStatus}</p>}
+                                                <button type="button" className="resend-verification-btn" onClick={handleResendVerification} disabled={isResendingVerification}>
+                                                    {isResendingVerification ? 'Sending...' : "Didn't receive the email? Click here to resend."}
+                                                </button>
+                                                <button type="button" className="account-text-btn" onClick={() => { setIsEmailSent(false); setAccountMode('signin'); setAccountStatus(null); }}>Back to sign in</button>
+                                            </div>
+                                        ) : (
+                                            <form className="account-form" onSubmit={handleAccountSubmit}>
+                                                <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
+                                                <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" /></label>
+                                                {accountMode === 'signup' && (
+                                                    <label className="account-terms-check">
+                                                        <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
+                                                        <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span>
+                                                    </label>
+                                                )}
+                                                {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
+                                                <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+                                            </form>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -742,7 +781,7 @@ export const MainLayout: React.FC = () => {
 
                     {/* 5. CHECKOUT VIEW */}
                     {activeView === 'Checkout' && (
-                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} />
+                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} onOpenLegal={(page) => setActiveLegalPage(page)} />
                     )}
 
                     {activeView === 'Help' && (
@@ -872,7 +911,7 @@ export const MainLayout: React.FC = () => {
                                             onChange={(e) => setTermsAccepted(e.target.checked)}
                                         />
                                         <label htmlFor="terms-checkbox">
-                                            I agree to the <button type="button" className="terms-link-btn" onClick={() => setShowTermsModal(true)}>Terms & Conditions</button>
+                                            I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.
                                         </label>
                                     </div>
 
@@ -891,6 +930,10 @@ export const MainLayout: React.FC = () => {
                                             </button>
                                         </div>
                                     )}
+                                    <div className="checkout-legal-links" aria-label="Legal information">
+                                        <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
+                                        <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -971,6 +1014,15 @@ export const MainLayout: React.FC = () => {
                         </div>
                     </div>
                 )}
+                {!cookiesAccepted && (
+                    <div className="cookie-banner" role="region" aria-label="Cookie notice">
+                        <p>We use necessary cookies to keep you securely signed in and handle checkouts. By continuing to use Arkana, you accept these cookies.</p>
+                        <button type="button" className="cookie-accept-btn" onClick={() => {
+                            setCookiesAccepted(true);
+                            try { localStorage.setItem('arkana_cookies_accepted', 'true'); } catch { /* storage unavailable */ }
+                        }}>Accept</button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -979,7 +1031,7 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
-const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void }> = ({ basket, onRemoveFromBasket, onSignIn }) => {
+const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal }) => {
     type PaymentGateway = 'stripe' | 'paypal';
     const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
     const [selectedGateway, setSelectedGateway] = React.useState<PaymentGateway>('stripe');
@@ -1111,7 +1163,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                     </label>
                     <label className="checkout-terms">
                         <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
-                        <span>I agree to the marketplace Terms & Conditions and Refund Policy.</span>
+                        <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span>
                     </label>
                     {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
                     <div className="payment-gateway-grid" role="radiogroup" aria-label="Choose payment method">
@@ -1145,6 +1197,10 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         </button>
                     )}
                     <p className="checkout-security-note">Payments are securely processed by Stripe or PayPal. Card details are never stored by Arkana.</p>
+                    <div className="checkout-legal-links" aria-label="Legal information">
+                        <button type="button" className="footer-link-btn" onClick={() => onOpenLegal('terms')}>Terms & Conditions</button>
+                        <button type="button" className="footer-link-btn" onClick={() => onOpenLegal('privacy')}>Privacy Policy</button>
+                    </div>
                 </form>
 
                 <aside className="checkout-summary-panel">
