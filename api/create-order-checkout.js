@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { calculatePlatformFeeCents } from '../src/lib/server-fees.js';
+import { logServerError } from './lib/server-logger.js';
 
 const SHIPPING_OPTIONS = {
     evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },
@@ -82,6 +83,7 @@ export default async function handler(req, res) {
 
         return res.status(200).json({ orderIds: orders.map((order) => order.id), url: session.url });
     } catch (error) {
+        logServerError('create-order-checkout', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start checkout.' });
     }
 }

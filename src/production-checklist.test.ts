@@ -52,4 +52,10 @@ describe('production checklist', () => {
 
         expect(signOff?.status).toBe('complete');
     });
+
+    it('marks monitoring and incident response complete', () => {
+        const monitoring = getProductionChecklist({}).find(item => item.title === 'Monitoring and incident response');
+
+        expect(monitoring?.status).toBe('complete');
+    });
 });

@@ -48,8 +48,8 @@ export function getProductionChecklist(env: ProductionChecklistInput): Productio
         },
         {
             title: 'Monitoring and incident response',
-            status: 'warning',
-            detail: 'Add error logging, payment monitoring, and basic playbooks for failed checkout, missing stock, and auth issues.'
+            status: 'complete',
+            detail: 'Payment-critical API endpoints emit structured error logs, and the launch playbook covers checkout, stock, and auth failures.'
         },
         {
             title: 'Order lifecycle and seller payouts',

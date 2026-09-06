@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { paypalRequest } from '../src/lib/server-paypal.js';
+import { logServerError } from './lib/server-logger.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
         if (updateError) throw updateError;
         return res.status(200).json({ orderIds: customIds, status: 'paid' });
     } catch (error) {
+        logServerError('capture-paypal-order', error, { paypalOrderId: body?.paypalOrderId || null });
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to confirm PayPal payment.' });
     }
 }

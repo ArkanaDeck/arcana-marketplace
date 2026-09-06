@@ -56,6 +56,20 @@ export async function resendSignupConfirmation(email: string) {
     }
 }
 
+export async function sendPasswordReset(email: string) {
+    if (!email) {
+        throw new Error('Enter your email address to reset your password.');
+    }
+
+    assertSupabaseConfigured();
+    const { error } = await supabase!.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/?auth=reset`,
+    });
+    if (error) {
+        throw new Error(error.message || 'Unable to send the password reset email.');
+    }
+}
+
 export async function signOut() {
     assertSupabaseConfigured();
     const { error } = await supabase!.auth.signOut();

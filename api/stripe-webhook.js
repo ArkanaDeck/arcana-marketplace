@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { logServerError } from './lib/server-logger.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -57,6 +58,7 @@ export default async function handler(req, res) {
         }
         return res.status(200).json({ received: true });
     } catch (error) {
+        logServerError('stripe-webhook', error);
         return res.status(400).json({ error: error instanceof Error ? error.message : 'Webhook processing failed.' });
     }
 }

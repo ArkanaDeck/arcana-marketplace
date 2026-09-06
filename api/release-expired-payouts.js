@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendTransactionalEmail } from '../src/lib/server-email.js';
+import { logServerError, logServerEvent } from './lib/server-logger.js';
 
 const HOLD_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -26,11 +27,13 @@ export default async function handler(req, res) {
                 await sendTransactionalEmail({ to: order.delivery_email, subject: 'Arkana: order completed', text: `The seller payout for order ${order.id} has been released after the delivery review window.` });
                 results.push({ orderId: order.id, released: true });
             } catch (releaseError) {
+                logServerError('release-expired-payouts', releaseError, { orderId: order.id });
                 results.push({ orderId: order.id, released: false, reason: releaseError instanceof Error ? releaseError.message : 'Transfer failed.' });
             }
         }
         return res.status(200).json({ checked: (orders || []).length, results });
     } catch (error) {
+        logServerError('release-expired-payouts', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to release expired payouts.' });
     }
 }

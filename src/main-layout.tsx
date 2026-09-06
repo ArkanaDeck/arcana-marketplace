@@ -6,7 +6,7 @@ import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
-import { resendSignupConfirmation, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
+import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { SellerProfilePage } from './seller-profile-page';
@@ -87,6 +87,10 @@ export const MainLayout: React.FC = () => {
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isEmailSent, setIsEmailSent] = useState(false);
     const [isResendingVerification, setIsResendingVerification] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [isResetView, setIsResetView] = useState(false);
+    const [isResetSent, setIsResetSent] = useState(false);
+    const [isResetSubmitting, setIsResetSubmitting] = useState(false);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
     const [legalName, setLegalName] = useState('');
     const [sellerAddressLineOne, setSellerAddressLineOne] = useState('');
@@ -318,10 +322,29 @@ export const MainLayout: React.FC = () => {
                 setAccountStatus('Signed in successfully.');
             }
             setAccountPassword('');
+            setShowPassword(false);
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to continue with your account.');
         } finally {
             setIsAccountSubmitting(false);
+        }
+    };
+
+    const handlePasswordReset = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!accountEmail.trim()) {
+            setAccountStatus('Enter your email address to receive a reset link.');
+            return;
+        }
+        setIsResetSubmitting(true);
+        try {
+            await sendPasswordReset(accountEmail.trim());
+            setIsResetSent(true);
+            setAccountStatus(null);
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to send the password reset email.');
+        } finally {
+            setIsResetSubmitting(false);
         }
     };
 
@@ -584,10 +607,44 @@ export const MainLayout: React.FC = () => {
                                                 </button>
                                                 <button type="button" className="account-text-btn" onClick={() => { setIsEmailSent(false); setAccountMode('signin'); setAccountStatus(null); }}>Back to sign in</button>
                                             </div>
+                                        ) : isResetView ? (
+                                            isResetSent ? (
+                                                <div className="email-verification-panel" role="status">
+                                                    <div className="email-verification-icon" aria-hidden="true">✉</div>
+                                                    <h3>Reset link sent</h3>
+                                                    <p>Check your inbox for a password reset link. Follow it to choose a new password, then sign in.</p>
+                                                    <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setIsResetSent(false); setAccountStatus(null); }}>Back to sign in</button>
+                                                </div>
+                                            ) : (
+                                                <form className="account-form" onSubmit={handlePasswordReset}>
+                                                    <div className="password-reset-intro">
+                                                        <h3>Reset your password</h3>
+                                                        <p>Enter the email address on your account and we'll send you a secure reset link.</p>
+                                                    </div>
+                                                    <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
+                                                    {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
+                                                    <button type="submit" className="primary-btn" disabled={isResetSubmitting}>{isResetSubmitting ? 'Sending...' : 'Send reset link'}</button>
+                                                    <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setAccountStatus(null); }}>Back to sign in</button>
+                                                </form>
+                                            )
                                         ) : (
                                             <form className="account-form" onSubmit={handleAccountSubmit}>
                                                 <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
-                                                <label>Password<input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" /></label>
+                                                <label>Password
+                                                    <span className="password-field-wrap">
+                                                        <input type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                                                        <button type="button" className="password-toggle-btn" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+                                                            {showPassword ? (
+                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                                                            ) : (
+                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12A3 3 0 1 1 9.88 9.88" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                                                            )}
+                                                        </button>
+                                                    </span>
+                                                </label>
+                                                {accountMode === 'signin' && (
+                                                    <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); }}>Forgot Password?</button>
+                                                )}
                                                 {accountMode === 'signup' && (
                                                     <label className="account-terms-check">
                                                         <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
@@ -1377,6 +1434,25 @@ const HelpView: React.FC = () => (
             <article className="help-card">
                 <h3>How do swaps and free decks work?</h3>
                 <p>Swap and Free listings do not use checkout. Use the request button to arrange the exchange or collection directly with the seller.</p>
+            </article>
+            <article className="help-card help-card--steps">
+                <h3>Do buyers need a PayPal Merchant ID?</h3>
+                <ol>
+                    <li>No. Buyers never need a Merchant ID to pay on Arkana.</li>
+                    <li>Simply add a deck to your basket and choose <strong>Pay with PayPal</strong> at checkout.</li>
+                    <li>Sign in to your own PayPal account when PayPal prompts you, and confirm the payment.</li>
+                    <li>Arkana routes the funds to the seller automatically using their payout details.</li>
+                </ol>
+            </article>
+            <article className="help-card help-card--steps">
+                <h3>How do sellers find their PayPal Merchant ID?</h3>
+                <ol>
+                    <li>Log in to your PayPal Business account at paypal.com.</li>
+                    <li>Go to <strong>Account Settings</strong> &gt; <strong>Business Information</strong>.</li>
+                    <li>Find the line labelled <strong>Merchant account ID</strong> and copy the 13-character code.</li>
+                    <li>Return to Arkana and open <strong>Your account</strong> &gt; <strong>Seller Verification &amp; Payout Setup</strong>.</li>
+                    <li>Paste the ID into the <strong>PayPal merchant ID</strong> field and save your seller information.</li>
+                </ol>
             </article>
             <article className="help-card">
                 <h3>Where do I find Terms & Conditions?</h3>

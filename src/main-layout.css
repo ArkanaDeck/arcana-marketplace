@@ -216,6 +216,71 @@ select {
     border-radius: 10px;
     padding: 10px 12px;
     color: #114E60;
+    background: #fff;
+}
+
+.password-field-wrap {
+    position: relative;
+    display: block;
+}
+
+.password-field-wrap input {
+    width: 100%;
+    padding-right: 46px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #54717b;
+    cursor: pointer;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus-visible {
+    background: rgba(17, 78, 96, 0.07);
+    color: #114e60;
+    outline: none;
+}
+
+.forgot-password-link {
+    justify-self: start;
+    margin-top: -6px;
+    border: none;
+    background: none;
+    color: #334155;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.forgot-password-link:hover {
+    color: #114e60;
+}
+
+.password-reset-intro h3 {
+    margin: 0 0 4px;
+    color: #114e60;
+    font-size: 1.05rem;
+}
+
+.password-reset-intro p {
+    margin: 0;
+    color: #334155;
+    font-size: 0.84rem;
+    line-height: 1.55;
 }
 
 .account-form input:focus {
@@ -678,6 +743,49 @@ select {
 
 .help-card {
     padding: 18px;
+}
+
+.help-card--steps {
+    padding: 22px;
+    background: #ffffff;
+    border: 1px solid rgba(17, 78, 96, 0.1);
+}
+
+.help-card--steps ol {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0 0;
+    padding: 0;
+    counter-reset: steps;
+    list-style: none;
+}
+
+.help-card--steps ol li {
+    position: relative;
+    padding: 2px 0 2px 34px;
+    counter-increment: steps;
+    color: #325288;
+}
+
+.help-card--steps ol li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(17, 78, 96, 0.08);
+    color: #114e60;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.help-card--steps strong {
+    color: #114e60;
+    font-weight: 700;
 }
 
 .help-card h3 {

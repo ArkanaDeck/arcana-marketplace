@@ -16,3 +16,14 @@ Set `VITE_APP_URL` to the canonical HTTPS production URL without a trailing slas
 PayPal credentials are server-only and must not use the `VITE_` prefix. Set `VITE_PAYPAL_ENABLED=true` only when PayPal is configured. Use `PAYPAL_ENV=sandbox` with PayPal sandbox credentials while testing and `PAYPAL_ENV=live` with live credentials in production. `PAYPAL_SECRET_KEY` remains supported as a temporary compatibility fallback.
 
 Seller PayPal payouts also require `profiles.paypal_merchant_id`. Configure the processing fee rates with `STRIPE_PROCESSING_FEE_PERCENT`, `STRIPE_PROCESSING_FEE_FIXED`, `PAYPAL_PROCESSING_FEE_PERCENT`, and `PAYPAL_PROCESSING_FEE_FIXED`; fixed values are in the account currency and default to zero.
+
+## Monitoring and incident response
+
+Payment-critical serverless functions emit structured JSON logs with an `[arkana:<endpoint>]` prefix. Search these in the Vercel function logs to trace incidents:
+
+- **Failed checkout** — look for `[arkana:create-order-checkout]` or `[arkana:capture-paypal-order]` entries; the log includes the order or PayPal reference and the underlying error message.
+- **Failed payment confirmation** — look for `[arkana:stripe-webhook]` entries; verify `STRIPE_WEBHOOK_SECRET` matches the endpoint configured in the Stripe dashboard.
+- **Failed payout release** — look for `[arkana:release-expired-payouts]` entries; each failed order is logged with its `orderId` so it can be retried from the scheduled job.
+- **Auth issues** — verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set for the deployment environment, then ask affected users to sign out and back in.
+
+For any payment incident, check the corresponding `orders` and `payments` rows in Supabase before retrying, and never re-run a Stripe capture without confirming the payment status in the Stripe dashboard.
