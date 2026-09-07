@@ -81,6 +81,7 @@ export const MainLayout: React.FC = () => {
     const [displayName, setDisplayName] = useState('');
     const [profileBio, setProfileBio] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
@@ -400,12 +401,23 @@ export const MainLayout: React.FC = () => {
         try {
             const session = await getSupabaseSession();
             if (!session?.user) throw new Error('Sign in before saving your profile.');
+            let nextAvatarUrl = avatarUrl.trim() || null;
+            if (avatarFile) {
+                if (!avatarFile.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+                const path = `${session.user.id}/${Date.now()}-${avatarFile.name}`;
+                const { error: uploadError } = await supabase.storage.from('avatars').upload(path, avatarFile, { contentType: avatarFile.type, upsert: false });
+                if (uploadError) throw new Error(uploadError.message || 'Unable to upload your avatar.');
+                const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(path);
+                nextAvatarUrl = publicUrl.publicUrl;
+            }
             const { error } = await supabase.from('profiles').update({
                 display_name: displayName.trim() || null,
                 bio: profileBio.trim() || null,
-                avatar_url: avatarUrl.trim() || null,
+                avatar_url: nextAvatarUrl,
             }).eq('id', session.user.id);
             if (error) throw error;
+            setAvatarUrl(nextAvatarUrl || '');
+            setAvatarFile(null);
             setAccountStatus('Profile saved.');
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to save your profile.');
@@ -590,7 +602,7 @@ export const MainLayout: React.FC = () => {
                                             <div><h3 style={{ margin: 0, color: '#114e60', fontSize: '1rem' }}>Public profile</h3><p style={{ margin: '4px 0 0', color: '#54717b', fontSize: '0.8rem' }}>These details appear on your seller profile.</p></div>
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Display name<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="Your display name" /></label>
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Bio<textarea style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px', resize: 'vertical' }} value={profileBio} onChange={(event) => setProfileBio(event.target.value)} maxLength={500} rows={3} placeholder="Tell buyers a little about your collection." /></label>
-                                            <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Avatar URL<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="url" value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} maxLength={2048} placeholder="https://example.com/avatar.jpg" /></label>
+                                            <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Avatar<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="file" accept="image/*" onChange={(event) => setAvatarFile(event.target.files?.[0] || null)} /></label>
                                             <button type="submit" disabled={isSavingProfile} style={{ border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isSavingProfile ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
                                         </form>
                                         <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>

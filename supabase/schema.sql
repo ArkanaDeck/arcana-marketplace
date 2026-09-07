@@ -88,6 +88,24 @@ create policy "users_can_delete_own_listing_images"
 on storage.objects for delete to authenticated
 using (bucket_id = 'listing-images' and (storage.foldername(name))[1] = (select auth.uid()::text));
 
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "public_can_view_avatars" on storage.objects;
+drop policy if exists "authenticated_users_can_upload_own_avatar" on storage.objects;
+drop policy if exists "users_can_delete_own_avatar" on storage.objects;
+
+create policy "public_can_view_avatars"
+on storage.objects for select
+using (bucket_id = 'avatars');
+create policy "authenticated_users_can_upload_own_avatar"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid()::text));
+create policy "users_can_delete_own_avatar"
+on storage.objects for delete to authenticated
+using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid()::text));
+
 create table if not exists public.chat_rooms (
   id uuid primary key default gen_random_uuid(),
   listing_id uuid references public.listings(id) on delete cascade,
