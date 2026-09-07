@@ -100,7 +100,7 @@ export const MainLayout: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleRequiredFieldInvalid = (event: React.InvalidEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleRequiredFieldInvalid = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
         event.currentTarget.classList.add('field-border-error');
         event.currentTarget.closest('label')?.classList.add('field-error');
     };
@@ -1114,7 +1114,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     const [deliveryReference] = React.useState(() => `ARK-${Date.now().toString().slice(-6)}`);
     const runtimeConfig = getRuntimeConfig();
 
-    const handleRequiredFieldInvalid = (event: React.InvalidEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleRequiredFieldInvalid = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
         event.currentTarget.classList.add('field-border-error');
         event.currentTarget.closest('label')?.classList.add('field-error');
     };
