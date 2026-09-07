@@ -738,7 +738,7 @@ export const MainLayout: React.FC = () => {
                                         <div key={item.id} className="live-product-card">
                                             <div className="product-image-box">
                                                 {item.image ? (
-                                                    <img src={item.image} alt={item.name} className="live-uploaded-img" />
+                                                    <img src={item.image} alt={item.name} className="live-uploaded-img" style={{ height: '220px', width: '100%', objectFit: 'cover', borderRadius: '8px' }} />
                                                 ) : (
                                                     <span className="default-card-emoji">🎴</span>
                                                 )}
