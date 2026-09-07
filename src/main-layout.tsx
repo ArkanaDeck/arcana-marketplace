@@ -11,12 +11,6 @@ import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { SellerProfilePage } from './seller-profile-page';
 
-const navItems = [
-    { label: 'Marketplace', view: 'Listings' },
-    { label: 'Sell', view: 'Sell' },
-    { label: 'Help & FAQ', view: 'Help' },
-];
-
 type DeckListing = MarketplaceListing;
 
 export const MainLayout: React.FC = () => {
@@ -510,36 +504,32 @@ export const MainLayout: React.FC = () => {
                             <span>Zero-commission marketplace</span>
                         </div>
                     </button>
-                    <nav className="nav-links">
-                        {navItems.map((item) => (
-                            <button
-                                key={item.view}
-                                className={`nav-btn ${activeView === item.view ? 'active' : ''}`}
-                                onClick={() => setActiveView(item.view)}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
+                    <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" />
+                    <nav className="nav-links" aria-label="Main navigation">
+                        <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
+                        <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={() => setActiveView('Sell')}>Sell</button>
                     </nav>
                     <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>
                         Basket <span>{basket.length}</span>
                     </button>
                     <div className="auth-header-actions">
                         {isAuthenticated ? (
-                            <button className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                            <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your account</button>
                         ) : (
                             <>
                                 <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
-                                <button className="primary-btn" onClick={() => {
+                                <button type="button" className="auth-link-btn" onClick={() => {
                                     setAccountMode('signup');
                                     setAccountStatus(null);
                                     setIsEmailSent(false);
                                     setIsResetView(false);
                                     setActiveView('Account');
-                                }}>Create account</button>
+                                }}>Register</button>
                             </>
                         )}
                     </div>
+                    <button type="button" className="primary-btn header-create-listing-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                    <button type="button" className={`nav-btn header-help-link ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
                 </header>
 
                 <main className="page-content">

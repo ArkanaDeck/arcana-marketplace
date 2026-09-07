@@ -168,6 +168,22 @@ label.field-error .field-error-text {
     color: #114E60;
 }
 
+.header-search {
+    width: min(210px, 100%);
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid rgba(17, 78, 96, 0.24);
+    border-radius: 8px;
+    background: #fff;
+    color: #114e60;
+    padding: 8px 10px;
+}
+
+.header-search:focus {
+    border-color: #114e60;
+    outline: 2px solid rgba(17, 78, 96, 0.12);
+}
+
 .auth-header-actions {
     display: flex;
     align-items: center;
@@ -915,9 +931,13 @@ label.field-error .field-error-text {
         order: 0;
     }
 
-    .topbar .nav-links {
+    .topbar .header-search {
         order: 3;
         width: 100%;
+    }
+
+    .topbar .nav-links {
+        order: 4;
         flex-wrap: wrap;
         gap: 6px;
     }
@@ -930,6 +950,14 @@ label.field-error .field-error-text {
 
     .topbar .basket-btn {
         order: 2;
+    }
+
+    .topbar .header-create-listing-btn {
+        order: 5;
+    }
+
+    .topbar .header-help-link {
+        order: 6;
     }
 
     .account-page {

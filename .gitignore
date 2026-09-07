@@ -145,3 +145,10 @@ vite.config.ts.timestamp-*
 dist/index.html
 .vercel
 .env*
+
+# Root build output and deployment caches
+/dist/
+/.next/
+/build/
+/.turbo/
+/.vercel/
