@@ -76,14 +76,6 @@ export const MainLayout: React.FC = () => {
     const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin');
     const [accountEmail, setAccountEmail] = useState('');
     const [accountPassword, setAccountPassword] = useState('');
-    const [accountTermsAccepted, setAccountTermsAccepted] = useState(false);
-    const [cookiesAccepted, setCookiesAccepted] = useState<boolean>(() => {
-        try {
-            return localStorage.getItem('arkana_cookies_accepted') === 'true';
-        } catch {
-            return false;
-        }
-    });
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isEmailSent, setIsEmailSent] = useState(false);
     const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -107,6 +99,18 @@ export const MainLayout: React.FC = () => {
     // Auth form state placeholders
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+
+    const handleRequiredFieldInvalid = (event: React.InvalidEvent<HTMLInputElement | HTMLSelectElement>) => {
+        event.currentTarget.classList.add('field-border-error');
+        event.currentTarget.closest('label')?.classList.add('field-error');
+    };
+
+    const handleRequiredFieldInput = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
+        if (event.currentTarget.value.trim()) {
+            event.currentTarget.classList.remove('field-border-error');
+            event.currentTarget.closest('label')?.classList.remove('field-error');
+        }
+    };
 
     useEffect(() => {
         if (!hasSecureBackend) return;
@@ -307,7 +311,7 @@ export const MainLayout: React.FC = () => {
         setIsAccountSubmitting(true);
         try {
             if (accountMode === 'signup') {
-                const result = await signUpWithEmail(accountEmail.trim(), accountPassword, accountTermsAccepted);
+                const result = await signUpWithEmail(accountEmail.trim(), accountPassword);
                 if (result.session) {
                     setIsAuthenticated(true);
                     setAccountStatus('Account created. You are ready to sell.');
@@ -571,21 +575,21 @@ export const MainLayout: React.FC = () => {
                                                 <div className="seller-verification-heading">
                                                     <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
                                                 </div>
-                                                <label>Legal name<input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Full legal name" /></label>
-                                                <label>Address line 1<input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" /></label>
+                                                <label>Legal name <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="name" required aria-required="true" maxLength={120} placeholder="Full legal name" /><span className="field-error-text">This space must be filled in.</span></label>
+                                                <label>Address line 1 <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-line1" required aria-required="true" maxLength={120} placeholder="House number and street" /><span className="field-error-text">This space must be filled in.</span></label>
                                                 <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" /></label>
                                                 <div className="seller-verification-grid">
-                                                    <label>Town or city<input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} autoComplete="address-level2" required maxLength={80} /></label>
-                                                    <label>UK postcode<input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} autoComplete="postal-code" required maxLength={10} /></label>
+                                                    <label>Town or city <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-level2" required aria-required="true" maxLength={80} /><span className="field-error-text">This space must be filled in.</span></label>
+                                                    <label>UK postcode <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="postal-code" required aria-required="true" maxLength={10} /><span className="field-error-text">This space must be filled in.</span></label>
                                                 </div>
-                                                <label>Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} autoComplete="bday" required /></label>
+                                                <label>Date of birth <span className="text-red-500 font-bold ml-0.5">*</span><input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="bday" required aria-required="true" /><span className="field-error-text">This space must be filled in.</span></label>
                                                 <div className="payout-method-section">
                                                     <h3>Payout methods</h3>
                                                     <p>Connect Stripe for automated payouts, or add your verified PayPal merchant ID for PayPal settlements.</p>
                                                     <label>PayPal merchant ID <em>Optional</em><input type="text" value={paypalMerchantId} onChange={(event) => setPaypalMerchantId(event.target.value)} maxLength={120} placeholder="Your PayPal merchant ID" /></label>
                                                     <label>PayPal Email Address (Alternative Payout Mode) <em>Optional</em><input type="email" value={paypalEmail} onChange={(event) => setPaypalEmail(event.target.value)} maxLength={254} placeholder="your-paypal@email.com" autoComplete="email" /></label>
                                                 </div>
-                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} required /><span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span></label>
+                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" /><span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines. <span className="text-red-500 font-bold ml-0.5">*</span></span><span className="field-error-text">This space must be filled in.</span></label>
                                                 <div className="seller-payout-actions">
                                                     <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
                                                     <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
@@ -626,7 +630,7 @@ export const MainLayout: React.FC = () => {
                                                         <h3>Reset your password</h3>
                                                         <p>Enter the email address on your account and we'll send you a secure reset link.</p>
                                                     </div>
-                                                    <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
+                                                    <label>Email address <span className="text-red-500 font-bold ml-0.5">*</span><input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="email" required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
                                                     {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
                                                     <button type="submit" className="primary-btn" disabled={isResetSubmitting}>{isResetSubmitting ? 'Sending...' : 'Send reset link'}</button>
                                                     <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setAccountStatus(null); }}>Back to sign in</button>
@@ -634,10 +638,10 @@ export const MainLayout: React.FC = () => {
                                             )
                                         ) : (
                                             <form className="account-form" onSubmit={handleAccountSubmit}>
-                                                <label>Email address<input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" /></label>
-                                                <label>Password
+                                                <label>Email address <span className="text-red-500 font-bold ml-0.5">*</span><input type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="email" required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
+                                                <label>Password <span className="text-red-500 font-bold ml-0.5">*</span>
                                                     <span className="password-field-wrap">
-                                                        <input type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                                                        <input type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
                                                         <button type="button" className="password-toggle-btn" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
                                                             {showPassword ? (
                                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
@@ -646,18 +650,14 @@ export const MainLayout: React.FC = () => {
                                                             )}
                                                         </button>
                                                     </span>
+                                                    <span className="field-error-text">This space must be filled in.</span>
                                                 </label>
                                                 {accountMode === 'signin' && (
                                                     <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); }}>Forgot Password?</button>
                                                 )}
-                                                {accountMode === 'signup' && (
-                                                    <label className="account-terms-check">
-                                                        <input type="checkbox" checked={accountTermsAccepted} onChange={(event) => setAccountTermsAccepted(event.target.checked)} required />
-                                                        <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span>
-                                                    </label>
-                                                )}
                                                 {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
                                                 <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+                                                {accountMode === 'signup' && <p className="signup-consent">By creating an account, you agree to Arkana's <a href="#terms" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Terms of Service</a>, <a href="#privacy" onClick={(event) => { event.preventDefault(); setActiveLegalPage('privacy'); }}>Privacy Policy</a>, and <a href="#guidelines" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Seller Guidelines</a>. We use essential cookies to keep you securely signed in.</p>}
                                             </form>
                                         )}
                                     </>
@@ -780,29 +780,39 @@ export const MainLayout: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label>Deck Name</label>
+                                    <label>Deck Name <span className="text-red-500 font-bold ml-0.5">*</span></label>
                                     <input
                                         type="text"
                                         value={deckName}
                                         onChange={(e) => setDeckName(e.target.value)}
+                                        onInvalid={handleRequiredFieldInvalid}
+                                        onInput={handleRequiredFieldInput}
+                                        required
+                                        aria-required="true"
                                         maxLength={120}
                                         placeholder="e.g., Rider-Waite Tarot"
                                     />
+                                    <span className="field-error-text">This space must be filled in.</span>
                                 </div>
                                 <div className="form-group">
-                                    <label>Price (£){listingType !== 'sale' && ' - not needed'}</label>
+                                    <label>Price (£){listingType === 'sale' && <span className="text-red-500 font-bold ml-0.5">*</span>}{listingType !== 'sale' && ' - not needed'}</label>
                                     <input
                                         type="number"
                                         value={deckPrice}
                                         onChange={(e) => setDeckPrice(e.target.value)}
                                         placeholder="0.00"
                                         step="0.01"
+                                        required={listingType === 'sale'}
+                                        aria-required={listingType === 'sale'}
+                                        onInvalid={handleRequiredFieldInvalid}
+                                        onInput={handleRequiredFieldInput}
                                         disabled={listingType !== 'sale'}
                                     />
+                                    {listingType === 'sale' && <span className="field-error-text">This space must be filled in.</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label htmlFor="deck-condition">Deck Condition</label>
-                                    <select id="deck-condition" value={condition} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                    <label htmlFor="deck-condition">Deck Condition <span className="text-red-500 font-bold ml-0.5">*</span></label>
+                                    <select id="deck-condition" value={condition} required aria-required="true" onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                                         const nextCondition = e.target.value;
                                         if (['new', 'like new', 'good', 'fair', 'poor'].includes(nextCondition)) setCondition(nextCondition as DeckCondition);
                                     }}>
@@ -812,6 +822,7 @@ export const MainLayout: React.FC = () => {
                                         <option value="fair">Fair Condition</option>
                                         <option value="poor">Poor Condition</option>
                                     </select>
+                                    <span className="field-error-text">This space must be filled in.</span>
                                 </div>
                                 {listingType !== 'free' && <div className="form-group checkbox-group">
                                     <input
@@ -883,12 +894,14 @@ export const MainLayout: React.FC = () => {
                                     <div className="trust-inline-copy">Fast checkout • Secure payments • Clear shipping updates</div>
                                     <form onSubmit={handleLoginSubmit} className="modal-auth-form">
                                         <div className="form-group">
-                                            <label>Email Address</label>
-                                            <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} maxLength={254} />
+                                            <label>Email Address <span className="text-red-500 font-bold ml-0.5">*</span></label>
+                                            <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" maxLength={254} />
+                                            <span className="field-error-text">This space must be filled in.</span>
                                         </div>
                                         <div className="form-group">
-                                            <label>Password</label>
-                                            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} maxLength={128} />
+                                            <label>Password <span className="text-red-500 font-bold ml-0.5">*</span></label>
+                                            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" maxLength={128} />
+                                            <span className="field-error-text">This space must be filled in.</span>
                                         </div>
                                         <button type="submit" className="buy-btn">Sign In & Continue</button>
                                     </form>
@@ -1076,15 +1089,6 @@ export const MainLayout: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {!cookiesAccepted && (
-                    <div className="cookie-banner" role="region" aria-label="Cookie notice">
-                        <p>We use necessary cookies to keep you securely signed in and handle checkouts. By continuing to use Arkana, you accept these cookies.</p>
-                        <button type="button" className="cookie-accept-btn" onClick={() => {
-                            setCookiesAccepted(true);
-                            try { localStorage.setItem('arkana_cookies_accepted', 'true'); } catch { /* storage unavailable */ }
-                        }}>Accept</button>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -1109,6 +1113,18 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
     const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
     const [deliveryReference] = React.useState(() => `ARK-${Date.now().toString().slice(-6)}`);
     const runtimeConfig = getRuntimeConfig();
+
+    const handleRequiredFieldInvalid = (event: React.InvalidEvent<HTMLInputElement | HTMLSelectElement>) => {
+        event.currentTarget.classList.add('field-border-error');
+        event.currentTarget.closest('label')?.classList.add('field-error');
+    };
+
+    const handleRequiredFieldInput = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
+        if (event.currentTarget.value.trim()) {
+            event.currentTarget.classList.remove('field-border-error');
+            event.currentTarget.closest('label')?.classList.remove('field-error');
+        }
+    };
 
     // Validate UK Postcode format
     const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1189,26 +1205,31 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <div><h3>Delivery details</h3><p>Used only for dispatch and order updates.</p></div>
                     </div>
                     <div className="checkout-field-grid">
-                        <label className="checkout-field checkout-field-wide">Full name
-                            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required maxLength={120} placeholder="Your full name" />
+                        <label className="checkout-field checkout-field-wide">Full name <span className="text-red-500 font-bold ml-0.5">*</span>
+                            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="name" required aria-required="true" maxLength={120} placeholder="Your full name" />
+                            <span className="field-error-text">This space must be filled in.</span>
                         </label>
-                        <label className="checkout-field checkout-field-wide">Email address
-                            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required maxLength={254} placeholder="you@example.com" />
+                        <label className="checkout-field checkout-field-wide">Email address <span className="text-red-500 font-bold ml-0.5">*</span>
+                            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="email" required aria-required="true" maxLength={254} placeholder="you@example.com" />
+                            <span className="field-error-text">This space must be filled in.</span>
                         </label>
-                        <label className="checkout-field checkout-field-wide">Address line 1
-                            <input type="text" value={addressLineOne} onChange={(event) => setAddressLineOne(event.target.value)} autoComplete="address-line1" required maxLength={120} placeholder="House number and street" />
+                        <label className="checkout-field checkout-field-wide">Address line 1 <span className="text-red-500 font-bold ml-0.5">*</span>
+                            <input type="text" value={addressLineOne} onChange={(event) => setAddressLineOne(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-line1" required aria-required="true" maxLength={120} placeholder="House number and street" />
+                            <span className="field-error-text">This space must be filled in.</span>
                         </label>
                         <label className="checkout-field checkout-field-wide">Address line 2 <span className="checkout-field-optional">Optional</span>
                             <input type="text" value={addressLineTwo} onChange={(event) => setAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" />
                         </label>
-                        <label className="checkout-field">Town or city
-                            <input type="text" value={townOrCity} onChange={(event) => setTownOrCity(event.target.value)} autoComplete="address-level2" required maxLength={80} placeholder="London" />
+                        <label className="checkout-field">Town or city <span className="text-red-500 font-bold ml-0.5">*</span>
+                            <input type="text" value={townOrCity} onChange={(event) => setTownOrCity(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-level2" required aria-required="true" maxLength={80} placeholder="London" />
+                            <span className="field-error-text">This space must be filled in.</span>
                         </label>
                         <label className="checkout-field">Country
                             <input type="text" value="United Kingdom" disabled />
                         </label>
-                        <label className="checkout-field">UK postcode
-                            <input type="text" value={postcode} onChange={handlePostcodeChange} autoComplete="postal-code" required maxLength={10} placeholder="SW1A 1AA" aria-invalid={!isPostcodeValid} />
+                        <label className="checkout-field">UK postcode <span className="text-red-500 font-bold ml-0.5">*</span>
+                            <input type="text" value={postcode} onChange={handlePostcodeChange} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="postal-code" required aria-required="true" maxLength={10} placeholder="SW1A 1AA" aria-invalid={!isPostcodeValid} />
+                            <span className="field-error-text">This space must be filled in.</span>
                             {!isPostcodeValid && <span className="checkout-validation">Enter a valid UK postcode.</span>}
                         </label>
                     </div>
@@ -1216,16 +1237,17 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         <span>2</span>
                         <div><h3>Delivery service</h3><p>Select the tracking speed that suits you.</p></div>
                     </div>
-                    <label className="checkout-field">Courier
-                        <select value={shippingOption} onChange={(event) => setShippingOption(event.target.value as typeof shippingOption)}>
+                    <label className="checkout-field">Courier <span className="text-red-500 font-bold ml-0.5">*</span>
+                        <select value={shippingOption} required aria-required="true" onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} onChange={(event) => setShippingOption(event.target.value as typeof shippingOption)}>
                             <option value="evri_standard">Evri Standard Drop-off - £2.99</option>
                             <option value="royal_mail_48">Royal Mail Tracked 48 - £3.65</option>
                             <option value="royal_mail_24">Royal Mail Tracked 24 - £4.65</option>
                         </select>
+                        <span className="field-error-text">This space must be filled in.</span>
                     </label>
                     <label className="checkout-terms">
-                        <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
-                        <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines.</span>
+                        <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" />
+                        <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines. <span className="text-red-500 font-bold ml-0.5">*</span></span><span className="field-error-text">This space must be filled in.</span>
                     </label>
                     {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
                     <div className="payment-gateway-grid" role="radiogroup" aria-label="Choose payment method">
@@ -1408,7 +1430,7 @@ const SellerOrdersPanel: React.FC = () => {
         {statusMessage && <p className="account-status" role="status">{statusMessage}</p>}
         {orders.length === 0 ? <p className="buyer-orders-empty">No paid orders waiting for dispatch.</p> : <div className="buyer-orders-list">{orders.map((order) => <article className="buyer-order" key={order.id}>
             <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.delivery_service} to {order.delivery_city}, {order.delivery_postcode}</span></div>
-            <div className="seller-dispatch-actions"><input value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} maxLength={100} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
+            <div className="seller-dispatch-actions"><label className="visually-hidden" htmlFor={`tracking-${order.id}`}>Tracking reference <span className="text-red-500 font-bold ml-0.5">*</span></label><input id={`tracking-${order.id}`} value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} required aria-required="true" maxLength={100} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
         </article>)}</div>}
     </section>;
 };
@@ -1583,9 +1605,9 @@ const SellerDashboardIntegrated: React.FC = () => {
                 <div className="fulfillment-card">
                     <h3>4. Tracking</h3>
                     <p className="tracking-helper">Buy the label with your chosen courier, then add its tracking reference here.</p>
-                    <label className="tracking-label">Tracking reference</label>
+                    <label className="tracking-label">Tracking reference <span className="text-red-500 font-bold ml-0.5">*</span></label>
                     <div className="tracking-row">
-                        <input type="text" value={trackingReference} onChange={(event) => setTrackingReference(event.target.value)} maxLength={100} placeholder="e.g. 123456789012345" />
+                        <input type="text" value={trackingReference} onChange={(event) => setTrackingReference(event.target.value)} required aria-required="true" maxLength={100} placeholder="e.g. 123456789012345" />
                         <button type="button" onClick={handleSaveTracking} disabled={!trackingReference.trim()}>Mark dispatched</button>
                     </div>
                     {isDispatched && <p className="dispatch-confirmation" role="status">Dispatched. Buyer tracking: {savedTrackingReference}</p>}
