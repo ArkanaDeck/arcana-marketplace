@@ -584,138 +584,24 @@ label.field-error .field-error-text {
     padding: 20px;
 }
 
-.payout-onboarding-card {
-    display: grid;
-    gap: 14px;
-    padding: 18px;
-    border: 1px solid rgba(17, 78, 96, 0.14);
-    border-radius: 10px;
-    background: #fff;
-}
-
-.payout-onboarding-card h3 {
-    margin: 0 0 5px;
-    color: #114e60;
-    font-size: 1rem;
-}
-
-.payout-onboarding-card p {
-    margin: 0;
-    color: #54717b;
-    font-size: 0.82rem;
-    line-height: 1.5;
-}
-
-.payout-onboarding-card .primary-btn,
-.payout-onboarding-card .connect-payout-btn {
+.payout-onboarding-options .primary-btn,
+.paypal-connect-btn {
     width: 100%;
 }
 
-.payout-method-section {
-    display: grid;
-    gap: 9px;
-    margin-top: 6px;
-    padding: 18px 0 4px;
-    border-top: 1px solid rgba(17, 78, 96, 0.1);
-}
-
-.payout-method-section h3 {
-    margin: 0;
-    color: #114E60;
-    font-size: 0.96rem;
-}
-
-.payout-method-section p {
-    margin: 0;
-    color: #54717b;
-    font-size: 0.78rem;
-    line-height: 1.45;
-}
-
-.seller-payout-actions {
-    display: grid;
-    gap: 10px;
-    padding-bottom: 2px;
-}
-
-.seller-verification-form {
-    display: grid;
-    gap: 14px;
-    overflow: hidden;
-    border-radius: 0 0 12px 12px;
-    padding: 4px 20px 22px;
-}
-
-.seller-verification-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.seller-verification-heading h3 {
-    margin: 0;
-    color: #114E60;
-    font-size: 1rem;
-}
-
-.seller-verification-heading p {
-    margin: 5px 0 0;
-    color: #54717b;
-    font-size: 0.78rem;
-    line-height: 1.45;
-}
-
-.seller-verification-heading>span {
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: #fff1d9;
-    color: #8a4c09;
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 5px 7px;
-}
-
-.seller-verification-form label {
-    display: grid;
-    gap: 7px;
-    color: #114E60;
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.seller-verification-form label em {
-    color: #54717b;
-    font-style: normal;
-    font-weight: 500;
-}
-
-.seller-verification-form input:not([type='checkbox']) {
-    min-height: 42px;
-    border: 1px solid rgba(17, 78, 96, 0.16);
+.paypal-connect-btn {
+    min-height: 44px;
+    border: none;
     border-radius: 10px;
-    padding: 10px 12px;
-    color: #114E60;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 800;
 }
 
-.seller-verification-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-
-.seller-terms-check {
-    display: flex !important;
-    align-items: flex-start;
-    grid-template-columns: none !important;
-    gap: 10px !important;
-    color: #325288 !important;
-    font-weight: 500 !important;
-    line-height: 1.45;
-}
-
-.seller-terms-check input {
-    margin-top: 3px;
+.paypal-connect-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
 }
 
 .connect-payout-btn {
@@ -1077,18 +963,6 @@ label.field-error .field-error-text {
 
     .seller-setup-status {
         order: 3;
-    }
-
-    .seller-verification-heading {
-        flex-direction: column;
-    }
-
-    .seller-verification-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .seller-verification-form {
-        padding: 4px 16px 18px;
     }
 
     .account-panel {

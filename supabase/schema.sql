@@ -6,13 +6,6 @@ create table if not exists public.profiles (
   full_name text,
   avatar_url text,
   bio text,
-  legal_name text,
-  seller_address_line_1 text,
-  seller_address_line_2 text,
-  seller_city text,
-  seller_postcode text,
-  date_of_birth date,
-  seller_terms_accepted_at timestamptz,
   seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted')),
   stripe_connect_account_id text unique,
   paypal_merchant_id text unique,
@@ -24,13 +17,6 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists listing_credits integer not null default 3 check (listing_credits >= 0);
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists bio text;
-alter table public.profiles add column if not exists legal_name text;
-alter table public.profiles add column if not exists seller_address_line_1 text;
-alter table public.profiles add column if not exists seller_address_line_2 text;
-alter table public.profiles add column if not exists seller_city text;
-alter table public.profiles add column if not exists seller_postcode text;
-alter table public.profiles add column if not exists date_of_birth date;
-alter table public.profiles add column if not exists seller_terms_accepted_at timestamptz;
 alter table public.profiles add column if not exists seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted'));
 alter table public.profiles add column if not exists stripe_connect_account_id text unique;
 alter table public.profiles add column if not exists paypal_merchant_id text unique;

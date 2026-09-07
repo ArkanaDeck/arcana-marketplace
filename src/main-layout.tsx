@@ -390,7 +390,7 @@ export const MainLayout: React.FC = () => {
         try {
             const session = await getSupabaseSession();
             if (!session?.access_token) throw new Error('Sign in before setting up payouts.');
-            const response = await fetch('/api/connect/onboarding', {
+            const response = await fetch('/api/connect/stripe-onboarding', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
             });
@@ -563,16 +563,10 @@ export const MainLayout: React.FC = () => {
                                                 <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
                                                 <span className="seller-setup-status">{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
                                             </summary>
-                                            <div className="payout-onboarding-options">
-                                                <section className="payout-onboarding-card">
-                                                    <div><h3>Stripe Connect</h3><p>Complete secure identity and bank verification on Stripe's hosted onboarding page.</p></div>
-                                                    <button type="button" className="primary-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set Up Payouts via Stripe Connect'}</button>
-                                                </section>
-                                                <section className="payout-onboarding-card">
-                                                    <div><h3>PayPal</h3><p>Connect a PayPal Business account through the secure PayPal Partner Referral flow.</p></div>
-                                                    <button type="button" className="connect-payout-btn" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
-                                                </section>
-                                            </div>
+                                            {!isStripePayoutEnabled && <div className="payout-onboarding-options">
+                                                <button type="button" className="primary-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
+                                                <button type="button" className="paypal-connect-btn" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
+                                            </div>}
                                         </details>
                                         <BuyerOrdersPanel />
                                         <SellerOrdersPanel />

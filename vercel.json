@@ -37,7 +37,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/connect/onboarding",
+      "source": "/api/connect/stripe-onboarding",
       "destination": "/api/create-connect-onboarding"
     },
     {
