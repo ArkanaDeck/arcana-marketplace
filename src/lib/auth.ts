@@ -60,10 +60,22 @@ export async function sendPasswordReset(email: string) {
 
     assertSupabaseConfigured();
     const { error } = await supabase!.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/?auth=reset`,
+        redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
         throw new Error(error.message || 'Unable to send the password reset email.');
+    }
+}
+
+export async function updatePassword(newPassword: string) {
+    if (!newPassword || newPassword.length < 6) {
+        throw new Error('Enter a new password with at least 6 characters.');
+    }
+
+    assertSupabaseConfigured();
+    const { error } = await supabase!.auth.updateUser({ password: newPassword });
+    if (error) {
+        throw new Error(error.message || 'Unable to update your password.');
     }
 }
 

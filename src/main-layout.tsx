@@ -8,6 +8,7 @@ import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, 
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { SellerProfilePage } from './seller-profile-page';
+import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
 
@@ -496,6 +497,10 @@ export const MainLayout: React.FC = () => {
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
         return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.location.href = '/'; }} />;
+    }
+
+    if (window.location.pathname === '/reset-password') {
+        return <ResetPasswordPage onDone={() => { window.location.href = '/'; }} />;
     }
 
     return (
