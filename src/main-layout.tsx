@@ -60,6 +60,7 @@ export const MainLayout: React.FC = () => {
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
     const [basket, setBasket] = useState<DeckListing[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const listingFee = listings.length < 3 ? 0 : 0.66;
     const listingsInCurrentBundle = listings.length % 3;
     const [isBuyingListingCredits, setIsBuyingListingCredits] = useState(false);
@@ -99,6 +100,10 @@ export const MainLayout: React.FC = () => {
     // Auth form state placeholders
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const filteredListings = listings.filter((listing) => {
+        const query = searchQuery.trim().toLowerCase();
+        return !query || listing.name.toLowerCase().includes(query) || listing.description?.toLowerCase().includes(query);
+    });
 
     const handleRequiredFieldInvalid = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
         event.currentTarget.classList.add('field-border-error');
@@ -707,7 +712,10 @@ export const MainLayout: React.FC = () => {
                                     <h2>Marketplace Listings</h2>
                                     <p>Browse authentic tarot and oracle decks from the community.</p>
                                 </div>
-                                <div className="listing-summary-badge">{listings.length} live decks</div>
+                                <div className="listing-search-controls">
+                                    <input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search listings..." aria-label="Search listings" />
+                                    <div className="listing-summary-badge">{filteredListings.length} live decks</div>
+                                </div>
                             </div>
                             {listings.length === 0 ? (
                                 <div className="items-placeholder-grid empty-state-card">
@@ -716,9 +724,13 @@ export const MainLayout: React.FC = () => {
                                         Add your first deck
                                     </button>
                                 </div>
+                            ) : filteredListings.length === 0 ? (
+                                <div className="items-placeholder-grid empty-state-card">
+                                    <p className="empty-message">No listings match your search.</p>
+                                </div>
                             ) : (
                                 <div className="listings-live-grid">
-                                    {listings.map((item) => (
+                                    {filteredListings.map((item) => (
                                         <div key={item.id} className="live-product-card">
                                             <div className="product-image-box">
                                                 {item.image ? (

@@ -3154,6 +3154,27 @@ label.field-error .field-error-text {
     color: #325288;
 }
 
+.listing-search-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.listing-search-controls input {
+    width: min(240px, 100%);
+    min-height: 38px;
+    border: 1px solid rgba(17, 78, 96, 0.2);
+    border-radius: 9px;
+    background: #fff;
+    color: #114e60;
+    padding: 8px 11px;
+}
+
+.listing-search-controls input:focus {
+    border-color: #114e60;
+    outline: 2px solid rgba(17, 78, 96, 0.14);
+}
+
 .listing-summary-badge {
     background: rgba(17, 78, 96, 0.06);
     border: 1px solid rgba(17, 78, 96, 0.12);
@@ -3162,6 +3183,22 @@ label.field-error .field-error-text {
     color: #114E60;
     font-size: 0.78rem;
     font-weight: 700;
+}
+
+@media (max-width: 720px) {
+    .listing-search-controls {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .listing-search-controls input {
+        width: 100%;
+    }
+
+    .listing-summary-badge {
+        align-self: flex-start;
+    }
 }
 
 .empty-state-card {
