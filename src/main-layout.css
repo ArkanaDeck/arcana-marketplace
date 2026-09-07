@@ -519,6 +519,54 @@ label.field-error .field-error-text {
     min-width: 190px;
 }
 
+.profile-settings-form {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid rgba(17, 78, 96, 0.14);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.profile-settings-form h3,
+.profile-settings-form p {
+    margin: 0;
+}
+
+.profile-settings-form h3 {
+    color: #114e60;
+    font-size: 1rem;
+}
+
+.profile-settings-form p {
+    margin-top: 4px;
+    color: #54717b;
+    font-size: 0.8rem;
+}
+
+.profile-settings-form label {
+    display: grid;
+    gap: 6px;
+    color: #114e60;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.profile-settings-form input,
+.profile-settings-form textarea {
+    width: 100%;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 8px;
+    background: #fff;
+    color: #114e60;
+    font: inherit;
+    padding: 10px 12px;
+}
+
+.profile-settings-form textarea {
+    resize: vertical;
+}
+
 .seller-setup-drawer {
     overflow: hidden;
     border: 1px solid rgba(17, 78, 96, 0.16);
@@ -2910,10 +2958,18 @@ label.field-error .field-error-text {
 
 .image-preview-thumbnail {
     width: 100%;
-    max-height: 160px;
-    object-fit: contain;
+    max-width: 250px;
+    height: 200px;
+    max-height: 200px;
+    object-fit: cover;
     border-radius: 8px;
     margin-top: 10px;
+}
+
+.image-preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .seller-profile-page {

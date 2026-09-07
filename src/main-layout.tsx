@@ -79,6 +79,10 @@ export const MainLayout: React.FC = () => {
     const [isResetSent, setIsResetSent] = useState(false);
     const [isResetSubmitting, setIsResetSubmitting] = useState(false);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
+    const [displayName, setDisplayName] = useState('');
+    const [profileBio, setProfileBio] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
     const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
@@ -113,9 +117,14 @@ export const MainLayout: React.FC = () => {
     useEffect(() => {
         if (!supabase) return;
         getSupabaseSession()
-            .then((session) => {
+            .then(async (session) => {
                 setIsAuthenticated(Boolean(session));
                 setAccountEmail(session?.user.email || '');
+                if (!session?.user || !supabase) return;
+                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url').eq('id', session.user.id).maybeSingle();
+                setDisplayName(data?.display_name || '');
+                setProfileBio(data?.bio || '');
+                setAvatarUrl(data?.avatar_url || '');
             })
             .catch(() => setIsAuthenticated(false));
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -384,6 +393,28 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!supabase) return;
+        setIsSavingProfile(true);
+        setAccountStatus(null);
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.user) throw new Error('Sign in before saving your profile.');
+            const { error } = await supabase.from('profiles').update({
+                display_name: displayName.trim() || null,
+                bio: profileBio.trim() || null,
+                avatar_url: avatarUrl.trim() || null,
+            }).eq('id', session.user.id);
+            if (error) throw error;
+            setAccountStatus('Profile saved.');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to save your profile.');
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
     const handleStartConnect = async () => {
         setIsStartingConnect(true);
         setAccountStatus(null);
@@ -527,6 +558,7 @@ export const MainLayout: React.FC = () => {
                     </div>
                     <button type="button" className="primary-btn header-create-listing-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
                     <button type="button" className={`nav-btn header-help-link ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                    <a href="/account" className="auth-link-btn">Your Profile</a>
                 </header>
 
                 <main className="page-content">
@@ -558,6 +590,13 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
+                                        <form className="profile-settings-form" onSubmit={handleSaveProfile}>
+                                            <div><h3>Public profile</h3><p>These details appear on your seller profile.</p></div>
+                                            <label>Display name<input type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="Your display name" /></label>
+                                            <label>Bio<textarea value={profileBio} onChange={(event) => setProfileBio(event.target.value)} maxLength={500} rows={3} placeholder="Tell buyers a little about your collection." /></label>
+                                            <label>Avatar URL<input type="url" value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} maxLength={2048} placeholder="https://example.com/avatar.jpg" /></label>
+                                            <button type="submit" className="primary-btn" disabled={isSavingProfile}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
+                                        </form>
                                         <details className="seller-setup-drawer">
                                             <summary className="seller-setup-summary">
                                                 <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
@@ -825,6 +864,9 @@ export const MainLayout: React.FC = () => {
                                         onChange={handleImageChange}
                                     />
                                     {deckImageFiles.length > 0 && <div className="image-status">{deckImageFiles.length} image{deckImageFiles.length === 1 ? '' : 's'} selected and ready to publish</div>}
+                                    {deckImageFiles.length > 0 && <div className="image-preview-list">
+                                        {deckImageFiles.map((file) => <img key={`${file.name}-${file.lastModified}`} src={URL.createObjectURL(file)} alt="Selected deck preview" className="image-preview-thumbnail" />)}
+                                    </div>}
                                 </div>
                                 <button type="submit" className="primary-btn">{listingFee === 0 ? 'Publish Free Listing' : 'Buy credits to publish'}</button>
                             </form>
@@ -1068,6 +1110,9 @@ export const MainLayout: React.FC = () => {
                         </div>
                     </div>
                 )}
+                <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
+                    <button style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '24px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>🔮</button>
+                </div>
             </div>
         </div>
     );

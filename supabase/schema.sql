@@ -4,6 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
+  display_name text,
   avatar_url text,
   bio text,
   seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted')),
@@ -15,6 +16,7 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles add column if not exists listing_credits integer not null default 3 check (listing_credits >= 0);
+alter table public.profiles add column if not exists display_name text;
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists seller_payout_status text not null default 'not_started' check (seller_payout_status in ('not_started', 'pending_connect', 'enabled', 'restricted'));
@@ -107,7 +109,7 @@ alter table public.messages drop constraint if exists messages_text_content_leng
 alter table public.messages add constraint messages_text_content_length_check check (length(trim(text_content)) between 1 and 2000);
 
 create or replace view public.public_profiles as
-select id, full_name, avatar_url, bio
+select id, coalesce(display_name, full_name) as full_name, avatar_url, bio
 from public.profiles;
 grant select on public.public_profiles to anon, authenticated;
 
