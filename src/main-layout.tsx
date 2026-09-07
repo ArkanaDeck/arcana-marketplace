@@ -419,6 +419,7 @@ export const MainLayout: React.FC = () => {
             setAvatarUrl(nextAvatarUrl || '');
             setAvatarFile(null);
             setAccountStatus('Profile saved.');
+            window.location.href = `/app/profile/${encodeURIComponent(session.user.id)}`;
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to save your profile.');
         } finally {
