@@ -42,7 +42,11 @@
     },
     {
       "source": "/api/connect/paypal-onboarding",
-      "destination": "/api/connect-paypal-onboarding"
+      "destination": "/api/create-connect-onboarding?action=paypal"
+    },
+    {
+      "source": "/api/connect-status",
+      "destination": "/api/create-connect-onboarding?action=status"
     },
     {
       "source": "/api/checkout/paypal/create-order",
