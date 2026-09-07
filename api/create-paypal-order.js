@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { paypalRequest, toPayPalAmount } from '../src/lib/server-paypal.js';
-import { calculatePlatformFeeCents } from '../src/lib/server-fees.js';
+import { paypalRequest, toPayPalAmount } from '../server/lib/server-paypal.js';
+import { calculatePlatformFeeCents } from '../server/lib/server-fees.js';
 
 const SHIPPING_OPTIONS = {
     evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },
