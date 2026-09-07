@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-// @ts-ignore
-import './main-layout.css';
 import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
@@ -590,21 +588,21 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
-                                        <form className="profile-settings-form" onSubmit={handleSaveProfile}>
-                                            <div><h3>Public profile</h3><p>These details appear on your seller profile.</p></div>
-                                            <label>Display name<input type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="Your display name" /></label>
-                                            <label>Bio<textarea value={profileBio} onChange={(event) => setProfileBio(event.target.value)} maxLength={500} rows={3} placeholder="Tell buyers a little about your collection." /></label>
-                                            <label>Avatar URL<input type="url" value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} maxLength={2048} placeholder="https://example.com/avatar.jpg" /></label>
-                                            <button type="submit" className="primary-btn" disabled={isSavingProfile}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
+                                        <form onSubmit={handleSaveProfile} style={{ display: 'grid', gap: '14px', padding: '20px', border: '1px solid rgba(17, 78, 96, 0.14)', borderRadius: '12px', background: '#ffffff' }}>
+                                            <div><h3 style={{ margin: 0, color: '#114e60', fontSize: '1rem' }}>Public profile</h3><p style={{ margin: '4px 0 0', color: '#54717b', fontSize: '0.8rem' }}>These details appear on your seller profile.</p></div>
+                                            <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Display name<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="Your display name" /></label>
+                                            <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Bio<textarea style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px', resize: 'vertical' }} value={profileBio} onChange={(event) => setProfileBio(event.target.value)} maxLength={500} rows={3} placeholder="Tell buyers a little about your collection." /></label>
+                                            <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Avatar URL<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="url" value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} maxLength={2048} placeholder="https://example.com/avatar.jpg" /></label>
+                                            <button type="submit" disabled={isSavingProfile} style={{ border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isSavingProfile ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
                                         </form>
-                                        <details className="seller-setup-drawer">
-                                            <summary className="seller-setup-summary">
+                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
+                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
                                                 <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
-                                                <span className="seller-setup-status">{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
+                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: '#fff1d9', color: '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
                                             </summary>
-                                            {!isStripePayoutEnabled && <div className="payout-onboarding-options">
-                                                <button type="button" className="primary-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
-                                                <button type="button" className="paypal-connect-btn" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
+                                            {!isStripePayoutEnabled && <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                                <button type="button" onClick={handleStartConnect} disabled={isStartingConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
+                                                <button type="button" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#2563eb', color: '#ffffff', cursor: isStartingPayPalConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
                                             </div>}
                                         </details>
                                         <BuyerOrdersPanel />
