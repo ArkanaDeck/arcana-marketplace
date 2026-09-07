@@ -522,41 +522,34 @@ export const MainLayout: React.FC = () => {
                     <span>No hidden fees</span>
                 </div>
 
-                <header className="topbar">
-                    <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
-                        <div className="brand-mark">ARK</div>
-                        <div>
-                            <strong>Arkana</strong>
-                            <span>Zero-commission marketplace</span>
-                        </div>
-                    </button>
-                    <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" />
-                    <nav className="nav-links" aria-label="Main navigation">
+                <header className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 280px', minWidth: 0 }}>
+                        <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
+                            <div className="brand-mark">ARK</div>
+                            <div>
+                                <strong>Arkana</strong>
+                                <span>Zero-commission marketplace</span>
+                            </div>
+                        </button>
+                        <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
+                    </div>
+                    <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
                         <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={() => setActiveView('Sell')}>Sell</button>
+                        <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
                     </nav>
-                    <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>
-                        Basket <span>{basket.length}</span>
-                    </button>
-                    <div className="auth-header-actions">
+                    <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         {isAuthenticated ? (
-                            <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your account</button>
+                            <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your Profile</button>
                         ) : (
                             <>
                                 <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
-                                <button type="button" className="auth-link-btn" onClick={() => {
-                                    setAccountMode('signup');
-                                    setAccountStatus(null);
-                                    setIsEmailSent(false);
-                                    setIsResetView(false);
-                                    setActiveView('Account');
-                                }}>Register</button>
+                                <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
                             </>
                         )}
+                        <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                        <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
                     </div>
-                    <button type="button" className="primary-btn header-create-listing-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
-                    <button type="button" className={`nav-btn header-help-link ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
-                    <a href="/account" className="auth-link-btn">Your Profile</a>
                 </header>
 
                 <main className="page-content">
