@@ -37,6 +37,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/connect/onboarding",
+      "destination": "/api/create-connect-onboarding"
+    },
+    {
+      "source": "/api/connect/paypal-onboarding",
+      "destination": "/api/connect-paypal-onboarding"
+    },
+    {
       "source": "/api/checkout/paypal/create-order",
       "destination": "/api/create-paypal-order"
     },

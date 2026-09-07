@@ -14,10 +14,8 @@ export default async function handler(req, res) {
         const supabase = createClient(supabaseUrl, serviceRoleKey);
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         if (userError || !user) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('legal_name, seller_address_line_1, seller_city, seller_postcode, date_of_birth, stripe_connect_account_id').eq('id', user.id).single();
-        if (profileError || !profile?.legal_name || !profile.seller_address_line_1 || !profile.seller_city || !profile.seller_postcode || !profile.date_of_birth) {
-            return res.status(400).json({ error: 'Save your seller legal information before setting up payouts.' });
-        }
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('stripe_connect_account_id').eq('id', user.id).single();
+        if (profileError || !profile) return res.status(404).json({ error: 'Seller profile not found.' });
         const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
         const account = profile.stripe_connect_account_id
             ? await stripe.accounts.retrieve(profile.stripe_connect_account_id)

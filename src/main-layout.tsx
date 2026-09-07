@@ -79,17 +79,9 @@ export const MainLayout: React.FC = () => {
     const [isResetSent, setIsResetSent] = useState(false);
     const [isResetSubmitting, setIsResetSubmitting] = useState(false);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
-    const [legalName, setLegalName] = useState('');
-    const [sellerAddressLineOne, setSellerAddressLineOne] = useState('');
-    const [sellerAddressLineTwo, setSellerAddressLineTwo] = useState('');
-    const [sellerCity, setSellerCity] = useState('');
-    const [sellerPostcode, setSellerPostcode] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [sellerTermsAccepted, setSellerTermsAccepted] = useState(false);
-    const [paypalMerchantId, setPaypalMerchantId] = useState('');
-    const [paypalEmail, setPaypalEmail] = useState('');
-    const [isSavingSellerProfile, setIsSavingSellerProfile] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
+    const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
+    const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
@@ -139,6 +131,21 @@ export const MainLayout: React.FC = () => {
         setAccountMode('signin');
         setAccountStatus('Email confirmed. Sign in to continue.');
         window.history.replaceState({}, '', window.location.pathname);
+    }, []);
+
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('connect') !== 'complete') return;
+        getSupabaseSession()
+            .then(async (session) => {
+                if (!session?.access_token) throw new Error('Sign in again to verify your payout setup.');
+                const response = await fetch('/api/connect-status', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload?.error || 'Unable to verify payout setup.');
+                setIsStripePayoutEnabled(Boolean(payload.payoutEnabled));
+                setAccountStatus(payload.payoutEnabled ? 'Stripe payouts are enabled.' : 'Stripe needs additional information before payouts can be enabled.');
+            })
+            .catch((error) => setAccountStatus(error instanceof Error ? error.message : 'Unable to verify payout setup.'))
+            .finally(() => window.history.replaceState({}, '', window.location.pathname));
     }, []);
 
     useEffect(() => {
@@ -377,42 +384,13 @@ export const MainLayout: React.FC = () => {
         }
     };
 
-    const handleSaveSellerProfile = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!supabase) return;
-        setIsSavingSellerProfile(true);
-        setAccountStatus(null);
-        try {
-            const session = await getSupabaseSession();
-            if (!session?.user) throw new Error('Sign in before saving seller information.');
-            const { error } = await supabase.from('profiles').update({
-                legal_name: legalName.trim(),
-                seller_address_line_1: sellerAddressLineOne.trim(),
-                seller_address_line_2: sellerAddressLineTwo.trim() || null,
-                seller_city: sellerCity.trim(),
-                seller_postcode: sellerPostcode.trim().toUpperCase(),
-                date_of_birth: dateOfBirth,
-                paypal_merchant_id: paypalMerchantId.trim() || null,
-                paypal_email: paypalEmail.trim().toLowerCase() || null,
-                seller_terms_accepted_at: new Date().toISOString(),
-                seller_payout_status: 'pending_connect',
-            }).eq('id', session.user.id);
-            if (error) throw error;
-            setAccountStatus('Seller information saved. Complete Stripe Connect onboarding before receiving payouts.');
-        } catch (error) {
-            setAccountStatus(error instanceof Error ? error.message : 'Unable to save seller information.');
-        } finally {
-            setIsSavingSellerProfile(false);
-        }
-    };
-
     const handleStartConnect = async () => {
         setIsStartingConnect(true);
         setAccountStatus(null);
         try {
             const session = await getSupabaseSession();
             if (!session?.access_token) throw new Error('Sign in before setting up payouts.');
-            const response = await fetch('/api/create-connect-onboarding', {
+            const response = await fetch('/api/connect/onboarding', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
             });
@@ -422,6 +400,25 @@ export const MainLayout: React.FC = () => {
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.');
             setIsStartingConnect(false);
+        }
+    };
+
+    const handleStartPayPalConnect = async () => {
+        setIsStartingPayPalConnect(true);
+        setAccountStatus(null);
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.access_token) throw new Error('Sign in before setting up payouts.');
+            const response = await fetch('/api/connect/paypal-onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start PayPal onboarding.');
+            window.location.assign(payload.url);
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to start PayPal onboarding.');
+            setIsStartingPayPalConnect(false);
         }
     };
 
@@ -564,32 +561,18 @@ export const MainLayout: React.FC = () => {
                                         <details className="seller-setup-drawer">
                                             <summary className="seller-setup-summary">
                                                 <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
-                                                <span className="seller-setup-status">Pending Stripe Connect</span>
+                                                <span className="seller-setup-status">{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
                                             </summary>
-                                            <form className="seller-verification-form" onSubmit={handleSaveSellerProfile}>
-                                                <div className="seller-verification-heading">
-                                                    <div><h3>Seller verification</h3><p>Required before seller payouts. Bank and identity checks are completed securely in Stripe Connect.</p></div>
-                                                </div>
-                                                <label>Legal name <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={legalName} onChange={(event) => setLegalName(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="name" required aria-required="true" maxLength={120} placeholder="Full legal name" /><span className="field-error-text">This space must be filled in.</span></label>
-                                                <label>Address line 1 <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerAddressLineOne} onChange={(event) => setSellerAddressLineOne(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-line1" required aria-required="true" maxLength={120} placeholder="House number and street" /><span className="field-error-text">This space must be filled in.</span></label>
-                                                <label>Address line 2 <em>Optional</em><input type="text" value={sellerAddressLineTwo} onChange={(event) => setSellerAddressLineTwo(event.target.value)} autoComplete="address-line2" maxLength={120} placeholder="Flat, building, or area" /></label>
-                                                <div className="seller-verification-grid">
-                                                    <label>Town or city <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerCity} onChange={(event) => setSellerCity(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="address-level2" required aria-required="true" maxLength={80} /><span className="field-error-text">This space must be filled in.</span></label>
-                                                    <label>UK postcode <span className="text-red-500 font-bold ml-0.5">*</span><input type="text" value={sellerPostcode} onChange={(event) => setSellerPostcode(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="postal-code" required aria-required="true" maxLength={10} /><span className="field-error-text">This space must be filled in.</span></label>
-                                                </div>
-                                                <label>Date of birth <span className="text-red-500 font-bold ml-0.5">*</span><input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="bday" required aria-required="true" /><span className="field-error-text">This space must be filled in.</span></label>
-                                                <div className="payout-method-section">
-                                                    <h3>Payout methods</h3>
-                                                    <p>Connect Stripe for automated payouts, or add your verified PayPal merchant ID for PayPal settlements.</p>
-                                                    <label>PayPal merchant ID <em>Optional</em><input type="text" value={paypalMerchantId} onChange={(event) => setPaypalMerchantId(event.target.value)} maxLength={120} placeholder="Your PayPal merchant ID" /></label>
-                                                    <label>PayPal Email Address (Alternative Payout Mode) <em>Optional</em><input type="email" value={paypalEmail} onChange={(event) => setPaypalEmail(event.target.value)} maxLength={254} placeholder="your-paypal@email.com" autoComplete="email" /></label>
-                                                </div>
-                                                <label className="seller-terms-check"><input type="checkbox" checked={sellerTermsAccepted} onChange={(event) => setSellerTermsAccepted(event.target.checked)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" /><span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines. <span className="text-red-500 font-bold ml-0.5">*</span></span><span className="field-error-text">This space must be filled in.</span></label>
-                                                <div className="seller-payout-actions">
-                                                    <button type="submit" className="primary-btn" disabled={isSavingSellerProfile}>{isSavingSellerProfile ? 'Saving...' : 'Save seller information'}</button>
-                                                    <button type="button" className="connect-payout-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
-                                                </div>
-                                            </form>
+                                            <div className="payout-onboarding-options">
+                                                <section className="payout-onboarding-card">
+                                                    <div><h3>Stripe Connect</h3><p>Complete secure identity and bank verification on Stripe's hosted onboarding page.</p></div>
+                                                    <button type="button" className="primary-btn" onClick={handleStartConnect} disabled={isStartingConnect}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set Up Payouts via Stripe Connect'}</button>
+                                                </section>
+                                                <section className="payout-onboarding-card">
+                                                    <div><h3>PayPal</h3><p>Connect a PayPal Business account through the secure PayPal Partner Referral flow.</p></div>
+                                                    <button type="button" className="connect-payout-btn" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
+                                                </section>
+                                            </div>
                                         </details>
                                         <BuyerOrdersPanel />
                                         <SellerOrdersPanel />
