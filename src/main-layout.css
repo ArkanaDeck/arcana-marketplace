@@ -253,6 +253,10 @@ label.field-error .field-error-text {
     cursor: pointer;
 }
 
+.basket-btn--topbar {
+    display: none;
+}
+
 .mobile-menu-toggle__bar {
     display: block;
     width: 20px;
@@ -961,8 +965,17 @@ label.field-error .field-error-text {
 
     .mobile-menu-toggle {
         display: inline-flex;
+        order: 2;
+    }
+
+    .basket-btn--topbar {
+        display: inline-flex;
         order: 1;
         margin-left: auto;
+    }
+
+    .basket-btn--nav {
+        display: none;
     }
 
     .mobile-nav-panel {

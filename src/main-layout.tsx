@@ -13,6 +13,9 @@ import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
+// Standard courier fee charged per item unless the seller offers free delivery.
+const STANDARD_COURIER_FEE = 2.99;
+type BasketItem = DeckListing & { courierFee: number };
 
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
@@ -57,7 +60,7 @@ export const MainLayout: React.FC = () => {
     const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
-    const [basket, setBasket] = useState<DeckListing[]>([]);
+    const [basket, setBasket] = useState<BasketItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const listingFee = listings.length < 3 ? 0 : 0.66;
     const listingsInCurrentBundle = listings.length % 3;
@@ -92,6 +95,7 @@ export const MainLayout: React.FC = () => {
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [session, setSession] = useState<Session | null>(null);
     const [isProfileComplete, setIsProfileComplete] = useState(false);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
     const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
@@ -146,9 +150,11 @@ export const MainLayout: React.FC = () => {
             setProfileBio('');
             setAvatarUrl('');
             setIsProfileComplete(false);
+            setIsProfileLoading(false);
             return;
         }
         const currentUserId = session.user.id;
+        setIsProfileLoading(true);
         (async () => {
             try {
                 const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url').eq('id', currentUserId).maybeSingle();
@@ -158,9 +164,18 @@ export const MainLayout: React.FC = () => {
                 setIsProfileComplete(Boolean(data));
             } catch {
                 setIsProfileComplete(false);
+            } finally {
+                setIsProfileLoading(false);
             }
         })();
     }, [session]);
+
+    // Existing users with a completed profile skip the account/profile onboarding view.
+    useEffect(() => {
+        if (!session?.user || isProfileLoading || !isProfileComplete) return;
+        if (activeView !== 'Account') return;
+        setActiveView('Listings');
+    }, [session, isProfileLoading, isProfileComplete, activeView]);
 
     useEffect(() => {
         setIsMobileMenuOpen(false);
@@ -355,7 +370,8 @@ export const MainLayout: React.FC = () => {
             setFlashMessage('Your basket already has the maximum 3 decks for this seller.');
             return;
         }
-        setBasket((currentBasket) => [...currentBasket, item]);
+        const courierFee = item.freeDelivery ? 0 : STANDARD_COURIER_FEE;
+        setBasket((currentBasket) => [...currentBasket, { ...item, courierFee }]);
         setFlashMessage(`Added ${item.name} to your basket.`);
     };
 
@@ -615,6 +631,7 @@ export const MainLayout: React.FC = () => {
                         </button>
                         <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
                     </div>
+                    <button type="button" className="basket-btn basket-btn--topbar" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
                     <button
                         type="button"
                         className="mobile-menu-toggle"
@@ -630,7 +647,7 @@ export const MainLayout: React.FC = () => {
                         <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
                             <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={handleStartCreate}>Sell</button>
-                            <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
+                            <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
                         </nav>
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {isAuthenticated ? (
@@ -835,7 +852,7 @@ export const MainLayout: React.FC = () => {
                                             onClick={() => setViewingListing(item)}
                                             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setViewingListing(item); } }}
                                         >
-                                            <div className="product-image-box" style={{ cursor: 'pointer' }}>
+                                            <div className="product-image-box" style={{ cursor: 'pointer', position: 'relative' }}>
                                                 {item.images.length > 0 ? (
                                                     <div className="listing-image-row">
                                                         {item.images.slice(0, 3).map((imageUrl, index) => (
@@ -846,6 +863,22 @@ export const MainLayout: React.FC = () => {
                                                     </div>
                                                 ) : (
                                                     <span className="default-card-emoji">🎴</span>
+                                                )}
+                                                {item.images.length > 1 && (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Scroll images left"
+                                                            onClick={(event) => { event.stopPropagation(); event.currentTarget.parentElement?.querySelector('.listing-image-row')?.scrollBy({ left: -240, behavior: 'smooth' }); }}
+                                                            style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        >‹</button>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Scroll images right"
+                                                            onClick={(event) => { event.stopPropagation(); event.currentTarget.parentElement?.querySelector('.listing-image-row')?.scrollBy({ left: 240, behavior: 'smooth' }); }}
+                                                            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        >›</button>
+                                                    </>
                                                 )}
                                             </div>
                                             <div className="product-details">
@@ -1263,7 +1296,7 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
-const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void; onFlashMessage: (message: string) => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal, onFlashMessage }) => {
+const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void; onFlashMessage: (message: string) => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal, onFlashMessage }) => {
     type PaymentGateway = 'stripe' | 'paypal';
     const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
     const [selectedGateway, setSelectedGateway] = React.useState<PaymentGateway>('stripe');
@@ -1302,8 +1335,11 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
 
     const shippingPrices = { evri_standard: 2.99, royal_mail_48: 3.65, royal_mail_24: 4.65 };
     const shipping = shippingPrices[shippingOption];
+    // Each item carries its own courierFee, so mixed baskets only waive shipping for the items sellers marked free.
+    const courierFeeTotal = basket.reduce((sum, item) => sum + (item.freeDelivery ? 0 : shipping), 0);
+    const isFreeDelivery = basket.length > 0 && basket.every((item) => item.freeDelivery);
     const deckTotal = basket.reduce((sum, item) => sum + item.price, 0);
-    const subtotal = deckTotal + shipping;
+    const subtotal = deckTotal + courierFeeTotal;
     const grandTotal = Math.ceil(((subtotal + (selectedGateway === 'stripe' ? 0.20 : 0.30)) / (1 - (selectedGateway === 'stripe' ? 0.015 : 0.029))) * 100) / 100;
     const platformServiceFee = grandTotal - subtotal;
     const deliveryQrValue = JSON.stringify({
@@ -1444,7 +1480,8 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                         ))}
                     </div>
                     <div className="checkout-total-list checkout-price-breakdown">
-                        <div><span>Subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Items subtotal</span><strong>£{deckTotal.toFixed(2)}</strong></div>
+                        <div><span>Courier fee</span><strong>£{courierFeeTotal.toFixed(2)}</strong></div>
                         <div><span>Transaction fee ({selectedGateway === 'stripe' ? 'Stripe' : 'PayPal'})</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
                         <div className="checkout-grand-total"><span>Total charged</span><strong>£{grandTotal.toFixed(2)}</strong></div>
                     </div>
@@ -1467,18 +1504,19 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                 <aside className="checkout-summary-panel">
                     <div className="checkout-section-heading">
                         <span>Order</span>
-                        <div><h3>Your basket</h3><p>{basket.length} item{basket.length === 1 ? '' : 's'} ready to ship.</p></div>
+                        <div><h3>Your basket</h3><p>{basket.length} item{basket.length === 1 ? '' : 's'} ready to ship.{isFreeDelivery ? ' Free delivery applied.' : ''}</p></div>
                     </div>
                     <div className="checkout-items">
                         {basket.map(item => (
                             <div key={item.id} className="checkout-item-row">
-                                <div><strong>{item.name}</strong><span>Tarot deck</span></div>
+                                <div><strong>{item.name}</strong><span>Tarot deck · {item.freeDelivery ? 'Free delivery' : `Courier £${shipping.toFixed(2)}`}</span></div>
                                 <div className="checkout-item-price"><strong>£{item.price.toFixed(2)}</strong><button type="button" onClick={() => onRemoveFromBasket(item.id)}>Remove</button></div>
                             </div>
                         ))}
                     </div>
                     <div className="checkout-total-list">
-                        <div><span>Subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Items subtotal</span><strong>£{deckTotal.toFixed(2)}</strong></div>
+                        <div><span>Courier fee</span><strong>£{courierFeeTotal.toFixed(2)}</strong></div>
                         <div><span>Platform service fee</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
                         <div className="checkout-grand-total"><span>Grand total</span><strong>£{grandTotal.toFixed(2)}</strong></div>
                     </div>
