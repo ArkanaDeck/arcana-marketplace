@@ -777,7 +777,7 @@ export const MainLayout: React.FC = () => {
                                                     <div className="listing-image-row">
                                                         {item.images.slice(0, 3).map((imageUrl, index) => (
                                                             <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${item.name}`} onClick={(event) => event.stopPropagation()}>
-                                                                <img src={imageUrl} alt={`${item.name} photo ${index + 1}`} className="live-uploaded-img w-full h-48 object-cover" />
+                                                                <img src={imageUrl} alt={`${item.name} photo ${index + 1}`} className="live-uploaded-img" />
                                                             </a>
                                                         ))}
                                                     </div>
@@ -822,7 +822,7 @@ export const MainLayout: React.FC = () => {
                                     <div className="listing-image-row listing-detail-modal-images">
                                         {viewingListing.images.map((imageUrl, index) => (
                                             <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${viewingListing.name}`}>
-                                                <img src={imageUrl} alt={`${viewingListing.name} photo ${index + 1}`} className="live-uploaded-img w-full h-48 object-cover" />
+                                                <img src={imageUrl} alt={`${viewingListing.name} photo ${index + 1}`} className="live-uploaded-img" />
                                             </a>
                                         ))}
                                     </div>
