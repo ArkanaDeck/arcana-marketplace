@@ -1329,6 +1329,18 @@ label.field-error .field-error-text {
     box-shadow: 0 12px 24px rgba(17, 78, 96, 0.06);
 }
 
+.listing-detail-modal-card {
+    width: min(640px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    display: grid;
+    gap: 12px;
+}
+
+.listing-detail-modal-images {
+    height: 220px;
+}
+
 .product-image-box {
     display: flex;
     align-items: center;

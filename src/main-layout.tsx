@@ -61,6 +61,7 @@ export const MainLayout: React.FC = () => {
 
     // Checkout Flow States
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
+    const [viewingListing, setViewingListing] = useState<DeckListing | null>(null);
     const [checkoutStep, setCheckoutStep] = useState<'auth' | 'delivery' | 'payment' | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [deliveryMethod, setDeliveryMethod] = useState<'standard' | 'express' | 'collection'>('standard');
@@ -768,12 +769,20 @@ export const MainLayout: React.FC = () => {
                             ) : (
                                 <div className="listings-live-grid">
                                     {filteredListings.map((item) => (
-                                        <div key={item.id} className="live-product-card">
-                                            <div className="product-image-box">
+                                        <div
+                                            key={item.id}
+                                            className="live-product-card"
+                                            role="button"
+                                            tabIndex={0}
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => setViewingListing(item)}
+                                            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setViewingListing(item); } }}
+                                        >
+                                            <div className="product-image-box" style={{ cursor: 'pointer' }}>
                                                 {item.images.length > 0 ? (
                                                     <div className="listing-image-row">
                                                         {item.images.slice(0, 3).map((imageUrl, index) => (
-                                                            <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${item.name}`}>
+                                                            <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${item.name}`} onClick={(event) => event.stopPropagation()}>
                                                                 <img src={imageUrl} alt={`${item.name} photo ${index + 1}`} className="live-uploaded-img w-full h-48 object-cover" />
                                                             </a>
                                                         ))}
@@ -784,19 +793,19 @@ export const MainLayout: React.FC = () => {
                                             </div>
                                             <div className="product-details">
                                                 <h4>{item.name}</h4>
-                                                <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`}>View seller profile</a>
+                                                <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
                                                 <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
                                                 {item.description && <p className="listing-description">{item.description}</p>}
                                                 <div className="product-footer">
                                                     <button
                                                         className="buy-btn"
-                                                        onClick={() => item.listingType === 'sale' ? handleAddToBasket(item) : setFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`)}
+                                                        onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? handleAddToBasket(item) : setFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}
                                                     >
                                                         {item.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === item.id) ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
                                                     </button>
                                                     <button
                                                         className="delete-btn"
-                                                        onClick={() => handleDelete(item.id)}
+                                                        onClick={(event) => { event.stopPropagation(); handleDelete(item.id); }}
                                                     >
                                                         🗑️ Delete
                                                     </button>
@@ -807,6 +816,39 @@ export const MainLayout: React.FC = () => {
                                 </div>
                             )}
                         </section>
+                    )}
+                    {viewingListing && (
+                        <div className="modal-backdrop" onClick={() => setViewingListing(null)}>
+                            <div className="checkout-modal-card listing-detail-modal-card" onClick={(event) => event.stopPropagation()}>
+                                <div className="modal-header">
+                                    <h3>{viewingListing.name}</h3>
+                                    <button className="close-modal-btn" onClick={() => setViewingListing(null)}>✕</button>
+                                </div>
+                                {viewingListing.images.length > 0 ? (
+                                    <div className="listing-image-row listing-detail-modal-images">
+                                        {viewingListing.images.map((imageUrl, index) => (
+                                            <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${viewingListing.name}`}>
+                                                <img src={imageUrl} alt={`${viewingListing.name} photo ${index + 1}`} className="live-uploaded-img w-full h-48 object-cover" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="default-card-emoji">🎴</span>
+                                )}
+                                <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+                                <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
+                                {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
+                                <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
+                                <div className="product-footer">
+                                    <button
+                                        className="buy-btn"
+                                        onClick={() => viewingListing.listingType === 'sale' ? handleAddToBasket(viewingListing) : setFlashMessage(viewingListing.listingType === 'swap' ? `Contact the seller to arrange a swap for ${viewingListing.name}.` : `Contact the seller to arrange collection for ${viewingListing.name}.`)}
+                                    >
+                                        {viewingListing.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === viewingListing.id) ? 'In basket' : 'Add to basket') : viewingListing.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                     {/* 4. SELL VIEW */}
                     {activeView === 'Sell' && (
