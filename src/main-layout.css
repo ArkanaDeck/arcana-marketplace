@@ -1498,6 +1498,7 @@ label.field-error .field-error-text {
 .secondary-btn,
 .buy-btn,
 .delete-btn,
+.edit-btn,
 .guest-btn,
 .close-modal-btn,
 .paypal-btn {
@@ -1509,6 +1510,7 @@ label.field-error .field-error-text {
 .secondary-btn,
 .buy-btn,
 .delete-btn,
+.edit-btn,
 .guest-btn,
 .paypal-btn {
     cursor: pointer;
@@ -1585,6 +1587,21 @@ label.field-error .field-error-text {
     background: rgba(239, 68, 68, 0.08);
     border-color: rgba(239, 68, 68, 0.18);
     color: #b91c1c;
+    outline: none;
+}
+
+.edit-btn {
+    background: rgba(17, 78, 96, 0.08);
+    color: #114E60;
+    border: 1px solid rgba(17, 78, 96, 0.18);
+    border-radius: 999px;
+    padding: 9px 12px;
+    font-weight: 600;
+}
+
+.edit-btn:hover,
+.edit-btn:focus-visible {
+    background: rgba(17, 78, 96, 0.14);
     outline: none;
 }
 

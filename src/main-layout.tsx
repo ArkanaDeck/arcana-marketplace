@@ -55,6 +55,8 @@ export const MainLayout: React.FC = () => {
     const [freeDelivery, setFreeDelivery] = useState<boolean>(false);
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<DeckListing[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const listingFee = listings.length < 3 ? 0 : 0.66;
@@ -234,13 +236,45 @@ export const MainLayout: React.FC = () => {
     }, [flashMessage]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length > 3) {
-            setFlashMessage('Select up to three images.');
+        const newFiles = Array.from(e.target.files || []);
+        const existingImageUrls = imagePreviews.filter((url) => !url.startsWith('blob:'));
+        const availableSlots = 3 - existingImageUrls.length - deckImageFiles.length;
+        if (newFiles.length === 0) return;
+        if (newFiles.length > availableSlots) {
+            setFlashMessage(availableSlots > 0 ? `Select up to ${availableSlots} more image${availableSlots === 1 ? '' : 's'} (3 total including existing photos).` : 'You already have 3 images. Remove one before adding another.');
             e.target.value = '';
             return;
         }
-        setDeckImageFiles(files);
+        const mergedFiles = [...deckImageFiles, ...newFiles];
+        setDeckImageFiles(mergedFiles);
+        setImagePreviews([...existingImageUrls, ...mergedFiles.map((file) => URL.createObjectURL(file))]);
+        e.target.value = '';
+    };
+
+    const handleStartCreate = () => {
+        setEditModeData(null);
+        setDeckName('');
+        setDeckPrice('');
+        setDeckDescription('');
+        setCondition('good');
+        setFreeDelivery(false);
+        setListingType('sale');
+        setDeckImageFiles([]);
+        setImagePreviews([]);
+        setActiveView('Sell');
+    };
+
+    const handleStartEdit = (item: DeckListing) => {
+        setEditModeData(item);
+        setDeckName(item.name);
+        setDeckPrice(item.listingType === 'sale' ? item.price.toFixed(2) : '');
+        setDeckDescription(item.description || '');
+        setCondition(item.condition);
+        setFreeDelivery(item.freeDelivery);
+        setListingType(item.listingType);
+        setDeckImageFiles([]);
+        setImagePreviews(item.images || []);
+        setActiveView('Sell');
     };
 
     const handlePublish = async (e: React.FormEvent) => {
@@ -272,6 +306,8 @@ export const MainLayout: React.FC = () => {
             setFreeDelivery(false);
             setListingType('sale');
             setDeckImageFiles([]);
+            setImagePreviews([]);
+            setEditModeData(null);
             setFlashMessage(`Published: ${newListing.name}`);
             setActiveView('Listings');
         } catch (error) {
@@ -593,7 +629,7 @@ export const MainLayout: React.FC = () => {
                     <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
                         <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
-                            <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={() => setActiveView('Sell')}>Sell</button>
+                            <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={handleStartCreate}>Sell</button>
                             <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
                         </nav>
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -605,7 +641,7 @@ export const MainLayout: React.FC = () => {
                                     <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
                                 </>
                             )}
-                            <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                            <button type="button" className="primary-btn" onClick={handleStartCreate}>Create Listing</button>
                             <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
                         </div>
                     </div>
@@ -637,7 +673,7 @@ export const MainLayout: React.FC = () => {
                                         <strong>Signed in as {accountEmail || 'your Arkana account'}</strong>
                                         {accountStatus && <p role="status">{accountStatus}</p>}
                                         <div className="account-actions">
-                                            <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create a listing</button>
+                                            <button type="button" className="primary-btn" onClick={handleStartCreate}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
                                         <form onSubmit={handleSaveProfile} style={{ display: 'grid', gap: '14px', padding: '20px', border: '1px solid rgba(17, 78, 96, 0.14)', borderRadius: '12px', background: '#ffffff' }}>
@@ -779,7 +815,7 @@ export const MainLayout: React.FC = () => {
                             {listings.length === 0 ? (
                                 <div className="items-placeholder-grid empty-state-card">
                                     <p className="empty-message">No decks listed yet.</p>
-                                    <button className="primary-btn" onClick={() => setActiveView('Sell')}>
+                                    <button className="primary-btn" onClick={handleStartCreate}>
                                         Add your first deck
                                     </button>
                                 </div>
@@ -823,6 +859,12 @@ export const MainLayout: React.FC = () => {
                                                         onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? handleAddToBasket(item) : setFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}
                                                     >
                                                         {item.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === item.id) ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
+                                                    </button>
+                                                    <button
+                                                        className="edit-btn"
+                                                        onClick={(event) => { event.stopPropagation(); handleStartEdit(item); }}
+                                                    >
+                                                        ✏️ Edit
                                                     </button>
                                                     <button
                                                         className="delete-btn"
@@ -963,9 +1005,9 @@ export const MainLayout: React.FC = () => {
                                         multiple
                                         onChange={handleImageChange}
                                     />
-                                    {deckImageFiles.length > 0 && <div className="image-status">{deckImageFiles.length} image{deckImageFiles.length === 1 ? '' : 's'} selected and ready to publish</div>}
-                                    {deckImageFiles.length > 0 && <div className="image-preview-list">
-                                        {deckImageFiles.map((file) => <img key={`${file.name}-${file.lastModified}`} src={URL.createObjectURL(file)} alt="Selected deck preview" className="image-preview-thumbnail" />)}
+                                    {imagePreviews.length > 0 && <div className="image-status">{imagePreviews.length} image{imagePreviews.length === 1 ? '' : 's'} selected and ready to publish</div>}
+                                    {imagePreviews.length > 0 && <div className="image-preview-list">
+                                        {imagePreviews.map((previewUrl) => <img key={previewUrl} src={previewUrl} alt="Selected deck preview" className="image-preview-thumbnail" />)}
                                     </div>}
                                 </div>
                                 <button type="submit" className="primary-btn">{listingFee === 0 ? 'Publish Free Listing' : 'Buy credits to publish'}</button>
