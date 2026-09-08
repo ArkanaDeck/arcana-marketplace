@@ -445,10 +445,10 @@ export const MainLayout: React.FC = () => {
             });
             const payload = await response.json();
             if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start Stripe Connect onboarding.');
-            window.location.assign(payload.url);
+            window.location.href = payload.url;
         } catch (error) {
-            setAccountStatus(error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.');
-            setIsStartingConnect(false);
+            window.alert(error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.');
+            window.location.reload();
         }
     };
 
