@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
@@ -87,6 +88,8 @@ export const MainLayout: React.FC = () => {
     const [avatarUrl, setAvatarUrl] = useState('');
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [session, setSession] = useState<Session | null>(null);
+    const [isProfileComplete, setIsProfileComplete] = useState(false);
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
     const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
@@ -121,22 +124,41 @@ export const MainLayout: React.FC = () => {
     useEffect(() => {
         if (!supabase) return;
         getSupabaseSession()
-            .then(async (session) => {
-                setIsAuthenticated(Boolean(session));
-                setAccountEmail(session?.user.email || '');
-                if (!session?.user || !supabase) return;
-                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url').eq('id', session.user.id).maybeSingle();
-                setDisplayName(data?.display_name || '');
-                setProfileBio(data?.bio || '');
-                setAvatarUrl(data?.avatar_url || '');
+            .then((activeSession) => {
+                setIsAuthenticated(Boolean(activeSession));
+                setAccountEmail(activeSession?.user.email || '');
+                setSession(activeSession);
             })
             .catch(() => setIsAuthenticated(false));
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setIsAuthenticated(Boolean(session));
-            setAccountEmail(session?.user.email || '');
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+            setIsAuthenticated(Boolean(activeSession));
+            setAccountEmail(activeSession?.user.email || '');
+            setSession(activeSession);
         });
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (!supabase || !session?.user) {
+            setDisplayName('');
+            setProfileBio('');
+            setAvatarUrl('');
+            setIsProfileComplete(false);
+            return;
+        }
+        const currentUserId = session.user.id;
+        (async () => {
+            try {
+                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url').eq('id', currentUserId).maybeSingle();
+                setDisplayName(data?.display_name || '');
+                setProfileBio(data?.bio || '');
+                setAvatarUrl(data?.avatar_url || '');
+                setIsProfileComplete(Boolean(data));
+            } catch {
+                setIsProfileComplete(false);
+            }
+        })();
+    }, [session]);
 
     useEffect(() => {
         setIsMobileMenuOpen(false);
