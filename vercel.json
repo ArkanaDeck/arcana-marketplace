@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "devCommand": "node ./node_modules/vite/bin/vite.js --port $PORT",
   "headers": [
     {
       "source": "/(.*)",

@@ -253,7 +253,12 @@ export const MainLayout: React.FC = () => {
             setFlashMessage(`Published: ${newListing.name}`);
             setActiveView('Listings');
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to publish your listing.');
+            const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
+            alert(message);
+            if (message === 'Sign in before creating a listing.') {
+                setAccountMode('signin');
+                setActiveView('Account');
+            }
         }
     };
 
@@ -510,7 +515,7 @@ export const MainLayout: React.FC = () => {
 
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
-        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.location.href = '/'; }} />;
+        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} />;
     }
 
     if (window.location.pathname === '/reset-password') {
