@@ -598,7 +598,7 @@ export const MainLayout: React.FC = () => {
                         </nav>
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {isAuthenticated ? (
-                                <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your Profile</button>
+                                <button type="button" className="auth-link-btn" style={{ cursor: 'pointer' }} onClick={() => setActiveView('Account')}>Your Profile</button>
                             ) : (
                                 <>
                                     <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
