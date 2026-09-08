@@ -1338,6 +1338,11 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
                             </label>
                         ))}
                     </div>
+                    <div className="checkout-total-list checkout-price-breakdown">
+                        <div><span>Subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Transaction fee ({selectedGateway === 'stripe' ? 'Stripe' : 'PayPal'})</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
+                        <div className="checkout-grand-total"><span>Total charged</span><strong>£{grandTotal.toFixed(2)}</strong></div>
+                    </div>
                     {selectedGateway === 'stripe' ? (
                         <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
                             {isSubmitting ? 'Opening secure payment...' : 'Continue with Credit Card'}

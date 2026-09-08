@@ -2521,6 +2521,13 @@ label.field-error .field-error-text {
     font-size: 1rem;
 }
 
+.checkout-price-breakdown {
+    padding: 14px;
+    border: 1px solid rgba(17, 78, 96, 0.12);
+    border-radius: 10px;
+    background: #f7fbfa;
+}
+
 .delivery-qr-panel {
     display: flex;
     align-items: center;
