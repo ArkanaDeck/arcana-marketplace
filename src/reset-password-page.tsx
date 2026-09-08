@@ -44,7 +44,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
         try {
             await updatePassword(password);
             setIsComplete(true);
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', '/login');
         } catch (error) {
             setStatus(error instanceof Error ? error.message : 'Unable to update your password.');
         } finally {

@@ -29,6 +29,35 @@ export async function loadListings() {
 
 export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images'> & { imageFiles?: File[] };
 
+// Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
+async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes = 1024 * 1024): Promise<Blob> {
+    const bitmap = await createImageBitmap(file);
+    let width = bitmap.width;
+    let height = bitmap.height;
+    if (width > maxDimension || height > maxDimension) {
+        const scale = maxDimension / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to process image for upload.');
+    context.drawImage(bitmap, 0, 0, width, height);
+
+    let quality = 0.9;
+    let blob: Blob | null = null;
+    do {
+        blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+        quality -= 0.15;
+    } while (blob && blob.size > maxSizeBytes && quality > 0.15);
+
+    if (!blob) throw new Error('Unable to compress image for upload.');
+    return blob;
+}
+
 export async function createListing(input: CreateListingInput) {
     const session = await getSupabaseSession();
     if (!session?.user) throw new Error('Sign in before creating a listing.');
@@ -44,11 +73,11 @@ export async function createListing(input: CreateListingInput) {
     const imagePaths: string[] = [];
     const imageUrls: string[] = [];
     try {
-        for (const file of input.imageFiles || []) {
+        for (const file of (input.imageFiles || []).slice(0, 3)) {
             if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
-            const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-            const path = `${session.user.id}/${crypto.randomUUID()}.${extension}`;
-            const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, file, { contentType: file.type, upsert: false });
+            const compressed = await compressImageFile(file);
+            const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+            const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, compressed, { contentType: 'image/jpeg', upsert: false });
             if (uploadError) throw new Error(uploadError.message || 'Unable to upload listing image.');
             imagePaths.push(path);
             const { data: publicUrl } = supabase.storage.from('listing-images').getPublicUrl(path);

@@ -15,6 +15,7 @@ type DeckListing = MarketplaceListing;
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const hasSecureBackend = runtimeConfig.supabaseEnabled;
     const isSecureCheckoutEnabled = runtimeConfig.isSecureMode;
     const productionChecklist = getProductionChecklist({
@@ -75,6 +76,7 @@ export const MainLayout: React.FC = () => {
     const [isResendingVerification, setIsResendingVerification] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [isResetView, setIsResetView] = useState(false);
+    const [showResetMessage, setShowResetMessage] = useState(false);
     const [isResetSent, setIsResetSent] = useState(false);
     const [isResetSubmitting, setIsResetSubmitting] = useState(false);
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
@@ -133,6 +135,10 @@ export const MainLayout: React.FC = () => {
         });
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [activeView]);
 
     useEffect(() => {
         if (new URLSearchParams(window.location.search).get('auth') !== 'confirmed') return;
@@ -513,7 +519,7 @@ export const MainLayout: React.FC = () => {
     }
 
     if (window.location.pathname === '/reset-password') {
-        return <ResetPasswordPage onDone={() => { window.location.href = '/'; }} />;
+        return <ResetPasswordPage onDone={() => { window.location.href = '/login'; }} />;
     }
 
     return (
@@ -551,22 +557,35 @@ export const MainLayout: React.FC = () => {
                         </button>
                         <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
                     </div>
-                    <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
-                        <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={() => setActiveView('Sell')}>Sell</button>
-                        <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
-                    </nav>
-                    <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        {isAuthenticated ? (
-                            <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your Profile</button>
-                        ) : (
-                            <>
-                                <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
-                                <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
-                            </>
-                        )}
-                        <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
-                        <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                    <button
+                        type="button"
+                        className="mobile-menu-toggle"
+                        aria-label="Toggle navigation menu"
+                        aria-expanded={isMobileMenuOpen}
+                        onClick={() => setIsMobileMenuOpen((current) => !current)}
+                    >
+                        <span className="mobile-menu-toggle__bar"></span>
+                        <span className="mobile-menu-toggle__bar"></span>
+                        <span className="mobile-menu-toggle__bar"></span>
+                    </button>
+                    <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
+                        <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
+                            <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={() => setActiveView('Sell')}>Sell</button>
+                            <button type="button" className="basket-btn" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
+                        </nav>
+                        <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            {isAuthenticated ? (
+                                <button type="button" className="auth-link-btn" onClick={() => setActiveView('Account')}>Your Profile</button>
+                            ) : (
+                                <>
+                                    <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
+                                    <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
+                                </>
+                            )}
+                            <button type="button" className="primary-btn" onClick={() => setActiveView('Sell')}>Create Listing</button>
+                            <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                        </div>
                     </div>
                 </header>
 
@@ -673,7 +692,10 @@ export const MainLayout: React.FC = () => {
                                                     <span className="field-error-text">This space must be filled in.</span>
                                                 </label>
                                                 {accountMode === 'signin' && (
-                                                    <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); }}>Forgot Password?</button>
+                                                    <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); setShowResetMessage(true); }}>Forgot Password?</button>
+                                                )}
+                                                {showResetMessage && (
+                                                    <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: '2px 0 0' }}>Check your email to renew your password</p>
                                                 )}
                                                 {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
                                                 <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
@@ -748,8 +770,14 @@ export const MainLayout: React.FC = () => {
                                     {filteredListings.map((item) => (
                                         <div key={item.id} className="live-product-card">
                                             <div className="product-image-box">
-                                                {item.image ? (
-                                                    <img src={item.image} alt={item.name} className="live-uploaded-img" style={{ height: '220px', width: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                                                {item.images.length > 0 ? (
+                                                    <div className="listing-image-row">
+                                                        {item.images.slice(0, 3).map((imageUrl, index) => (
+                                                            <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${item.name}`}>
+                                                                <img src={imageUrl} alt={`${item.name} photo ${index + 1}`} className="live-uploaded-img w-full h-48 object-cover" />
+                                                            </a>
+                                                        ))}
+                                                    </div>
                                                 ) : (
                                                     <span className="default-card-emoji">🎴</span>
                                                 )}
@@ -884,7 +912,7 @@ export const MainLayout: React.FC = () => {
 
                     {/* 5. CHECKOUT VIEW */}
                     {activeView === 'Checkout' && (
-                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} onOpenLegal={(page) => setActiveLegalPage(page)} />
+                        <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} onOpenLegal={(page) => setActiveLegalPage(page)} onFlashMessage={setFlashMessage} />
                     )}
 
                     {activeView === 'Help' && (
@@ -1130,7 +1158,7 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 // 5. INTEGRATED CHECKOUT VIEW COMPONENT
 // ========================================================
-const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal }) => {
+const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void; onFlashMessage: (message: string) => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal, onFlashMessage }) => {
     type PaymentGateway = 'stripe' | 'paypal';
     const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
     const [selectedGateway, setSelectedGateway] = React.useState<PaymentGateway>('stripe');
@@ -1186,6 +1214,12 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
             setCheckoutError('Your basket is empty. Add a deck before checking out.');
             return;
         }
+        const distinctSellerIds = Array.from(new Set(basket.map((item) => item.sellerId)));
+        const currentSellerId = distinctSellerIds[0];
+        const currentSellerItems = basket.filter((item) => item.sellerId === currentSellerId);
+        if (distinctSellerIds.length > 1) {
+            onFlashMessage(`Checking out ${currentSellerItems.length} deck(s) from this seller first. The remaining items stay in your basket to check out next.`);
+        }
         if (!isPostcodeValid || !postcode || !fullName.trim() || !email.trim() || !addressLineOne.trim() || !townOrCity.trim() || !termsAccepted) {
             setCheckoutError('Complete your delivery details and accept the Terms & Conditions to continue.');
             return;
@@ -1197,9 +1231,9 @@ const CheckoutViewIntegrated: React.FC<{ basket: DeckListing[]; onRemoveFromBask
 
         setIsSubmitting(true);
         try {
-            if (basket.length < 1 || basket.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
+            if (currentSellerItems.length < 1 || currentSellerItems.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
             const checkoutInput = {
-                listingIds: basket.map((item) => item.id),
+                listingIds: currentSellerItems.map((item) => item.id),
                 shippingOption,
                 deliveryAddress: {
                     name: fullName.trim(),

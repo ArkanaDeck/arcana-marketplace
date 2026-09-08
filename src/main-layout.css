@@ -35,6 +35,18 @@ select {
     margin-left: 0.125rem;
 }
 
+.w-full {
+    width: 100%;
+}
+
+.h-48 {
+    height: 12rem;
+}
+
+.object-cover {
+    object-fit: cover;
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -213,6 +225,33 @@ label.field-error .field-error-text {
     display: block;
     font-size: 0.72rem;
     color: #325288;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(17, 78, 96, 0.16);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.mobile-menu-toggle__bar {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: #114E60;
+}
+
+.mobile-nav-panel {
+    display: contents;
 }
 
 .page-content {
@@ -903,28 +942,31 @@ label.field-error .field-error-text {
         width: 100%;
     }
 
-    .topbar .nav-links {
-        order: 4;
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .topbar .auth-header-actions,
-    .topbar .basket-btn {
+    .mobile-menu-toggle {
+        display: inline-flex;
         order: 1;
         margin-left: auto;
     }
 
-    .topbar .basket-btn {
-        order: 2;
+    .mobile-nav-panel {
+        display: none;
+        order: 4;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
     }
 
-    .topbar .header-create-listing-btn {
-        order: 5;
+    .mobile-nav-panel.is-open {
+        display: flex;
     }
 
-    .topbar .header-help-link {
-        order: 6;
+    .topbar .nav-links,
+    .topbar .auth-header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        margin-left: 0;
     }
 
     .account-page {
@@ -1299,6 +1341,20 @@ label.field-error .field-error-text {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.listing-image-row {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.listing-image-row a {
+    flex: 1 0 33%;
+    min-width: 100px;
+    display: block;
 }
 
 .default-card-emoji {
@@ -2508,6 +2564,14 @@ label.field-error .field-error-text {
 @media (max-width: 720px) {
     .checkout-page-grid {
         grid-template-columns: 1fr;
+    }
+
+    .checkout-summary-panel {
+        order: -1;
+    }
+
+    .checkout-details-panel {
+        order: 2;
     }
 
     .checkout-field-grid {
