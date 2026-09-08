@@ -24,7 +24,7 @@ export const MainLayout: React.FC = () => {
         VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
         VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
         VITE_STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-        VITE_PAYPAL_ENABLED: import.meta.env.VITE_PAYPAL_ENABLED,
+        VITE_PAYPAL_ENABLED: import.meta.env.VITE_PAYPAL_ENABLED || (import.meta.env.VITE_PAYPAL_CLIENT_ID ? 'true' : undefined),
         VITE_APP_URL: import.meta.env.VITE_APP_URL,
         VITE_SITE_NAME: import.meta.env.VITE_SITE_NAME,
     });

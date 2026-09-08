@@ -2,7 +2,8 @@ export function getRuntimeConfig() {
     const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
     const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
     const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').trim();
-    const paypalEnabled = (import.meta.env.VITE_PAYPAL_ENABLED || '').trim().toLowerCase() === 'true';
+    const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID || '').trim();
+    const paypalEnabled = (import.meta.env.VITE_PAYPAL_ENABLED || '').trim().toLowerCase() === 'true' || Boolean(paypalClientId);
     const appUrl = (import.meta.env.VITE_APP_URL || '').trim();
 
     const supabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey);
@@ -21,6 +22,7 @@ export function getRuntimeConfig() {
     return {
         supabaseEnabled,
         stripeEnabled,
+        paypalClientId,
         isSecureMode: supabaseEnabled && paymentEnabled,
         paypalEnabled,
         appUrl: appUrl || 'http://localhost:5173',
