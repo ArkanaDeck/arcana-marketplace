@@ -4,6 +4,7 @@ import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
+import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
@@ -457,15 +458,8 @@ export const MainLayout: React.FC = () => {
         setIsStartingPayPalConnect(true);
         setAccountStatus(null);
         try {
-            const session = await getSupabaseSession();
-            if (!session?.access_token) throw new Error('Sign in before setting up payouts.');
-            const response = await fetch('/api/connect/paypal-onboarding', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start PayPal onboarding.');
-            window.location.assign(payload.url);
+            const { url } = await connectPayPalAccount();
+            window.location.assign(url);
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to start PayPal onboarding.');
             setIsStartingPayPalConnect(false);
