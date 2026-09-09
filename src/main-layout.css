@@ -830,6 +830,21 @@ label.field-error .field-error-text {
     padding: 7px 8px;
 }
 
+.seller-label-link {
+    border-radius: 7px;
+    background: #edf6f4;
+    color: #114E60;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 7px 8px;
+    text-align: center;
+    text-decoration: none;
+}
+
+.seller-label-link:hover {
+    background: #dcece8;
+}
+
 .help-page {
     display: grid;
     gap: 18px;
@@ -1054,6 +1069,7 @@ label.field-error .field-error-text {
 
     .seller-dispatch-actions input,
     .seller-dispatch-actions button,
+    .seller-label-link,
     .buyer-order-actions button {
         width: 100%;
     }

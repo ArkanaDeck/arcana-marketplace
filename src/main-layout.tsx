@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
@@ -13,8 +13,8 @@ import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
-// Standard courier fee charged per item unless the seller offers free delivery.
-const STANDARD_COURIER_FEE = 2.99;
+const SHIPPING_FEE = 2.99;
+const DELIVERY_FEE = 2.99;
 type BasketItem = DeckListing & { courierFee: number };
 
 export const MainLayout: React.FC = () => {
@@ -370,7 +370,7 @@ export const MainLayout: React.FC = () => {
             setFlashMessage('Your basket already has the maximum 3 decks for this seller.');
             return;
         }
-        const courierFee = item.freeDelivery ? 0 : STANDARD_COURIER_FEE;
+        const courierFee = DELIVERY_FEE;
         setBasket((currentBasket) => [...currentBasket, { ...item, courierFee }]);
         setFlashMessage(`Added ${item.name} to your basket.`);
     };
@@ -1298,7 +1298,6 @@ export const MainLayout: React.FC = () => {
 // ========================================================
 const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBasket: (listingId: string) => void; onSignIn: () => void; onOpenLegal: (page: 'terms' | 'privacy') => void; onFlashMessage: (message: string) => void }> = ({ basket, onRemoveFromBasket, onSignIn, onOpenLegal, onFlashMessage }) => {
     type PaymentGateway = 'stripe' | 'paypal';
-    const [shippingOption, setShippingOption] = React.useState<'evri_standard' | 'royal_mail_48' | 'royal_mail_24'>('evri_standard');
     const [selectedGateway, setSelectedGateway] = React.useState<PaymentGateway>('stripe');
     const [postcode, setPostcode] = React.useState<string>('');
     const [isPostcodeValid, setIsPostcodeValid] = React.useState<boolean>(true);
@@ -1333,33 +1332,30 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
         setIsPostcodeValid(val === '' || ukPostcodeRegex.test(val));
     };
 
-    const shippingPrices = { evri_standard: 2.99, royal_mail_48: 3.65, royal_mail_24: 4.65 };
-    const shipping = shippingPrices[shippingOption];
-    // Each item carries its own courierFee, so mixed baskets only waive shipping for the items sellers marked free.
-    const courierFeeTotal = basket.reduce((sum, item) => sum + (item.freeDelivery ? 0 : shipping), 0);
-    const isFreeDelivery = basket.length > 0 && basket.every((item) => item.freeDelivery);
-    const deckTotal = basket.reduce((sum, item) => sum + item.price, 0);
-    const subtotal = deckTotal + courierFeeTotal;
-    const grandTotal = Math.ceil(((subtotal + (selectedGateway === 'stripe' ? 0.20 : 0.30)) / (1 - (selectedGateway === 'stripe' ? 0.015 : 0.029))) * 100) / 100;
-    const platformServiceFee = grandTotal - subtotal;
+    const basketItems = basket;
+    const paymentMethod = selectedGateway;
+    const activeSellerId = useMemo(() => basketItems?.[0]?.sellerId, [basketItems]);
+    const activeCheckoutItems = useMemo(() => basketItems.filter((item) => item.sellerId === basketItems[0]?.sellerId), [basketItems]);
+    const subtotal = useMemo(() => activeCheckoutItems.reduce((sum, item) => sum + item.price, 0), [activeCheckoutItems]);
+    const stripeFee = useMemo(() => subtotal * 0.029 + 0.30, [subtotal]);
+    const paypalFee = useMemo(() => subtotal * 0.0349 + 0.49, [subtotal]);
+    const activeFee = useMemo(() => paymentMethod === 'stripe' ? stripeFee : paypalFee, [paymentMethod, stripeFee, paypalFee]);
+    const totalCharged = useMemo(() => subtotal + activeFee + SHIPPING_FEE, [subtotal, activeFee]);
     const deliveryQrValue = JSON.stringify({
         reference: deliveryReference,
-        courier: shipping === 2.99 ? 'Evri Standard' : shipping === 3.65 ? 'Royal Mail Tracked 48' : 'Royal Mail Tracked 24',
+        courier: 'Evri Standard',
         postcode: postcode || 'Awaiting postcode',
     });
 
     const handleCheckoutSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCheckoutError(null);
-        if (!basket.length) {
+        if (!activeCheckoutItems.length || !activeSellerId) {
             setCheckoutError('Your basket is empty. Add a deck before checking out.');
             return;
         }
-        const distinctSellerIds = Array.from(new Set(basket.map((item) => item.sellerId)));
-        const currentSellerId = distinctSellerIds[0];
-        const currentSellerItems = basket.filter((item) => item.sellerId === currentSellerId);
-        if (distinctSellerIds.length > 1) {
-            onFlashMessage(`Checking out ${currentSellerItems.length} deck(s) from this seller first. The remaining items stay in your basket to check out next.`);
+        if (basket.length > activeCheckoutItems.length) {
+            onFlashMessage(`Checking out ${activeCheckoutItems.length} deck(s) from this seller first. The remaining items stay in your basket to check out next.`);
         }
         if (!isPostcodeValid || !postcode || !fullName.trim() || !email.trim() || !addressLineOne.trim() || !townOrCity.trim() || !termsAccepted) {
             setCheckoutError('Complete your delivery details and accept the Terms & Conditions to continue.');
@@ -1372,10 +1368,13 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
 
         setIsSubmitting(true);
         try {
-            if (currentSellerItems.length < 1 || currentSellerItems.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
+            if (activeCheckoutItems.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
             const checkoutInput = {
-                listingIds: currentSellerItems.map((item) => item.id),
-                shippingOption,
+                listingIds: activeCheckoutItems.map((item) => item.id),
+                shippingOption: 'evri_standard' as const,
+                totalCharged,
+                transactionFee: activeFee,
+                successUrl: `${window.location.origin}/?checkout=success&courier=${encodeURIComponent(deliveryReference)}`,
                 deliveryAddress: {
                     name: fullName.trim(),
                     email: email.trim(),
@@ -1443,16 +1442,9 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
                     </div>
                     <div className="checkout-section-heading checkout-section-heading--courier">
                         <span>2</span>
-                        <div><h3>Delivery service</h3><p>Select the tracking speed that suits you.</p></div>
+                        <div><h3>Delivery service</h3><p>Flat-rate standard delivery is included with this order.</p></div>
                     </div>
-                    <label className="checkout-field">Courier <span className="text-red-500 font-bold ml-0.5">*</span>
-                        <select value={shippingOption} required aria-required="true" onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} onChange={(event) => setShippingOption(event.target.value as typeof shippingOption)}>
-                            <option value="evri_standard">Evri Standard Drop-off - £2.99</option>
-                            <option value="royal_mail_48">Royal Mail Tracked 48 - £3.65</option>
-                            <option value="royal_mail_24">Royal Mail Tracked 24 - £4.65</option>
-                        </select>
-                        <span className="field-error-text">This space must be filled in.</span>
-                    </label>
+                    <p className="checkout-security-note">Evri Standard delivery: £{SHIPPING_FEE.toFixed(2)}</p>
                     <label className="checkout-terms">
                         <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" />
                         <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines. <span className="text-red-500 font-bold ml-0.5">*</span></span><span className="field-error-text">This space must be filled in.</span>
@@ -1480,17 +1472,17 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
                         ))}
                     </div>
                     <div className="checkout-total-list checkout-price-breakdown">
-                        <div><span>Items subtotal</span><strong>£{deckTotal.toFixed(2)}</strong></div>
-                        <div><span>Courier fee</span><strong>£{courierFeeTotal.toFixed(2)}</strong></div>
-                        <div><span>Transaction fee ({selectedGateway === 'stripe' ? 'Stripe' : 'PayPal'})</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
-                        <div className="checkout-grand-total"><span>Total charged</span><strong>£{grandTotal.toFixed(2)}</strong></div>
+                        <div><span>Items subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Delivery fee</span><strong>£{SHIPPING_FEE.toFixed(2)}</strong></div>
+                        <div><span>Transaction fee ({selectedGateway === 'stripe' ? 'Stripe' : 'PayPal'})</span><strong>£{activeFee.toFixed(2)}</strong></div>
+                        <div className="checkout-grand-total"><span>Total charged</span><strong>£{totalCharged.toFixed(2)}</strong></div>
                     </div>
                     {selectedGateway === 'stripe' ? (
-                        <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !basket.length}>
+                        <button type="submit" className="checkout-pay-btn" disabled={isSubmitting || !activeCheckoutItems.length}>
                             {isSubmitting ? 'Opening secure payment...' : 'Continue with Credit Card'}
                         </button>
                     ) : (
-                        <button type="submit" className="paypal-btn" disabled={isSubmitting || !basket.length}>
+                        <button type="submit" className="paypal-btn" disabled={isSubmitting || !activeCheckoutItems.length}>
                             {isSubmitting ? 'Opening PayPal...' : 'Continue with PayPal'}
                         </button>
                     )}
@@ -1504,21 +1496,21 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
                 <aside className="checkout-summary-panel">
                     <div className="checkout-section-heading">
                         <span>Order</span>
-                        <div><h3>Your basket</h3><p>{basket.length} item{basket.length === 1 ? '' : 's'} ready to ship.{isFreeDelivery ? ' Free delivery applied.' : ''}</p></div>
+                        <div><h3>Your basket</h3><p>{activeCheckoutItems.length} item{activeCheckoutItems.length === 1 ? '' : 's'} ready to ship.</p></div>
                     </div>
                     <div className="checkout-items">
-                        {basket.map(item => (
+                        {activeCheckoutItems.map(item => (
                             <div key={item.id} className="checkout-item-row">
-                                <div><strong>{item.name}</strong><span>Tarot deck · {item.freeDelivery ? 'Free delivery' : `Courier £${shipping.toFixed(2)}`}</span></div>
+                                <div><strong>{item.name}</strong><span>Tarot deck · Standard delivery</span></div>
                                 <div className="checkout-item-price"><strong>£{item.price.toFixed(2)}</strong><button type="button" onClick={() => onRemoveFromBasket(item.id)}>Remove</button></div>
                             </div>
                         ))}
                     </div>
                     <div className="checkout-total-list">
-                        <div><span>Items subtotal</span><strong>£{deckTotal.toFixed(2)}</strong></div>
-                        <div><span>Courier fee</span><strong>£{courierFeeTotal.toFixed(2)}</strong></div>
-                        <div><span>Platform service fee</span><strong>£{platformServiceFee.toFixed(2)}</strong></div>
-                        <div className="checkout-grand-total"><span>Grand total</span><strong>£{grandTotal.toFixed(2)}</strong></div>
+                        <div><span>Items subtotal</span><strong>£{subtotal.toFixed(2)}</strong></div>
+                        <div><span>Delivery fee</span><strong>£{SHIPPING_FEE.toFixed(2)}</strong></div>
+                        <div><span>Transaction fee</span><strong>£{activeFee.toFixed(2)}</strong></div>
+                        <div className="checkout-grand-total"><span>Grand total</span><strong>£{totalCharged.toFixed(2)}</strong></div>
                     </div>
                     <div className="delivery-qr-panel">
                         <div>
@@ -1605,9 +1597,36 @@ const BuyerOrdersPanel: React.FC = () => {
 type SellerOrder = {
     id: string;
     delivery_service: string | null;
+    delivery_name: string | null;
+    delivery_address_line_1: string | null;
+    delivery_address_line_2: string | null;
     delivery_city: string | null;
     delivery_postcode: string | null;
     listings: { name: string }[];
+};
+
+const SellerOrderDispatchCard: React.FC<{ order: SellerOrder; trackingValue: string; onTrackingChange: (value: string) => void; onDispatch: () => void }> = ({ order, trackingValue, onTrackingChange, onDispatch }) => {
+    const evriUrl = useMemo(() => `https://evri.com?postcode=${encodeURIComponent(order.delivery_postcode || '')}`, [order.delivery_postcode]);
+    const royalMailUrl = 'https://royalmail.com';
+
+    return <article className="buyer-order" key={order.id}>
+        <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.delivery_service} to {order.delivery_city}, {order.delivery_postcode}</span></div>
+        <div className="address-box">
+            <strong>Delivery address</strong>
+            <span>{order.delivery_name || 'Buyer name unavailable'}</span>
+            <span>{order.delivery_address_line_1 || 'Address unavailable'}</span>
+            {order.delivery_address_line_2 && <span>{order.delivery_address_line_2}</span>}
+            <span>{[order.delivery_city, order.delivery_postcode].filter(Boolean).join(', ') || 'Location unavailable'}</span>
+            <span>United Kingdom</span>
+        </div>
+        <div className="seller-dispatch-actions">
+            <a className="seller-label-link" href={evriUrl} target="_blank" rel="noopener noreferrer">Buy Label on Evri</a>
+            <a className="seller-label-link" href={royalMailUrl} target="_blank" rel="noopener noreferrer">Buy Label on Royal Mail</a>
+            <label className="visually-hidden" htmlFor={`tracking-${order.id}`}>Tracking reference <span className="text-red-500 font-bold ml-0.5">*</span></label>
+            <input id={`tracking-${order.id}`} value={trackingValue} onChange={(event) => onTrackingChange(event.target.value)} required aria-required="true" maxLength={100} placeholder="Tracking reference" />
+            <button type="button" onClick={onDispatch}>Mark dispatched</button>
+        </div>
+    </article>;
 };
 
 const SellerOrdersPanel: React.FC = () => {
@@ -1617,7 +1636,7 @@ const SellerOrdersPanel: React.FC = () => {
 
     React.useEffect(() => {
         if (!supabase) return;
-        supabase.from('orders').select('id, delivery_service, delivery_city, delivery_postcode, listings(name)').eq('status', 'paid').order('created_at', { ascending: false })
+        supabase.from('orders').select('id, delivery_service, delivery_name, delivery_address_line_1, delivery_address_line_2, delivery_city, delivery_postcode, listings(name)').eq('status', 'paid').order('created_at', { ascending: false })
             .then(({ data, error }) => {
                 if (error) setStatusMessage(error.message);
                 else setOrders((data || []) as SellerOrder[]);
@@ -1643,10 +1662,7 @@ const SellerOrdersPanel: React.FC = () => {
     return <section className="seller-orders-panel">
         <div className="buyer-orders-heading"><div><h3>Orders to dispatch</h3><p>Buy postage through Parcel2Go or your preferred courier, then add the tracking reference.</p></div></div>
         {statusMessage && <p className="account-status" role="status">{statusMessage}</p>}
-        {orders.length === 0 ? <p className="buyer-orders-empty">No paid orders waiting for dispatch.</p> : <div className="buyer-orders-list">{orders.map((order) => <article className="buyer-order" key={order.id}>
-            <div><strong>{order.listings[0]?.name || 'Marketplace order'}</strong><span>{order.delivery_service} to {order.delivery_city}, {order.delivery_postcode}</span></div>
-            <div className="seller-dispatch-actions"><label className="visually-hidden" htmlFor={`tracking-${order.id}`}>Tracking reference <span className="text-red-500 font-bold ml-0.5">*</span></label><input id={`tracking-${order.id}`} value={trackingValues[order.id] || ''} onChange={(event) => setTrackingValues((current) => ({ ...current, [order.id]: event.target.value }))} required aria-required="true" maxLength={100} placeholder="Tracking reference" /><button type="button" onClick={() => dispatchOrder(order.id)}>Mark dispatched</button></div>
-        </article>)}</div>}
+        {orders.length === 0 ? <p className="buyer-orders-empty">No paid orders waiting for dispatch.</p> : <div className="buyer-orders-list">{orders.map((order) => <SellerOrderDispatchCard key={order.id} order={order} trackingValue={trackingValues[order.id] || ''} onTrackingChange={(value) => setTrackingValues((current) => ({ ...current, [order.id]: value }))} onDispatch={() => dispatchOrder(order.id)} />)}</div>}
     </section>;
 };
 

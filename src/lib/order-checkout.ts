@@ -11,6 +11,9 @@ export async function createOrderCheckout(input: {
         city: string;
         postcode: string;
     };
+    totalCharged?: number;
+    transactionFee?: number;
+    successUrl?: string;
 }) {
     const session = await getSupabaseSession();
     if (!session?.access_token) throw new Error('Sign in before checking out.');
@@ -20,7 +23,7 @@ export async function createOrderCheckout(input: {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
             ...input,
-            successUrl: `${window.location.origin}/success`,
+            successUrl: input.successUrl || `${window.location.origin}/success`,
             cancelUrl: `${window.location.origin}/cancel`,
         }),
     });
@@ -32,13 +35,15 @@ export async function createOrderCheckout(input: {
 export async function createPayPalOrder(input: Parameters<typeof createOrderCheckout>[0]) {
     const session = await getSupabaseSession();
     if (!session?.access_token) throw new Error('Sign in before checking out.');
+    const successUrl = new URL(input.successUrl || `${window.location.origin}/`, window.location.origin);
+    successUrl.searchParams.set('paypal', 'success');
 
     const response = await fetch('/api/create-paypal-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
             ...input,
-            successUrl: `${window.location.origin}/?paypal=success`,
+            successUrl: successUrl.toString(),
             cancelUrl: `${window.location.origin}/?paypal=cancelled`,
         }),
     });

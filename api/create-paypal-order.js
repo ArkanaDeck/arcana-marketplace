@@ -2,11 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { paypalRequest, toPayPalAmount } from '../server/lib/server-paypal.js';
 import { calculatePlatformFeeCents } from '../server/lib/server-fees.js';
 
-const SHIPPING_OPTIONS = {
-    evri_standard: { amount: 2.99, label: 'Evri Standard Drop-off' },
-    royal_mail_48: { amount: 3.65, label: 'Royal Mail Tracked 48' },
-    royal_mail_24: { amount: 4.65, label: 'Royal Mail Tracked 24' },
-};
+const SHIPPING_FEE = 2.99;
+const SHIPPING_LABEL = 'Evri Standard Drop-off';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
@@ -27,17 +24,16 @@ export default async function handler(req, res) {
 
     try {
         const body = requestBody;
-        const shipping = SHIPPING_OPTIONS[body.shippingOption];
         const address = body.deliveryAddress || {};
         const listingIds = [...new Set(Array.isArray(body.listingIds) ? body.listingIds : [])];
-        if (listingIds.length < 1 || listingIds.length > 3 || !shipping || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
-            return res.status(400).json({ error: 'Choose 1 to 3 listings, then provide a delivery address and shipping option.' });
+        if (listingIds.length < 1 || listingIds.length > 3 || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
+            return res.status(400).json({ error: 'Choose 1 to 3 listings, then provide a delivery address.' });
         }
 
         const supabase = createClient(supabaseUrl, serviceRoleKey);
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         if (userError || !user) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
-        const { data: listings, error: listingError } = await supabase.from('listings').select('id, name, price, seller_id, listing_type').in('id', listingIds);
+        const { data: listings, error: listingError } = await supabase.from('listings').select('id, name, price, seller_id, listing_type, is_free_delivery').in('id', listingIds);
         if (listingError || !listings || listings.length !== listingIds.length || listings.some((listing) => !listing.seller_id || listing.listing_type !== 'sale' || Number(listing.price) <= 0)) {
             return res.status(404).json({ error: 'One or more listings are no longer available for sale.' });
         }
@@ -46,12 +42,17 @@ export default async function handler(req, res) {
         const { data: seller, error: sellerError } = await supabase.from('profiles').select('paypal_merchant_id').eq('id', sellerId).single();
         if (sellerError || !seller?.paypal_merchant_id) return res.status(409).json({ error: 'Seller PayPal payouts are not set up yet.' });
 
+        const shippingAmount = SHIPPING_FEE;
+        const activeSubtotal = listings.reduce((sum, listing) => sum + Number(listing.price), 0);
+        const transactionFee = Math.round((activeSubtotal * 0.0349 + 0.49) * 100) / 100;
         const { data: orders, error: orderError } = await supabase.from('orders').insert(listings.map((listing, index) => ({
             buyer_id: user.id, listing_id: listing.id, status: 'pending_payment', subtotal: Number(listing.price),
-            shipping: index === 0 ? shipping.amount : 0, total: Number(listing.price) + (index === 0 ? shipping.amount : 0),
+            shipping: index === 0 ? shippingAmount : 0, platform_fee: index === 0 ? transactionFee : 0,
+            total: Number(listing.price) + (index === 0 ? shippingAmount + transactionFee : 0),
+            grand_total: Number(listing.price) + (index === 0 ? shippingAmount + transactionFee : 0),
             delivery_name: address.name, delivery_email: address.email, delivery_address_line_1: address.addressLineOne,
             delivery_address_line_2: address.addressLineTwo || null, delivery_city: address.city, delivery_postcode: address.postcode,
-            delivery_country: 'United Kingdom', delivery_service: shipping.label,
+            delivery_country: 'United Kingdom', delivery_service: SHIPPING_LABEL,
         }))).select('id, total');
         if (orderError || !orders?.length) throw orderError || new Error('Unable to create pending orders.');
 
@@ -73,7 +74,7 @@ export default async function handler(req, res) {
                 }],
                 application_context: {
                     brand_name: process.env.VITE_SITE_NAME || 'Arkana', user_action: 'PAY_NOW',
-                    return_url: `${appUrl}/?paypal=success`, cancel_url: `${appUrl}/?paypal=cancelled`,
+                    return_url: body.successUrl || `${appUrl}/?paypal=success`, cancel_url: body.cancelUrl || `${appUrl}/?paypal=cancelled`,
                 },
             }),
         });
