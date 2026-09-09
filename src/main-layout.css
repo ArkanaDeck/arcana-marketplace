@@ -1399,15 +1399,41 @@ label.field-error .field-error-text {
 
 .product-image-box--carousel {
     position: relative;
+    height: auto;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background-color: #f8fafc;
+    border-radius: 12px;
 }
 
 .listing-carousel__image {
+    position: relative;
     width: 100%;
     height: 100%;
     border: 0;
     background: transparent;
     cursor: zoom-in;
     padding: 0;
+}
+
+.listing-carousel__image .absolute {
+    position: absolute;
+}
+
+.listing-carousel__image .inset-0 {
+    inset: 0;
+}
+
+.listing-carousel__image .w-full {
+    width: 100%;
+}
+
+.listing-carousel__image .h-full {
+    height: 100%;
+}
+
+.listing-carousel__image .object-contain {
+    object-fit: contain;
 }
 
 .listing-carousel__nav {
