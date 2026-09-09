@@ -1007,8 +1007,8 @@ export const MainLayout: React.FC = () => {
 
                 <footer className="site-footer">
                     <div className="site-footer-inner">
-                        <p className="footer-brand">Arkana</p>
-                        <div className="footer-links" aria-label="Legal information">
+                        <p className="footer-brand whitespace-nowrap">Arkana</p>
+                        <div className="footer-links gap-4" aria-label="Legal information">
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('refunds')}>Refunds</button>
