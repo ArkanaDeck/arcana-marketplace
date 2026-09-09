@@ -1256,8 +1256,8 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; onVie
     };
 
     return <div className="live-product-card" role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
-        <div className="product-image-box product-image-box--carousel relative w-full aspect-square overflow-hidden bg-slate-50 rounded-xl">
-            {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-contain" /></button> : <span className="default-card-emoji">🎴</span>}
+        <div className="product-image-box product-image-box--carousel relative w-full aspect-square overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '1 / 1' }}>
+            {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-contain" style={{ objectFit: 'contain' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
         </div>
         <div className="product-details">
