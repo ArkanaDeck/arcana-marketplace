@@ -38,6 +38,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/checkout-success",
+      "destination": "/api/create-order-checkout?checkout_success=1"
+    },
+    {
       "source": "/api/connect/stripe-onboarding",
       "destination": "/api/create-connect-onboarding"
     },

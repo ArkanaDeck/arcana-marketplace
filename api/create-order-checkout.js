@@ -7,6 +7,7 @@ const SHIPPING_FEE = 2.99;
 const SHIPPING_LABEL = 'Evri Standard Drop-off';
 
 export default async function handler(req, res) {
+    if (req.query?.checkout_success === '1') return handleCheckoutSuccess(req, res);
     if (req.query?.retired === '1') {
         return res.status(410).json({ error: 'This checkout route is retired. Use /api/create-order-checkout.' });
     }
@@ -97,5 +98,23 @@ export default async function handler(req, res) {
     } catch (error) {
         logServerError('create-order-checkout', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start checkout.' });
+    }
+}
+
+async function handleCheckoutSuccess(req, res) {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+    const sessionId = String(req.query?.session_id || '');
+    if (!stripeSecretKey.startsWith('sk_') || !sessionId) return res.status(400).send('Checkout session is unavailable.');
+
+    try {
+        const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const courierRedirectUrl = session.metadata?.courier_redirect_url;
+        if (session.payment_status === 'paid' && session.metadata?.requires_shipping_redirect === 'true' && courierRedirectUrl) {
+            return res.redirect(303, courierRedirectUrl);
+        }
+        return res.redirect(303, process.env.VITE_APP_URL || process.env.APP_URL || '/');
+    } catch {
+        return res.status(400).send('Unable to verify checkout session.');
     }
 }
