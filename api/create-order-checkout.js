@@ -26,8 +26,8 @@ export default async function handler(req, res) {
         const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
         const address = body.deliveryAddress || {};
         const listingIds = [...new Set(Array.isArray(body.listingIds) ? body.listingIds : [])];
-        if (listingIds.length < 1 || listingIds.length > 3 || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
-            return res.status(400).json({ error: 'Choose 1 to 3 listings, then provide a delivery address.' });
+        if (listingIds.length < 1 || !address.name || !address.email || !address.addressLineOne || !address.city || !address.postcode) {
+            return res.status(400).json({ error: 'Choose one or more listings, then provide a delivery address.' });
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
             return res.status(404).json({ error: 'One or more listings are no longer available for sale.' });
         }
         const sellerId = listings[0].seller_id;
-        if (sellerId === user.id || listings.some((listing) => listing.seller_id !== sellerId)) return res.status(400).json({ error: 'Choose up to 3 listings from the same seller.' });
+        if (sellerId === user.id || listings.some((listing) => listing.seller_id !== sellerId)) return res.status(400).json({ error: 'Choose one or more listings from the same seller.' });
         const { data: seller, error: sellerError } = await supabase.from('profiles').select('stripe_connect_account_id').eq('id', sellerId).single();
         if (sellerError || !seller?.stripe_connect_account_id) return res.status(409).json({ error: 'Seller payouts are not set up yet.' });
         const shippingAmount = SHIPPING_FEE;

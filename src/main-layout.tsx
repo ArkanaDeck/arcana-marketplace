@@ -1415,7 +1415,6 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
 
         setIsSubmitting(true);
         try {
-            if (activeCheckoutItems.length > 3) throw new Error('Choose between 1 and 3 decks from the same seller.');
             const checkoutInput = {
                 listingIds: activeCheckoutItems.map((item) => item.id),
                 shippingOption: 'evri_standard' as const,
