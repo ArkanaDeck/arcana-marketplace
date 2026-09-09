@@ -1422,7 +1422,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
                         <span>2</span>
                         <div><h3>Delivery service</h3><p>Flat-rate standard delivery is included with this order.</p></div>
                     </div>
-                    <p className="checkout-security-note">Evri Standard delivery: £{SHIPPING_FEE.toFixed(2)}</p>
+                    <p className="checkout-security-note">Evri Standard Drop-off (2-3 Days) — £{SHIPPING_FEE.toFixed(2)}</p>
                     <label className="checkout-terms">
                         <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} required aria-required="true" />
                         <span>I agree to the Terms of Service, Privacy Policy, and Seller Guidelines. <span className="text-red-500 font-bold ml-0.5">*</span></span><span className="field-error-text">This space must be filled in.</span>
@@ -1584,7 +1584,7 @@ type SellerOrder = {
 };
 
 const SellerOrderDispatchCard: React.FC<{ order: SellerOrder; trackingValue: string; onTrackingChange: (value: string) => void; onDispatch: () => void }> = ({ order, trackingValue, onTrackingChange, onDispatch }) => {
-    const evriUrl = useMemo(() => `https://evri.com?postcode=${encodeURIComponent(order.delivery_postcode || '')}`, [order.delivery_postcode]);
+    const evriQuickLink = useMemo(() => `https://evri.com?postcode=${encodeURIComponent(order.delivery_postcode || '')}`, [order.delivery_postcode]);
     const royalMailUrl = 'https://royalmail.com';
 
     return <article className="buyer-order" key={order.id}>
@@ -1598,7 +1598,7 @@ const SellerOrderDispatchCard: React.FC<{ order: SellerOrder; trackingValue: str
             <span>United Kingdom</span>
         </div>
         <div className="seller-dispatch-actions">
-            <a className="seller-label-link" href={evriUrl} target="_blank" rel="noopener noreferrer">Buy Label on Evri</a>
+            <a className="seller-label-link" href={evriQuickLink} target="_blank" rel="noopener noreferrer">Buy Evri Label (£2.99)</a>
             <a className="seller-label-link" href={royalMailUrl} target="_blank" rel="noopener noreferrer">Buy Label on Royal Mail</a>
             <label className="visually-hidden" htmlFor={`tracking-${order.id}`}>Tracking reference <span className="text-red-500 font-bold ml-0.5">*</span></label>
             <input id={`tracking-${order.id}`} value={trackingValue} onChange={(event) => onTrackingChange(event.target.value)} required aria-required="true" maxLength={100} placeholder="Tracking reference" />

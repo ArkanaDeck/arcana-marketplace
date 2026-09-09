@@ -3,7 +3,7 @@ import { paypalRequest, toPayPalAmount } from '../server/lib/server-paypal.js';
 import { calculatePlatformFeeCents } from '../server/lib/server-fees.js';
 
 const SHIPPING_FEE = 2.99;
-const SHIPPING_LABEL = 'Evri Standard Drop-off';
+const SHIPPING_LABEL = 'Evri Standard Drop-off (2-3 Days)';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });

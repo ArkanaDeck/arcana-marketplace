@@ -4,7 +4,7 @@ import { calculatePlatformFeeCents } from '../server/lib/server-fees.js';
 import { logServerError } from '../server/lib/server-logger.js';
 
 const SHIPPING_FEE = 2.99;
-const SHIPPING_LABEL = 'Evri Standard Drop-off';
+const SHIPPING_LABEL = 'Evri Standard Drop-off (2-3 Days)';
 
 export default async function handler(req, res) {
     if (req.query?.checkout_success === '1') return handleCheckoutSuccess(req, res);
