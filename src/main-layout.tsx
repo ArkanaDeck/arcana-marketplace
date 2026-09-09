@@ -485,6 +485,8 @@ export const MainLayout: React.FC = () => {
             await signOut();
             setIsAuthenticated(false);
             setAccountStatus('You are signed out.');
+            window.history.pushState({}, '', '/');
+            setActiveView('Home');
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to sign out.');
         }
