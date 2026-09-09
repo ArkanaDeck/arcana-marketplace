@@ -1150,10 +1150,6 @@ export const MainLayout: React.FC = () => {
                                             </button>
                                         </div>
                                     )}
-                                    <div className="checkout-legal-links" aria-label="Legal information">
-                                        <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
-                                        <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
-                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1252,22 +1248,23 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     useEffect(() => {
         if (!supabase) return;
+        const client = supabase;
         let isMounted = true;
-        let channel: ReturnType<typeof supabase.channel> | undefined;
+        let channel: ReturnType<typeof client.channel> | undefined;
 
         void getSupabaseSession().then(async (session) => {
             if (!session?.user || !isMounted) {
                 if (isMounted) setStatus('Sign in to contact Arkana support.');
                 return;
             }
-            const { data, error } = await supabase.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
+            const { data, error } = await client.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
             if (!isMounted) return;
             if (error) {
                 setStatus(error.message || 'Unable to load support messages.');
                 return;
             }
             setMessages((data || []) as SupportMessage[]);
-            channel = supabase.channel(`support:${session.user.id}`)
+            channel = client.channel(`support:${session.user.id}`)
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `sender_id=eq.${session.user.id}` }, (payload) => {
                     setMessages((current) => current.some((message) => message.id === payload.new.id) ? current : [...current, payload.new as SupportMessage]);
                 })
@@ -1537,10 +1534,6 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
                         </button>
                     )}
                     <p className="checkout-security-note">Payments are securely processed by Stripe or PayPal. Card details are never stored by Arkana.</p>
-                    <div className="checkout-legal-links" aria-label="Legal information">
-                        <button type="button" className="footer-link-btn" onClick={() => onOpenLegal('terms')}>Terms & Conditions</button>
-                        <button type="button" className="footer-link-btn" onClick={() => onOpenLegal('privacy')}>Privacy Policy</button>
-                    </div>
                 </form>
 
                 <aside className="checkout-summary-panel">
