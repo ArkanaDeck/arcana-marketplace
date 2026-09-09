@@ -199,6 +199,14 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('passwordReset') !== 'success') return;
+        setActiveView('Account');
+        setAccountMode('signin');
+        setAccountStatus('Password updated. Sign in with your new password.');
+        window.history.replaceState({}, '', window.location.pathname);
+    }, []);
+
+    useEffect(() => {
         if (new URLSearchParams(window.location.search).get('connect') !== 'complete') return;
         getSupabaseSession()
             .then(async (session) => {
@@ -617,7 +625,7 @@ export const MainLayout: React.FC = () => {
     }
 
     if (window.location.pathname === '/reset-password') {
-        return <ResetPasswordPage onDone={() => { window.location.href = '/login'; }} />;
+        return <ResetPasswordPage onDone={() => { window.location.href = '/?passwordReset=success'; }} />;
     }
 
     return (
