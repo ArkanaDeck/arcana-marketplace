@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { buyListingCredits } from './lib/listing-credits';
-import { createListing, deleteListing, loadListings, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { createListing, deleteListing, loadListings, updateListing, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
@@ -281,16 +281,20 @@ export const MainLayout: React.FC = () => {
 
     const handleStartEdit = (item: DeckListing) => {
         setEditModeData(item);
-        setDeckName(item.name);
-        setDeckPrice(item.listingType === 'sale' ? item.price.toFixed(2) : '');
-        setDeckDescription(item.description || '');
-        setCondition(item.condition);
-        setFreeDelivery(item.freeDelivery);
-        setListingType(item.listingType);
-        setDeckImageFiles([]);
-        setImagePreviews(item.images || []);
         setActiveView('Sell');
     };
+
+    useEffect(() => {
+        if (!editModeData) return;
+        setDeckName(editModeData.name);
+        setDeckPrice(editModeData.listingType === 'sale' ? editModeData.price.toFixed(2) : '');
+        setDeckDescription(editModeData.description || '');
+        setCondition(editModeData.condition);
+        setFreeDelivery(editModeData.freeDelivery);
+        setListingType(editModeData.listingType);
+        setDeckImageFiles([]);
+        setImagePreviews(editModeData.images || []);
+    }, [editModeData]);
 
     const handlePublish = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -312,8 +316,11 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const newListing = await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
-            setListings((currentListings) => [newListing, ...currentListings]);
+            const isEditing = Boolean(editModeData?.id);
+            const savedListing = isEditing
+                ? await updateListing(editModeData.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: editModeData.images || [], freeDelivery, condition })
+                : await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
+            setListings((currentListings) => isEditing ? currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing) : [savedListing, ...currentListings]);
             setDeckName('');
             setDeckPrice('');
             setDeckDescription('');
@@ -323,7 +330,7 @@ export const MainLayout: React.FC = () => {
             setDeckImageFiles([]);
             setImagePreviews([]);
             setEditModeData(null);
-            setFlashMessage(`Published: ${newListing.name}`);
+            setFlashMessage(isEditing ? `Updated: ${savedListing.name}` : `Published: ${savedListing.name}`);
             setActiveView('Listings');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';

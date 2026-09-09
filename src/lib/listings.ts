@@ -28,6 +28,7 @@ export async function loadListings() {
 }
 
 export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images'> & { imageFiles?: File[] };
+export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 
 // Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
 async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes = 1024 * 1024): Promise<Blob> {
@@ -91,6 +92,48 @@ export async function createListing(input: CreateListingInput) {
             .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition')
             .single();
         if (error || !data) throw new Error(error?.message || 'Unable to create listing.');
+        return mapListing(data);
+    } catch (error) {
+        if (imagePaths.length > 0) await supabase.storage.from('listing-images').remove(imagePaths);
+        throw error;
+    }
+}
+
+export async function updateListing(listingId: string, input: UpdateListingInput) {
+    const session = await getSupabaseSession();
+    if (!session?.user) throw new Error('Sign in before updating a listing.');
+    if (!supabase) throw new Error('Supabase is not configured.');
+    if (!listingId || !input.name.trim() || !Number.isFinite(input.price) || input.price < 0) throw new Error('Provide a valid listing name and price.');
+    if (input.name.trim().length > 120) throw new Error('Listing names must be 120 characters or fewer.');
+    if ((input.description || '').length > 2000) throw new Error('Descriptions must be 2,000 characters or fewer.');
+    if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
+    if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
+    if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');
+    if (input.existingImages.length + (input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
+
+    const imagePaths: string[] = [];
+    const newImageUrls: string[] = [];
+    try {
+        for (const file of input.imageFiles || []) {
+            if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+            const compressed = await compressImageFile(file);
+            const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+            const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, compressed, { contentType: 'image/jpeg', upsert: false });
+            if (uploadError) throw new Error(uploadError.message || 'Unable to upload listing image.');
+            imagePaths.push(path);
+            const { data: publicUrl } = supabase.storage.from('listing-images').getPublicUrl(path);
+            newImageUrls.push(publicUrl.publicUrl);
+        }
+
+        const images = [...input.existingImages, ...newImageUrls];
+        const { data, error } = await supabase
+            .from('listings')
+            .update({ name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: images[0] || null, images, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition })
+            .eq('id', listingId)
+            .eq('seller_id', session.user.id)
+            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition')
+            .single();
+        if (error || !data) throw new Error(error?.message || 'Unable to update listing.');
         return mapListing(data);
     } catch (error) {
         if (imagePaths.length > 0) await supabase.storage.from('listing-images').remove(imagePaths);
