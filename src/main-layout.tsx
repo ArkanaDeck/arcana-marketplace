@@ -66,6 +66,7 @@ export const MainLayout: React.FC = () => {
     const listingFee = listings.length < 3 ? 0 : 0.66;
     const listingsInCurrentBundle = listings.length % 3;
     const [isBuyingListingCredits, setIsBuyingListingCredits] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Checkout Flow States
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
@@ -1232,11 +1233,77 @@ export const MainLayout: React.FC = () => {
                     </div>
                 )}
                 <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
-                    <button style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '24px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>🔮</button>
+                    <button type="button" aria-label="Open support chat" style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '24px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} onClick={() => setIsChatOpen(!isChatOpen)}>🔮</button>
                 </div>
+                {isChatOpen && <SupportChatModal onClose={() => setIsChatOpen(false)} />}
             </div>
         </div>
     );
+};
+
+type SupportMessage = { id: string; sender_id: string; content: string; created_at: string };
+
+const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const [messages, setMessages] = useState<SupportMessage[]>([]);
+    const [messageText, setMessageText] = useState('');
+    const [status, setStatus] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!supabase) return;
+        let isMounted = true;
+        let channel: ReturnType<typeof supabase.channel> | undefined;
+
+        void getSupabaseSession().then(async (session) => {
+            if (!session?.user || !isMounted) {
+                if (isMounted) setStatus('Sign in to contact Arkana support.');
+                return;
+            }
+            const { data, error } = await supabase.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
+            if (!isMounted) return;
+            if (error) {
+                setStatus(error.message || 'Unable to load support messages.');
+                return;
+            }
+            setMessages((data || []) as SupportMessage[]);
+            channel = supabase.channel(`support:${session.user.id}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `sender_id=eq.${session.user.id}` }, (payload) => {
+                    setMessages((current) => current.some((message) => message.id === payload.new.id) ? current : [...current, payload.new as SupportMessage]);
+                })
+                .subscribe();
+        }).catch(() => { if (isMounted) setStatus('Unable to start support chat.'); });
+
+        return () => {
+            isMounted = false;
+            if (channel) void channel.unsubscribe();
+        };
+    }, []);
+
+    const sendMessage = async () => {
+        const content = messageText.trim();
+        if (!supabase || !content) return;
+        try {
+            const session = await getSupabaseSession();
+            if (!session?.user) throw new Error('Sign in to contact Arkana support.');
+            const { data, error } = await supabase.from('support_messages').insert({ sender_id: session.user.id, content }).select('id, sender_id, content, created_at').single();
+            if (error || !data) throw new Error(error?.message || 'Unable to send support message.');
+            setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as SupportMessage]);
+            setMessageText('');
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : 'Unable to send support message.');
+        }
+    };
+
+    return <div className="modal-backdrop" onClick={onClose}>
+        <section className="checkout-modal-card support-chat-modal" role="dialog" aria-modal="true" aria-labelledby="support-chat-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+                <h3 id="support-chat-title">Arkana support</h3>
+                <button type="button" className="close-modal-btn" aria-label="Close support chat" onClick={onClose}>✕</button>
+            </div>
+            <div className="seller-chat-messages" aria-live="polite">{messages.length === 0 ? <p>How can we help with your marketplace order?</p> : messages.map((message) => <p key={message.id}>{message.content}</p>)}</div>
+            {status && <p className="account-status" role="status">{status}</p>}
+            <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>
+        </section>
+    </div>;
 };
 
 const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => createPortal(

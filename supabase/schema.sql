@@ -126,6 +126,13 @@ create table if not exists public.messages (
 alter table public.messages drop constraint if exists messages_text_content_length_check;
 alter table public.messages add constraint messages_text_content_length_check check (length(trim(text_content)) between 1 and 2000);
 
+create table if not exists public.support_messages (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  sender_id uuid not null references auth.users(id) on delete cascade,
+  content text not null check (length(trim(content)) between 1 and 2000)
+);
+
 create or replace view public.public_profiles as
 select id, coalesce(display_name, full_name) as full_name, avatar_url, bio
 from public.profiles;
@@ -216,6 +223,7 @@ alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
 alter table public.chat_rooms enable row level security;
 alter table public.messages enable row level security;
+alter table public.support_messages enable row level security;
 alter table public.orders enable row level security;
 alter table public.payments enable row level security;
 alter table public.listing_credit_purchases enable row level security;
@@ -233,6 +241,8 @@ drop policy if exists "Users can view their own chat rooms" on public.chat_rooms
 drop policy if exists "Authenticated users can create rooms" on public.chat_rooms;
 drop policy if exists "Participants can view messages" on public.messages;
 drop policy if exists "Participants can post messages" on public.messages;
+drop policy if exists "Authenticated users can view support messages" on public.support_messages;
+drop policy if exists "Authenticated users can post support messages" on public.support_messages;
 drop policy if exists "buyers_can_view_own_orders" on public.orders;
 drop policy if exists "buyers_can_create_orders" on public.orders;
 drop policy if exists "buyers_can_update_own_orders" on public.orders;
@@ -293,6 +303,13 @@ with check (
   )
 );
 
+create policy "Authenticated users can view support messages"
+on public.support_messages for select to authenticated
+using ((select auth.uid()) = sender_id);
+create policy "Authenticated users can post support messages"
+on public.support_messages for insert to authenticated
+with check ((select auth.uid()) = sender_id);
+
 create policy "buyers_can_view_own_orders"
 on public.orders for select using (auth.uid() = buyer_id or auth.uid() = (select seller_id from public.listings where id = listing_id));
 create policy "buyers_can_create_orders"
@@ -321,6 +338,20 @@ begin
       and tablename = 'messages'
   ) then
     alter publication supabase_realtime add table public.messages;
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'support_messages'
+  ) then
+    alter publication supabase_realtime add table public.support_messages;
   end if;
 end;
 $$;
