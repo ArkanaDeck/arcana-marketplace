@@ -173,10 +173,16 @@ export const MainLayout: React.FC = () => {
         })();
     }, [session]);
 
-    // Existing users with a completed profile skip the account/profile onboarding view.
+    // Only auto-skip the Account onboarding view once per sign-in, not on every manual "Your Profile" click.
+    const hasSkippedAccountOnboarding = React.useRef(false);
+    useEffect(() => {
+        hasSkippedAccountOnboarding.current = false;
+    }, [session?.user?.id]);
+
     useEffect(() => {
         if (!session?.user || isProfileLoading || !isProfileComplete) return;
-        if (activeView !== 'Account') return;
+        if (activeView !== 'Account' || hasSkippedAccountOnboarding.current) return;
+        hasSkippedAccountOnboarding.current = true;
         setActiveView('Listings');
     }, [session, isProfileLoading, isProfileComplete, activeView]);
 
@@ -871,7 +877,7 @@ export const MainLayout: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="listings-live-grid">
-                                    {filteredListings.map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                    {filteredListings.map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
                                 </div>
                             )}
                         </section>
@@ -1327,7 +1333,7 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
     document.body,
 );
 
-const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
+const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
     const [isMagnified, setIsMagnified] = useState(false);
     const images = item.images;
@@ -1348,7 +1354,17 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; onVie
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
             <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
             {item.description && <p className="listing-description">{item.description}</p>}
-            <div className="product-footer"><button className="buy-btn" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button><button className="edit-btn" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button><button className="delete-btn" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button></div>
+            <div className="product-footer"><button className="buy-btn" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>
+                {(() => {
+                    const arkanaUser = currentUserId ? { id: currentUserId } : null;
+                    const arkanaListing = { seller_id: item.sellerId };
+                    return arkanaUser?.id === arkanaListing?.seller_id && (
+                        <>
+                            <button className="edit-btn" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button>
+                            <button className="delete-btn" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button>
+                        </>
+                    );
+                })()}</div>
         </div>
         {isMagnified && images[currentImgIdx] && <ImageLightbox src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} onClose={() => setIsMagnified(false)} />}
     </div>;
