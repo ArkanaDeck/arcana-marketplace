@@ -81,6 +81,7 @@ export const MainLayout: React.FC = () => {
     const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin');
     const [accountEmail, setAccountEmail] = useState('');
     const [accountPassword, setAccountPassword] = useState('');
+    const [accountConfirmPassword, setAccountConfirmPassword] = useState('');
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isEmailSent, setIsEmailSent] = useState(false);
     const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -420,6 +421,10 @@ export const MainLayout: React.FC = () => {
             setAccountStatus('Sign in is unavailable because Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
             return;
         }
+        if (accountMode === 'signup' && accountPassword !== accountConfirmPassword) {
+            setAccountStatus('Passwords do not match.');
+            return;
+        }
         setIsAccountSubmitting(true);
         try {
             if (accountMode === 'signup') {
@@ -438,6 +443,7 @@ export const MainLayout: React.FC = () => {
                 setAccountStatus('Signed in successfully.');
             }
             setAccountPassword('');
+            setAccountConfirmPassword('');
             setShowPassword(false);
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to continue with your account.');
@@ -781,6 +787,14 @@ export const MainLayout: React.FC = () => {
                                                     </span>
                                                     <span className="field-error-text">This space must be filled in.</span>
                                                 </label>
+                                                {accountMode === 'signup' && (
+                                                    <label>Confirm Password <span className="text-red-500 font-bold ml-0.5">*</span>
+                                                        <span className="password-field-wrap">
+                                                            <input type={showPassword ? 'text' : 'password'} value={accountConfirmPassword} onChange={(event) => setAccountConfirmPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your password" />
+                                                        </span>
+                                                        <span className="field-error-text">This space must be filled in.</span>
+                                                    </label>
+                                                )}
                                                 {accountMode === 'signin' && (
                                                     <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); setShowResetMessage(true); }}>Forgot Password?</button>
                                                 )}
