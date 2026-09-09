@@ -1397,6 +1397,76 @@ label.field-error .field-error-text {
     overflow: hidden;
 }
 
+.product-image-box--carousel {
+    position: relative;
+}
+
+.listing-carousel__image {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    padding: 0;
+}
+
+.listing-carousel__nav {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    width: 30px;
+    height: 30px;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    background: rgba(17, 78, 96, 0.78);
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.listing-carousel__nav--previous {
+    left: 8px;
+}
+
+.listing-carousel__nav--next {
+    right: 8px;
+}
+
+.image-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(9, 26, 32, 0.88);
+    cursor: zoom-out;
+}
+
+.image-lightbox img {
+    max-width: min(100%, 1100px);
+    max-height: calc(100vh - 48px);
+    object-fit: contain;
+    cursor: default;
+}
+
+.image-lightbox__close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #114E60;
+    cursor: pointer;
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
 .live-uploaded-img {
     width: 100%;
     height: 100%;

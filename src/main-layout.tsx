@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
@@ -316,9 +317,10 @@ export const MainLayout: React.FC = () => {
             return;
         }
         try {
-            const isEditing = Boolean(editModeData?.id);
-            const savedListing = isEditing
-                ? await updateListing(editModeData.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: editModeData.images || [], freeDelivery, condition })
+            const existingListing = editModeData;
+            const isEditing = existingListing !== null;
+            const savedListing = existingListing
+                ? await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition })
                 : await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
             setListings((currentListings) => isEditing ? currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing) : [savedListing, ...currentListings]);
             setDeckName('');
@@ -849,73 +851,7 @@ export const MainLayout: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="listings-live-grid">
-                                    {filteredListings.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className="live-product-card"
-                                            role="button"
-                                            tabIndex={0}
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={() => setViewingListing(item)}
-                                            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setViewingListing(item); } }}
-                                        >
-                                            <div className="product-image-box" style={{ cursor: 'pointer', position: 'relative' }}>
-                                                {item.images.length > 0 ? (
-                                                    <div className="listing-image-row">
-                                                        {item.images.slice(0, 3).map((imageUrl, index) => (
-                                                            <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open full-resolution image ${index + 1} of ${item.name}`} onClick={(event) => event.stopPropagation()}>
-                                                                <img src={imageUrl} alt={`${item.name} photo ${index + 1}`} className="live-uploaded-img" />
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <span className="default-card-emoji">🎴</span>
-                                                )}
-                                                {item.images.length > 1 && (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            aria-label="Scroll images left"
-                                                            onClick={(event) => { event.stopPropagation(); event.currentTarget.parentElement?.querySelector('.listing-image-row')?.scrollBy({ left: -240, behavior: 'smooth' }); }}
-                                                            style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        >‹</button>
-                                                        <button
-                                                            type="button"
-                                                            aria-label="Scroll images right"
-                                                            onClick={(event) => { event.stopPropagation(); event.currentTarget.parentElement?.querySelector('.listing-image-row')?.scrollBy({ left: 240, behavior: 'smooth' }); }}
-                                                            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        >›</button>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <div className="product-details">
-                                                <h4>{item.name}</h4>
-                                                <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
-                                                <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
-                                                {item.description && <p className="listing-description">{item.description}</p>}
-                                                <div className="product-footer">
-                                                    <button
-                                                        className="buy-btn"
-                                                        onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? handleAddToBasket(item) : setFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}
-                                                    >
-                                                        {item.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === item.id) ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
-                                                    </button>
-                                                    <button
-                                                        className="edit-btn"
-                                                        onClick={(event) => { event.stopPropagation(); handleStartEdit(item); }}
-                                                    >
-                                                        ✏️ Edit
-                                                    </button>
-                                                    <button
-                                                        className="delete-btn"
-                                                        onClick={(event) => { event.stopPropagation(); handleDelete(item.id); }}
-                                                    >
-                                                        🗑️ Delete
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                    {filteredListings.map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
                                 </div>
                             )}
                         </section>
@@ -1298,6 +1234,41 @@ export const MainLayout: React.FC = () => {
             </div>
         </div>
     );
+};
+
+const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => createPortal(
+    <div className="image-lightbox" role="dialog" aria-modal="true" aria-label="Enlarged listing image" onClick={onClose}>
+        <button type="button" className="image-lightbox__close" aria-label="Close enlarged image" onClick={onClose}>×</button>
+        <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
+    </div>,
+    document.body,
+);
+
+const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
+    const [currentImgIdx, setCurrentImgIdx] = useState(0);
+    const [isMagnified, setIsMagnified] = useState(false);
+    const images = item.images;
+
+    const changeImage = (event: React.MouseEvent<HTMLButtonElement>, direction: number) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setCurrentImgIdx((index) => (index + direction + images.length) % images.length);
+    };
+
+    return <div className="live-product-card" role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
+        <div className="product-image-box product-image-box--carousel">
+            {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="live-uploaded-img" /></button> : <span className="default-card-emoji">🎴</span>}
+            {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
+        </div>
+        <div className="product-details">
+            <h4>{item.name}</h4>
+            <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
+            <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+            {item.description && <p className="listing-description">{item.description}</p>}
+            <div className="product-footer"><button className="buy-btn" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button><button className="edit-btn" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button><button className="delete-btn" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button></div>
+        </div>
+        {isMagnified && images[currentImgIdx] && <ImageLightbox src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} onClose={() => setIsMagnified(false)} />}
+    </div>;
 };
 
 // ========================================================
