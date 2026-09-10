@@ -66,6 +66,50 @@
       "destination": "/api/create-order-checkout?retired=1"
     },
     {
+      "source": "/api/create-subscription-checkout",
+      "destination": "/api/billing?product=seller-subscription"
+    },
+    {
+      "source": "/api/create-listing-fee-checkout",
+      "destination": "/api/billing?product=listing-fee"
+    },
+    {
+      "source": "/api/rent-website-link",
+      "destination": "/api/billing?product=website-link"
+    },
+    {
+      "source": "/api/listings/rent-link",
+      "destination": "/api/billing?product=listing-external-link"
+    },
+    {
+      "source": "/api/dispatch-order",
+      "destination": "/api/order-actions?action=dispatch"
+    },
+    {
+      "source": "/api/mark-order-delivered",
+      "destination": "/api/order-actions?action=mark-delivered"
+    },
+    {
+      "source": "/api/confirm-order-received",
+      "destination": "/api/order-actions?action=confirm-received"
+    },
+    {
+      "source": "/api/report-order-problem",
+      "destination": "/api/order-actions?action=report-problem"
+    },
+    {
+      "source": "/api/tarot-batch-status",
+      "destination": "/api/tarot?action=status"
+    },
+    {
+      "source": "/api/submit-tarot-listing-batch",
+      "destination": "/api/tarot?action=submit-batch"
+    },
+    {
+      "source": "/api/authenticate-tarot-deck-vision",
+      "destination": "/api/tarot?action=authenticate-vision"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

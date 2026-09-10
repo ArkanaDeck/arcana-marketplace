@@ -1,0 +1,259 @@
+import { createClient } from '@supabase/supabase-js';
+import { logServerError } from '../server/lib/server-logger.js';
+import { calculateBatchAuthenticationFeePence } from '../server/lib/tarot-batch-billing.js';
+import { runVisionAuthenticationCheck } from '../server/lib/tarot-vision-check.js';
+
+// Consolidated tarot authentication hub (submit-batch / status / vision-check), routed via ?action=.
+// Merged from three separate files to stay under Vercel's serverless function count limit.
+export default async function handler(req, res) {
+    const action = req.query?.action;
+
+    if (req.method === 'GET' && action === 'status') return getBatchStatus(req, res);
+    if (req.method === 'POST' && action === 'submit-batch') return submitListingBatch(req, res);
+    if (req.method === 'POST' && action === 'authenticate-vision') return authenticateDeckVision(req, res);
+    return res.status(400).json({ error: 'Unknown tarot action.' });
+}
+
+async function getAuthenticatedUser(req, res) {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+        res.status(503).json({ error: 'Tarot authentication is not configured yet.' });
+        return null;
+    }
+    if (!token) {
+        res.status(401).json({ error: 'Sign in first.' });
+        return null;
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+        res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+        return null;
+    }
+    return { supabase, user };
+}
+
+// Read-only status check for the polling UI: never exposes other sellers' batches.
+async function getBatchStatus(req, res) {
+    const auth = await getAuthenticatedUser(req, res);
+    if (!auth) return;
+    const { supabase, user } = auth;
+    const batchId = req.query?.batchId;
+    if (!batchId) return res.status(400).json({ error: 'A batch ID is required.' });
+
+    try {
+        const { data: batch, error } = await supabase
+            .from('upload_batches')
+            .select('id, deck_count, fee_amount, status')
+            .eq('id', batchId)
+            .eq('seller_id', user.id)
+            .maybeSingle();
+        if (error) throw error;
+        if (!batch) return res.status(404).json({ error: 'Upload batch not found.' });
+        return res.status(200).json({ status: batch.status, deckCount: batch.deck_count, feeAmount: batch.fee_amount });
+    } catch (error) {
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to check batch status.' });
+    }
+}
+
+// Pre-listing security interceptor: every deck is run through vision authentication BEFORE it can ever go live.
+// Listings are inserted as 'pending_authentication' and never become searchable/viewable until the batch fee is paid
+// (enforced separately by the "buyers only see active tarot listings" RLS policy, not just this endpoint).
+async function submitListingBatch(req, res) {
+    const auth = await getAuthenticatedUser(req, res);
+    if (!auth) return;
+    const { supabase, user } = auth;
+
+    try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        const decks = Array.isArray(body.decks) ? body.decks : [];
+        if (decks.length === 0) return res.status(400).json({ error: 'A batch must contain at least one deck.' });
+
+        for (const deck of decks) {
+            if (!deck?.name?.trim() || !Number.isFinite(Number(deck.price)) || Number(deck.price) < 0) {
+                return res.status(400).json({ error: 'Every deck needs a name and a valid price.' });
+            }
+            if (!Array.isArray(deck.images) || deck.images.length === 0) {
+                return res.status(400).json({ error: 'Every deck needs at least one artwork image already uploaded to storage.' });
+            }
+        }
+
+        const feePence = calculateBatchAuthenticationFeePence(decks.length);
+
+        const { data: batch, error: batchError } = await supabase
+            .from('upload_batches')
+            .insert({ seller_id: user.id, deck_count: decks.length, fee_amount: feePence / 100, status: 'pending_authentication' })
+            .select('id, deck_count, fee_amount, status')
+            .single();
+        if (batchError || !batch) throw new Error(batchError?.message || 'Unable to create upload batch.');
+
+        const authenticationResults = [];
+        for (const deck of decks) {
+            const verdict = await runVisionAuthenticationCheck({
+                name: deck.name,
+                artworkImageUrl: deck.images[0],
+                silverStampImageUrl: deck.silverStampImage,
+                certificationImageUrl: deck.certificationImage,
+            });
+            const isAuthenticated = verdict.verdict === 'SECURE';
+
+            const { data: listing, error: listingError } = await supabase
+                .from('tarot_listings')
+                .insert({
+                    batch_id: batch.id,
+                    seller_id: user.id,
+                    name: deck.name.trim(),
+                    price: Number(deck.price),
+                    description: deck.description || null,
+                    condition: deck.condition || 'good',
+                    images: deck.images,
+                    silver_stamp_image: deck.silverStampImage || null,
+                    certification_image: deck.certificationImage || null,
+                    is_authenticated: isAuthenticated,
+                    authentication_reason: verdict.reason || null,
+                    status: isAuthenticated ? 'pending_authentication' : 'rejected',
+                })
+                .select('id, name, is_authenticated, status, authentication_reason')
+                .single();
+            if (listingError || !listing) throw new Error(listingError?.message || 'Unable to save a listing in this batch.');
+            authenticationResults.push(listing);
+        }
+
+        const anyAuthenticated = authenticationResults.some((listing) => listing.is_authenticated);
+        const { error: batchStatusError } = await supabase
+            .from('upload_batches')
+            .update({ status: anyAuthenticated ? 'pending_payment' : 'failed' })
+            .eq('id', batch.id);
+        if (batchStatusError) throw new Error(batchStatusError.message);
+
+        return res.status(200).json({
+            batchId: batch.id,
+            feeAmount: feePence / 100,
+            requiresPayment: anyAuthenticated,
+            listings: authenticationResults,
+        });
+    } catch (error) {
+        logServerError('tarot:submit-batch', error);
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to submit this listing batch.' });
+    }
+}
+
+// 5 MB decoded-image cap per image, enforced on the base64 STRING LENGTH before any decoding happens.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_BASE64_LENGTH = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
+const OPENAI_VISION_MODEL = 'gpt-4o-mini';
+const MIN_AUTHENTIC_CONFIDENCE_PERCENT = 70;
+
+function stripDataUrlPrefix(value) {
+    return typeof value === 'string' ? value.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '') : '';
+}
+
+// Rejects oversized payloads by inspecting the base64 string length first — never decodes/parses
+// a buffer that's already known to be too large. Returns a Buffer only once the size check passes.
+function decodeImageWithSizeGuard(base64Value, label) {
+    const base64 = stripDataUrlPrefix(base64Value);
+    if (!base64) throw new Error(`${label} image is required.`);
+    if (base64.length > MAX_BASE64_LENGTH) throw new Error(`${label} image exceeds the ${MAX_IMAGE_BYTES / (1024 * 1024)}MB size limit.`);
+
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length > MAX_IMAGE_BYTES) throw new Error(`${label} image exceeds the ${MAX_IMAGE_BYTES / (1024 * 1024)}MB size limit.`);
+    return buffer;
+}
+
+async function callOpenAiVision(apiKey, images) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+            model: OPENAI_VISION_MODEL,
+            messages: [
+                {
+                    role: 'system',
+                    content: [
+                        'You are an expert Tarot Art Archivist and Print Quality Inspector.',
+                        'Analyze the submitted tarot card images for signs of being AI-generated, a counterfeit clone, or an authentic artist deck.',
+                        'Scan for: (1) ANOMALIES — mangled lines, asymmetric borders, erratic glyphs, text gibberish, or unnatural anatomy (extra fingers, floating eyes) that betray AI image generation; (2) PRINT PATTERNS — compression artifacts or poor-resolution upscaling suggesting a stolen web asset printed illegally; (3) ART STYLE CONTEXT — whether this matches a known, mass-copied commercial deck (e.g. Rider-Waite variations, popular indie decks).',
+                        'Respond ONLY with compact JSON: {"verdict":"Authentic"|"Suspected AI-Generated"|"Potential Counterfeit Copy"|"Inconclusive","confidencePercent":0-100,"observations":["...","..."]}.',
+                    ].join(' '),
+                },
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'Authenticate this tarot deck submission using the artwork, silver stamp, and certification letter images below.' },
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${images.artwork.toString('base64')}` } },
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${images.silverStamp.toString('base64')}` } },
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${images.certification.toString('base64')}` } },
+                    ],
+                },
+            ],
+            response_format: { type: 'json_object' },
+            max_tokens: 400,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(`OpenAI vision request failed (${response.status}): ${errorBody.slice(0, 200)}`);
+    }
+
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('OpenAI vision response did not include a verdict.');
+
+    let parsed;
+    try {
+        parsed = JSON.parse(content);
+    } catch {
+        throw new Error('OpenAI vision response was not valid JSON.');
+    }
+
+    const confidencePercent = Number.isFinite(Number(parsed.confidencePercent)) ? Math.max(0, Math.min(100, Number(parsed.confidencePercent))) : 0;
+    const observations = Array.isArray(parsed.observations) ? parsed.observations.filter((item) => typeof item === 'string') : [];
+    const isAuthentic = parsed.verdict === 'Authentic' && confidencePercent >= MIN_AUTHENTIC_CONFIDENCE_PERCENT;
+
+    return {
+        verdict: isAuthentic ? 'SECURE' : 'REJECTED',
+        reason: observations[0] || parsed.verdict,
+        archivistVerdict: parsed.verdict,
+        confidencePercent,
+        observations,
+    };
+}
+
+// Accepts three base64 images (card art, silver stamp, certification letter) and returns an
+// OpenAI vision authentication verdict. OPENAI_API_KEY never leaves this handler.
+async function authenticateDeckVision(req, res) {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const openAiApiKey = process.env.OPENAI_API_KEY || '';
+    if (!supabaseUrl || !supabaseServiceRoleKey || !openAiApiKey) {
+        return res.status(503).json({ error: 'Tarot deck vision authentication is not configured yet.' });
+    }
+
+    const auth = await getAuthenticatedUser(req, res);
+    if (!auth) return;
+    const { user } = auth;
+
+    try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+
+        let images;
+        try {
+            images = {
+                artwork: decodeImageWithSizeGuard(body.cardArtBase64, 'Card art'),
+                silverStamp: decodeImageWithSizeGuard(body.silverStampBase64, 'Silver stamp'),
+                certification: decodeImageWithSizeGuard(body.certificationLetterBase64, 'Certification letter'),
+            };
+        } catch (sizeError) {
+            return res.status(413).json({ error: sizeError instanceof Error ? sizeError.message : 'One or more images are invalid.' });
+        }
+
+        const verdict = await callOpenAiVision(openAiApiKey, images);
+        return res.status(200).json(verdict);
+    } catch (error) {
+        logServerError('tarot:authenticate-vision', error, { userId: user.id });
+        return res.status(502).json({ error: error instanceof Error ? error.message : 'Unable to complete vision authentication.' });
+    }
+}
