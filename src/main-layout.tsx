@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
-import { buyListingCredits } from './lib/listing-credits';
 import { createListing, deleteListing, loadListings, updateListing, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { getSubscriptionStatus, startSubscriptionCheckout } from './lib/subscription';
+import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
+import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
@@ -17,6 +19,16 @@ type DeckListing = MarketplaceListing;
 const SHIPPING_FEE = 2.99;
 const DELIVERY_FEE = 2.99;
 type BasketItem = DeckListing & { courierFee: number };
+
+// Stricter than a regex prefix check: rejects malformed URLs (e.g. "https://") that a regex alone would accept.
+function isValidExternalUrl(value: string): boolean {
+    try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
 
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
@@ -60,12 +72,13 @@ export const MainLayout: React.FC = () => {
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [wantsExternalLink, setWantsExternalLink] = useState<boolean>(false);
+    const [externalStoreUrl, setExternalStoreUrl] = useState('');
+    const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
+    const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const listingFee = listings.length < 3 ? 0 : 0.66;
-    const listingsInCurrentBundle = listings.length % 3;
-    const [isBuyingListingCredits, setIsBuyingListingCredits] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Checkout Flow States
@@ -102,11 +115,17 @@ export const MainLayout: React.FC = () => {
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
     const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
+    const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'inactive' | 'past_due'>('inactive');
+    const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+    const [websiteLinkStatus, setWebsiteLinkStatus] = useState<WebsiteLinkStatus>({ websiteUrl: null, isActive: false, expiresAt: null });
+    const [websiteUrlInput, setWebsiteUrlInput] = useState('');
+    const [isStartingWebsiteLink, setIsStartingWebsiteLink] = useState(false);
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const filteredListings = listings.filter((listing) => {
+        if (listing.reviewStatus !== 'approved' && listing.sellerId !== session?.user?.id) return false;
         const query = searchQuery.trim().toLowerCase();
         return !query || listing.name.toLowerCase().includes(query) || listing.description?.toLowerCase().includes(query);
     });
@@ -154,6 +173,7 @@ export const MainLayout: React.FC = () => {
             setAvatarUrl('');
             setIsProfileComplete(false);
             setIsProfileLoading(false);
+            setSubscriptionStatus('inactive');
             return;
         }
         const currentUserId = session.user.id;
@@ -171,6 +191,8 @@ export const MainLayout: React.FC = () => {
                 setIsProfileLoading(false);
             }
         })();
+        getSubscriptionStatus().then(setSubscriptionStatus).catch(() => setSubscriptionStatus('inactive'));
+        getWebsiteLinkStatus().then((status) => { setWebsiteLinkStatus(status); setWebsiteUrlInput(status.websiteUrl || ''); }).catch(() => setWebsiteLinkStatus({ websiteUrl: null, isActive: false, expiresAt: null }));
     }, [session]);
 
     // Only auto-skip the Account onboarding view once per sign-in, not on every manual "Your Profile" click.
@@ -324,21 +346,75 @@ export const MainLayout: React.FC = () => {
             alert('Please enter a valid price greater than zero.');
             return;
         }
-        if (listingFee > 0) {
-            alert('Buy a three-listing credit bundle before publishing additional listings.');
-            return;
-        }
         if (!runtimeConfig.isSecureMode) {
             alert('Publishing listings is disabled until Supabase and Stripe are configured for production.');
             return;
         }
+        if (!session?.user) {
+            alert('Sign in before publishing a listing.');
+            setActiveView('Account');
+            return;
+        }
+        if (subscriptionStatus !== 'active') {
+            alert('An active seller subscription is required before publishing listings.');
+            setActiveView('Account');
+            return;
+        }
+        if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
+            setExternalLinkUrlError('Enter a valid web store link starting with http:// or https://.');
+            return;
+        }
+        setExternalLinkUrlError(null);
+        const risk = assessListingRisk({
+            price: parsedPrice,
+            listingType,
+            accountCreatedAt: session.user.created_at,
+            recentListingCount: listings.filter((listing) => listing.sellerId === session.user!.id).length,
+        });
         try {
             const existingListing = editModeData;
             const isEditing = existingListing !== null;
+
+            // Every listing is created hidden ('pending_review') first — the server decides what's owed
+            // (44p for sale, +66p bundle fee after the free-3 threshold, for ANY listing type) and either
+            // approves it immediately at no cost or returns a Stripe Checkout URL for the combined fee.
             const savedListing = existingListing
-                ? await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition })
-                : await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
+                ? await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition, reviewStatus: 'pending_review' })
+                : await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, reviewStatus: 'pending_review' });
             setListings((currentListings) => isEditing ? currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing) : [savedListing, ...currentListings]);
+
+            const feeSession = await getSupabaseSession();
+            if (!feeSession?.access_token) throw new Error('Sign in again to publish this listing.');
+            const feeResponse = await fetch('/api/create-listing-fee-checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${feeSession.access_token}` },
+                body: JSON.stringify({ listingId: savedListing.id, deckTitle: savedListing.name, requiresManualReview: risk.requiresReview }),
+            });
+            const feePayload = await feeResponse.json();
+            if (!feeResponse.ok) throw new Error(feePayload?.error || 'Unable to publish this listing.');
+
+            if (feePayload.url) {
+                // A fee is owed — redirect to Stripe; the webhook approves the listing once payment clears.
+                window.location.assign(feePayload.url);
+                return;
+            }
+
+            // No fee owed (free-tier allowance) — the listing is already approved (unless flagged for manual review).
+            if (wantsExternalLink) {
+                setIsRentingExternalLink(true);
+                const rentSession = await getSupabaseSession();
+                if (!rentSession?.access_token) throw new Error('Sign in again to rent an external store link.');
+                const response = await fetch('/api/listings/rent-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${rentSession.access_token}` },
+                    body: JSON.stringify({ listingId: savedListing.id, externalStoreUrl: externalStoreUrl.trim() }),
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start external link checkout.');
+                window.location.assign(payload.url);
+                return;
+            }
+
             setDeckName('');
             setDeckPrice('');
             setDeckDescription('');
@@ -347,12 +423,16 @@ export const MainLayout: React.FC = () => {
             setListingType('sale');
             setDeckImageFiles([]);
             setImagePreviews([]);
+            setWantsExternalLink(false);
+            setExternalStoreUrl('');
+            setExternalLinkUrlError(null);
             setEditModeData(null);
-            setFlashMessage(isEditing ? `Updated: ${savedListing.name}` : `Published: ${savedListing.name}`);
+            setFlashMessage(risk.requiresReview ? `Submitted for review: ${savedListing.name}. ${risk.reasons[0]}` : (isEditing ? `Updated: ${savedListing.name}` : `Published: ${savedListing.name}`));
             setActiveView('Listings');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
             alert(message);
+            setIsRentingExternalLink(false);
             if (message === 'Sign in before creating a listing.') {
                 setAccountMode('signin');
                 setActiveView('Account');
@@ -360,14 +440,29 @@ export const MainLayout: React.FC = () => {
         }
     };
 
-    const handleBuyListingCredits = async () => {
-        setIsBuyingListingCredits(true);
+    const handleStartSubscription = async () => {
+        setIsStartingSubscription(true);
         try {
-            const checkout = await buyListingCredits();
+            const checkout = await startSubscriptionCheckout();
             window.location.assign(checkout.url);
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to start listing credit checkout.');
-            setIsBuyingListingCredits(false);
+            alert(error instanceof Error ? error.message : 'Unable to start seller subscription checkout.');
+            setIsStartingSubscription(false);
+        }
+    };
+
+    const handleStartWebsiteLink = async () => {
+        if (!isValidExternalUrl(websiteUrlInput)) {
+            alert('Enter a valid website URL starting with http:// or https://.');
+            return;
+        }
+        setIsStartingWebsiteLink(true);
+        try {
+            const checkout = await startWebsiteLinkCheckout(websiteUrlInput.trim());
+            window.location.assign(checkout.url);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to start website link checkout.');
+            setIsStartingWebsiteLink(false);
         }
     };
 
@@ -737,6 +832,27 @@ export const MainLayout: React.FC = () => {
                                         </form>
                                         <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
                                             <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
+                                                <span><strong>Seller Subscription</strong><small>An active subscription is required before publishing listings.</small></span>
+                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: subscriptionStatus === 'active' ? '#edf8ef' : '#fff1d9', color: subscriptionStatus === 'active' ? '#26733f' : '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{subscriptionStatus === 'active' ? 'Active' : subscriptionStatus === 'past_due' ? 'Payment past due' : 'Inactive'}</span>
+                                            </summary>
+                                            {subscriptionStatus !== 'active' && <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                                <button type="button" onClick={handleStartSubscription} disabled={isStartingSubscription} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingSubscription ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingSubscription ? 'Opening checkout...' : 'Subscribe to publish listings'}</button>
+                                            </div>}
+                                        </details>
+                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
+                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
+                                                <span><strong>Link Your Website</strong><small>£2.00 for 30 days on your public seller profile.</small></span>
+                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: websiteLinkStatus.isActive ? '#edf8ef' : '#fff1d9', color: websiteLinkStatus.isActive ? '#26733f' : '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{websiteLinkStatus.isActive ? `Active until ${new Date(websiteLinkStatus.expiresAt as string).toLocaleDateString()}` : 'Not linked'}</span>
+                                            </summary>
+                                            <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                                <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Website URL
+                                                    <input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="url" value={websiteUrlInput} onChange={(event) => setWebsiteUrlInput(event.target.value)} placeholder="https://your-store.example.com" />
+                                                </label>
+                                                <button type="button" onClick={handleStartWebsiteLink} disabled={isStartingWebsiteLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingWebsiteLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingWebsiteLink ? 'Opening checkout...' : websiteLinkStatus.isActive ? 'Renew for another 30 days - £2.00' : 'Link your website - £2.00 for 30 days'}</button>
+                                            </div>
+                                        </details>
+                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
+                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
                                                 <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
                                                 <span style={{ flex: '0 0 auto', borderRadius: '999px', background: '#fff1d9', color: '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
                                             </summary>
@@ -884,9 +1000,21 @@ export const MainLayout: React.FC = () => {
                                     <p className="empty-message">No listings match your search.</p>
                                 </div>
                             ) : (
-                                <div className="listings-live-grid">
-                                    {filteredListings.map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
-                                </div>
+                                <>
+                                    {filteredListings.some((item) => item.listingType !== 'free') && (
+                                        <div className="listings-live-grid listings-live-grid--paid">
+                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                        </div>
+                                    )}
+                                    {filteredListings.some((item) => item.listingType === 'free') && (
+                                        <>
+                                            <h3 className="listings-tier-heading">Free to a good home</h3>
+                                            <div className="listings-live-grid listings-live-grid--free">
+                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                            </div>
+                                        </>
+                                    )}
+                                </>
                             )}
                         </section>
                     )}
@@ -929,16 +1057,9 @@ export const MainLayout: React.FC = () => {
                             <h2>Create New Listing</h2>
                             <div className="listing-fee-notice">
                                 <div>
-                                    <strong>{listingFee === 0 ? 'Your next listing is free' : 'Buy 3 listing credits for £0.66'}</strong>
-                                    <span>First 3 listings are free. Each following bundle of 3 listings is £0.66.</span>
+                                    <strong>Sale listings: 44p per deck. Your first 3 listings of any type are free.</strong>
+                                    <span>Sale listings always require a flat 44p AI authentication fee. After your first 3 listings (any type), every 3rd listing after that (4th, 7th, 10th...) adds a 66p insertion fee too — these stack, so a sale listing landing on one of those positions is 44p + 66p = £1.10.</span>
                                 </div>
-                                {listingFee === 0 ? (
-                                    <span className="listing-fee-badge">{3 - listingsInCurrentBundle} free left</span>
-                                ) : (
-                                    <button type="button" className="listing-credit-btn" onClick={handleBuyListingCredits} disabled={isBuyingListingCredits}>
-                                        {isBuyingListingCredits ? 'Opening payment...' : 'Buy 3 credits - £0.66'}
-                                    </button>
-                                )}
                             </div>
                             <form onSubmit={handlePublish} className="sell-form">
                                 <div className="form-group">
@@ -1003,6 +1124,34 @@ export const MainLayout: React.FC = () => {
                                     />
                                     <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery. Include delivery charges in the listing price.</label>
                                 </div>}
+                                <div className="form-group checkbox-group external-link-toggle">
+                                    <input
+                                        id="external-store-link"
+                                        type="checkbox"
+                                        checked={wantsExternalLink}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setWantsExternalLink(e.target.checked); if (!e.target.checked) setExternalLinkUrlError(null); }}
+                                    />
+                                    <label className="checkbox-label" htmlFor="external-store-link">Drive traffic directly to your own web store? (+£2.00 for 30 Days)</label>
+                                </div>
+                                {wantsExternalLink && (
+                                    <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
+                                        <label>Your web store link <span className="text-red-500 font-bold ml-0.5">*</span></label>
+                                        <input
+                                            type="url"
+                                            value={externalStoreUrl}
+                                            onChange={(e) => { setExternalStoreUrl(e.target.value); if (externalLinkUrlError) setExternalLinkUrlError(null); }}
+                                            onBlur={(e) => setExternalLinkUrlError(e.target.value.trim() && !isValidExternalUrl(e.target.value) ? 'Enter a valid URL starting with http:// or https://.' : null)}
+                                            onInvalid={handleRequiredFieldInvalid}
+                                            onInput={handleRequiredFieldInput}
+                                            required={wantsExternalLink}
+                                            aria-required={wantsExternalLink}
+                                            aria-invalid={Boolean(externalLinkUrlError)}
+                                            placeholder="https://your-store.example.com"
+                                        />
+                                        <span className="field-error-text">This space must be filled in.</span>
+                                        {externalLinkUrlError && <span className="external-link-error-text" role="alert">{externalLinkUrlError}</span>}
+                                    </div>
+                                )}
                                 <div className="form-group">
                                     <label>Description</label>
                                     <textarea value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} maxLength={2000} placeholder={condition === 'poor' ? 'Please detail specific wear and tear, missing cards, or scuffed box outlines here...' : condition === 'new' || condition === 'like new' ? 'Mention any unopened packaging, pristine edges, or original inserts here...' : condition === 'fair' ? 'Please describe visible wear, marks, missing cards, or box damage here...' : 'Describe the deck condition, edition, missing cards, or what you would swap for.'} rows={4} />
@@ -1020,7 +1169,7 @@ export const MainLayout: React.FC = () => {
                                         {imagePreviews.map((previewUrl) => <img key={previewUrl} src={previewUrl} alt="Selected deck preview" className="image-preview-thumbnail" />)}
                                     </div>}
                                 </div>
-                                <button type="submit" className="primary-btn">{listingFee === 0 ? 'Publish Free Listing' : 'Buy credits to publish'}</button>
+                                <button type="submit" className="primary-btn" disabled={isRentingExternalLink}>{isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}</button>
                             </form>
                         </section>
                     )}
@@ -1352,17 +1501,18 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         setCurrentImgIdx((index) => (index + direction + images.length) % images.length);
     };
 
-    return <div className="live-product-card" role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
+    return <div className={`live-product-card ${item.listingType === 'free' ? 'card-free-tier' : 'card-paid-tier'}`} role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
         <div className="product-image-box product-image-box--carousel relative w-full aspect-square overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '1 / 1' }}>
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-contain" style={{ objectFit: 'contain' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
         </div>
         <div className="product-details">
-            <h4>{item.name}</h4>
+            <h4 className="deck-title">{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
             <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
-            {item.description && <p className="listing-description">{item.description}</p>}
-            <div className="product-footer"><button className="buy-btn" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>
+            {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
+            {item.description && <p className="listing-description deck-description">{item.description}</p>}
+            <div className="product-footer"><button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>
                 {(() => {
                     const arkanaUser = currentUserId ? { id: currentUserId } : null;
                     const arkanaListing = { seller_id: item.sellerId };

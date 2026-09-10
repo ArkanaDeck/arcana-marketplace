@@ -13,21 +13,40 @@ export type MarketplaceListing = {
     images: string[];
     freeDelivery: boolean;
     condition: DeckCondition;
+    reviewStatus: 'approved' | 'pending_review' | 'rejected';
 };
 
-function mapListing(listing: { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition }): MarketplaceListing {
+function mapListing(listing: { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected' }): MarketplaceListing {
     const images = listing.images || (listing.image ? [listing.image] : []);
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition };
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved' };
 }
 
 export async function loadListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status').order('created_at', { ascending: false });
     if (error) throw new Error(error.message || 'Unable to load listings.');
     return data.map(mapListing);
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images'> & { imageFiles?: File[] };
+// Public marketplace feed: only shows paid/authenticated listings (is_active + review_status='approved'),
+// with sale listings prioritized to the top, newest-first within each priority group.
+export async function loadPublishedListings() {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase
+        .from('listings')
+        .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status')
+        .eq('is_active', true)
+        .eq('review_status', 'approved')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message || 'Unable to load published listings.');
+
+    // Array is already newest-first from the query above; a stable sort here keeps that order within each group.
+    const listingPriority = (listing: { listing_type: string }) => (listing.listing_type === 'sale' ? 0 : 1);
+    const prioritized = [...data].sort((a, b) => listingPriority(a) - listingPriority(b));
+    return prioritized.map(mapListing);
+}
+
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus'> & { imageFiles?: File[]; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 
 // Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
@@ -88,8 +107,8 @@ export async function createListing(input: CreateListingInput) {
 
         const { data, error } = await supabase
             .from('listings')
-            .insert({ seller_id: session.user.id, name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: imageUrls[0] || null, images: imageUrls, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition })
-            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition')
+            .insert({ seller_id: session.user.id, name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: imageUrls[0] || null, images: imageUrls, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition, review_status: input.reviewStatus || 'approved', external_store_url: input.externalStoreUrl || null })
+            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status')
             .single();
         if (error || !data) throw new Error(error?.message || 'Unable to create listing.');
         return mapListing(data);
@@ -128,10 +147,10 @@ export async function updateListing(listingId: string, input: UpdateListingInput
         const images = [...input.existingImages, ...newImageUrls];
         const { data, error } = await supabase
             .from('listings')
-            .update({ name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: images[0] || null, images, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition })
+            .update({ name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: images[0] || null, images, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition, review_status: input.reviewStatus || 'approved' })
             .eq('id', listingId)
             .eq('seller_id', session.user.id)
-            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition')
+            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status')
             .single();
         if (error || !data) throw new Error(error?.message || 'Unable to update listing.');
         return mapListing(data);

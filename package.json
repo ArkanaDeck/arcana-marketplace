@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
-    "test": "node --test server/checkout.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts",
+    "test": "node --test server/checkout.test.js server/lib/tarot-webhook-handler.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts",
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {

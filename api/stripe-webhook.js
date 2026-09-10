@@ -26,6 +26,18 @@ export default async function handler(req, res) {
         const event = stripe.webhooks.constructEvent(await readRawBody(req), req.headers['stripe-signature'], webhookSecret);
         if (event.type === 'checkout.session.completed') {
             const session = event.data.object;
+            if (session.metadata?.product === 'listing_fee' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                if (session.metadata.requires_manual_review !== 'true') {
+                    const { error } = await supabase
+                        .from('listings')
+                        .update({ review_status: 'approved' })
+                        .eq('id', session.metadata.listing_id)
+                        .eq('seller_id', session.metadata.sellerId)
+                        .eq('review_status', 'pending_review');
+                    if (error) throw error;
+                }
+            }
             if (session.metadata?.product === 'listing_credits' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
                 const { error } = await supabase.rpc('add_listing_credits', {
@@ -34,6 +46,33 @@ export default async function handler(req, res) {
                     purchased_credits: Number(session.metadata.credits || 3),
                     purchase_amount: (session.amount_total || 0) / 100,
                 });
+                if (error) throw error;
+            }
+            if (session.metadata?.product === 'external_link_rental' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                const { error } = await supabase
+                    .from('listings')
+                    .update({ external_link_active: true, external_link_expires_at: expiresAt })
+                    .eq('id', session.metadata.listing_id)
+                    .eq('seller_id', session.metadata.seller_id);
+                if (error) throw error;
+            }
+            if (session.metadata?.product === 'website_link_rental' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ website_link_active: true, website_link_expires_at: expiresAt })
+                    .eq('id', session.metadata.seller_id);
+                if (error) throw error;
+            }
+            if (session.metadata?.product === 'seller_subscription' && session.mode === 'subscription') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ subscription_status: 'active', stripe_subscription_id: session.subscription })
+                    .eq('id', session.metadata.seller_id);
                 if (error) throw error;
             }
             if (session.metadata?.product === 'marketplace_order' && session.payment_status === 'paid') {
@@ -54,6 +93,18 @@ export default async function handler(req, res) {
                     status: 'paid', amount: Number(order.total),
                 })), { onConflict: 'provider_payment_id' });
                 if (paymentError) throw paymentError;
+            }
+        }
+        if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+            const subscription = event.data.object;
+            const sellerId = subscription.metadata?.seller_id;
+            if (sellerId) {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const nextStatus = event.type === 'customer.subscription.deleted' ? 'inactive'
+                    : subscription.status === 'active' ? 'active'
+                        : subscription.status === 'past_due' ? 'past_due' : 'inactive';
+                const { error } = await supabase.from('profiles').update({ subscription_status: nextStatus }).eq('id', sellerId);
+                if (error) throw error;
             }
         }
         return res.status(200).json({ received: true });

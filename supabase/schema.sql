@@ -23,6 +23,11 @@ alter table public.profiles add column if not exists seller_payout_status text n
 alter table public.profiles add column if not exists stripe_connect_account_id text unique;
 alter table public.profiles add column if not exists paypal_merchant_id text unique;
 alter table public.profiles add column if not exists paypal_email text;
+alter table public.profiles add column if not exists subscription_status text not null default 'inactive' check (subscription_status in ('inactive', 'active', 'past_due'));
+alter table public.profiles add column if not exists stripe_subscription_id text unique;
+alter table public.profiles add column if not exists website_url text;
+alter table public.profiles add column if not exists website_link_active boolean not null default false;
+alter table public.profiles add column if not exists website_link_expires_at timestamptz;
 
 create table if not exists public.listing_credit_purchases (
   id uuid primary key default gen_random_uuid(),
@@ -52,6 +57,10 @@ alter table public.listings add column if not exists listing_type text not null 
 alter table public.listings add column if not exists images text[] not null default '{}';
 alter table public.listings add column if not exists is_active boolean not null default true;
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
+alter table public.listings add column if not exists review_status text not null default 'approved' check (review_status in ('approved', 'pending_review', 'rejected'));
+alter table public.listings add column if not exists external_store_url text;
+alter table public.listings add column if not exists external_link_active boolean not null default false;
+alter table public.listings add column if not exists external_link_expires_at timestamptz;
 alter table public.listings drop constraint if exists listings_free_delivery_check;
 alter table public.listings add column if not exists condition text not null default 'good';
 alter table public.listings drop constraint if exists listings_condition_check;
@@ -134,7 +143,8 @@ create table if not exists public.support_messages (
 );
 
 create or replace view public.public_profiles as
-select id, coalesce(display_name, full_name) as full_name, avatar_url, bio
+select id, coalesce(display_name, full_name) as full_name, avatar_url, bio,
+  case when website_link_active and website_link_expires_at > now() then website_url else null end as website_url
 from public.profiles;
 grant select on public.public_profiles to anon, authenticated;
 
@@ -402,3 +412,72 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.create_profile_for_new_user();
+
+-- Tarot deck authentication batches: one seller upload session, billed at a flat per-deck rate.
+create table if not exists public.upload_batches (
+  id uuid primary key default gen_random_uuid(),
+  seller_id uuid not null references public.profiles(id) on delete cascade,
+  deck_count integer not null check (deck_count > 0),
+  fee_amount numeric(10,2) not null check (fee_amount >= 0),
+  status text not null default 'pending_authentication' check (status in ('pending_authentication', 'pending_payment', 'paid', 'failed')),
+  stripe_session_id text unique,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.tarot_listings (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid not null references public.upload_batches(id) on delete cascade,
+  seller_id uuid not null references public.profiles(id) on delete cascade,
+  name text not null,
+  price numeric(10,2) not null check (price >= 0),
+  description text,
+  condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
+  images text[] not null default '{}',
+  silver_stamp_image text,
+  certification_image text,
+  is_authenticated boolean not null default false,
+  authentication_reason text,
+  status text not null default 'pending_authentication' check (status in ('pending_authentication', 'active', 'rejected')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.upload_batches enable row level security;
+alter table public.tarot_listings enable row level security;
+
+drop policy if exists "sellers manage their own upload batches" on public.upload_batches;
+create policy "sellers manage their own upload batches" on public.upload_batches
+  for select using (seller_id = auth.uid());
+
+drop policy if exists "buyers only see active tarot listings" on public.tarot_listings;
+create policy "buyers only see active tarot listings" on public.tarot_listings
+  for select using (status = 'active' or seller_id = auth.uid());
+
+-- Atomically activates every authenticated listing in a batch once its fee has been paid.
+create or replace function public.activate_tarot_batch(
+  target_batch_id uuid,
+  payment_stripe_session_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.upload_batches
+  set status = 'paid', stripe_session_id = coalesce(stripe_session_id, payment_stripe_session_id)
+  where id = target_batch_id and status = 'pending_payment';
+
+  if not found then
+    return false;
+  end if;
+
+  update public.tarot_listings
+  set status = 'active'
+  where batch_id = target_batch_id and is_authenticated = true and status = 'pending_authentication';
+
+  return true;
+end;
+$$;
+
+revoke all on function public.activate_tarot_batch(uuid, text) from public;
+
