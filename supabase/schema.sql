@@ -25,6 +25,8 @@ alter table public.profiles add column if not exists paypal_merchant_id text uni
 alter table public.profiles add column if not exists paypal_email text;
 alter table public.profiles add column if not exists subscription_status text not null default 'inactive' check (subscription_status in ('inactive', 'active', 'past_due'));
 alter table public.profiles add column if not exists stripe_subscription_id text unique;
+-- Requirement 1: sellers' own external checkout link (Stripe Payment Link, PayPal.me, Revolut, etc.).
+alter table public.profiles add column if not exists direct_payment_link text default null;
 alter table public.profiles add column if not exists website_url text;
 alter table public.profiles add column if not exists website_link_active boolean not null default false;
 alter table public.profiles add column if not exists website_link_expires_at timestamptz;
@@ -61,6 +63,10 @@ alter table public.listings add column if not exists review_status text not null
 alter table public.listings add column if not exists external_store_url text;
 alter table public.listings add column if not exists external_link_active boolean not null default false;
 alter table public.listings add column if not exists external_link_expires_at timestamptz;
+-- Stacked-fee ledger: what was actually charged for this listing's bundle at submission time.
+alter table public.listings add column if not exists authentication_fee_pence integer not null default 0 check (authentication_fee_pence >= 0);
+alter table public.listings add column if not exists insertion_fee_pence integer not null default 0 check (insertion_fee_pence >= 0);
+alter table public.listings add column if not exists grand_total_fee_pence integer not null default 0 check (grand_total_fee_pence >= 0);
 alter table public.listings drop constraint if exists listings_free_delivery_check;
 alter table public.listings add column if not exists condition text not null default 'good';
 alter table public.listings drop constraint if exists listings_condition_check;
@@ -144,7 +150,8 @@ create table if not exists public.support_messages (
 
 create or replace view public.public_profiles as
 select id, coalesce(display_name, full_name) as full_name, avatar_url, bio,
-  case when website_link_active and website_link_expires_at > now() then website_url else null end as website_url
+  case when website_link_active and website_link_expires_at > now() then website_url else null end as website_url,
+  direct_payment_link
 from public.profiles;
 grant select on public.public_profiles to anon, authenticated;
 
@@ -480,4 +487,71 @@ end;
 $$;
 
 revoke all on function public.activate_tarot_batch(uuid, text) from public;
+
+-- ============================================================================
+-- UNIFIED BATCH PIPELINE: single-listing submissions now route through the same
+-- upload_batches table used by the tarot deck authentication flow above (a "batch" of 1).
+-- ============================================================================
+alter table public.listings add column if not exists batch_id uuid references public.upload_batches(id) on delete set null;
+alter table public.listings add column if not exists requires_manual_review boolean not null default false;
+alter table public.upload_batches add column if not exists authentication_fee_pence integer not null default 0 check (authentication_fee_pence >= 0);
+alter table public.upload_batches add column if not exists insertion_fee_pence integer not null default 0 check (insertion_fee_pence >= 0);
+alter table public.upload_batches add column if not exists grand_total_fee_pence integer not null default 0 check (grand_total_fee_pence >= 0);
+
+-- Atomically marks a listings-batch paid AND approves every eligible listing in it, in one statement.
+-- Listings flagged requires_manual_review stay pending_review even after payment clears.
+create or replace function public.activate_listing_batch(target_batch_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.upload_batches
+  set status = 'paid'
+  where id = target_batch_id and status = 'pending_payment';
+
+  if not found then
+    return false;
+  end if;
+
+  update public.listings
+  set review_status = 'approved'
+  where batch_id = target_batch_id and review_status = 'pending_review' and requires_manual_review = false;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.activate_listing_batch(uuid) from public;
+
+-- Atomically records the stacked-fee ledger AND approves the listing in a single statement —
+-- if either the fee breakdown or the approval itself fails, nothing commits (no partial 'approved' state).
+create or replace function public.approve_paid_listing(
+  target_listing_id uuid,
+  target_seller_id uuid,
+  p_authentication_fee_pence integer,
+  p_insertion_fee_pence integer,
+  p_grand_total_pence integer
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.listings
+  set review_status = 'approved',
+      authentication_fee_pence = p_authentication_fee_pence,
+      insertion_fee_pence = p_insertion_fee_pence,
+      grand_total_fee_pence = p_grand_total_pence
+  where id = target_listing_id
+    and seller_id = target_seller_id
+    and review_status = 'pending_review';
+
+  return found;
+end;
+$$;
+
+revoke all on function public.approve_paid_listing(uuid, uuid, integer, integer, integer) from public;
 

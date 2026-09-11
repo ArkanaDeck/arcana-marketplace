@@ -29,14 +29,31 @@ export default async function handler(req, res) {
             if (session.metadata?.product === 'listing_fee' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
                 if (session.metadata.requires_manual_review !== 'true') {
-                    const { error } = await supabase
-                        .from('listings')
-                        .update({ review_status: 'approved' })
-                        .eq('id', session.metadata.listing_id)
-                        .eq('seller_id', session.metadata.sellerId)
-                        .eq('review_status', 'pending_review');
+                    const authenticationFeePence = Number(session.metadata.authentication_fee_pence || 0);
+                    const insertionFeePence = Number(session.metadata.insertion_fee_pence || 0);
+                    const grandTotalPence = Number(session.metadata.grand_total_fee_pence || 0);
+                    console.log(`[arkana:stripe-webhook] approving listing ${session.metadata.listing_id}: authentication=${authenticationFeePence}p insertion=${insertionFeePence}p grandTotal=${grandTotalPence}p`);
+                    // Atomic: ledger breakdown + review_status flip happen in one DB transaction — see approve_paid_listing().
+                    const { data: approved, error } = await supabase.rpc('approve_paid_listing', {
+                        target_listing_id: session.metadata.listing_id,
+                        target_seller_id: session.metadata.sellerId,
+                        p_authentication_fee_pence: authenticationFeePence,
+                        p_insertion_fee_pence: insertionFeePence,
+                        p_grand_total_pence: grandTotalPence,
+                    });
                     if (error) throw error;
+                    if (!approved) console.log(`[arkana:stripe-webhook] listing ${session.metadata.listing_id} was not in pending_review — skipped (already approved or belongs to a different seller).`);
                 }
+            }
+            if (session.metadata?.product === 'listing_batch_fee' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                console.log(`[arkana:stripe-webhook] activating listing batch ${session.metadata.batch_id}`);
+                // Atomic: batch status flip + every eligible listing's approval happen in one DB transaction.
+                const { data: activated, error } = await supabase.rpc('activate_listing_batch', {
+                    target_batch_id: session.metadata.batch_id,
+                });
+                if (error) throw error;
+                if (!activated) console.log(`[arkana:stripe-webhook] batch ${session.metadata.batch_id} was not pending_payment — skipped.`);
             }
             if (session.metadata?.product === 'listing_credits' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);

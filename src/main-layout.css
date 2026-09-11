@@ -1814,6 +1814,61 @@ label.field-error .field-error-text {
     outline: none;
 }
 
+/* Requirement 4: deep-purple "pay direct to seller" CTA + disclaimer, and its message-seller fallback. */
+.direct-pay-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.direct-pay-btn {
+    border: none;
+    width: 100%;
+    background: linear-gradient(180deg, #6d28d9 0%, #4c1d95 100%);
+    color: #fff;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 11px 18px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(88, 28, 135, 0.28);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.direct-pay-btn:hover,
+.direct-pay-btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(88, 28, 135, 0.32);
+    outline: none;
+}
+
+.direct-pay-disclaimer {
+    margin: 0;
+    color: #71717a;
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.message-seller-btn {
+    border: 1px solid rgba(17, 78, 96, 0.2);
+    width: 100%;
+    background: #ffffff;
+    color: #114e60;
+    border-radius: 12px;
+    font-weight: 700;
+    padding: 11px 18px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.message-seller-btn:hover,
+.message-seller-btn:focus-visible {
+    background: #f3f4f6;
+    transform: translateY(-1px);
+    outline: none;
+}
+
 .secondary-btn {
     background: #fff;
     color: #114E60;
@@ -3505,6 +3560,61 @@ label.field-error .field-error-text {
     border: 1px solid rgba(17, 78, 96, 0.16);
     border-radius: 12px;
     background: #f4eee8;
+}
+
+.seller-direct-payment-panel {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 24px;
+    padding: 22px;
+    border: 1px solid rgba(88, 28, 135, 0.18);
+    border-radius: 12px;
+    background: #faf5ff;
+}
+
+.seller-direct-payment-panel h2 {
+    margin: 4px 0 6px;
+    color: #581c87;
+    font-size: 1.05rem;
+}
+
+.seller-direct-payment-panel p {
+    margin: 0;
+    color: #54717b;
+    font-size: 0.85rem;
+}
+
+.seller-direct-payment-panel__field {
+    display: grid;
+    gap: 6px;
+    color: #581c87;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.seller-direct-payment-panel__field input {
+    width: 100%;
+    border: 1px solid rgba(88, 28, 135, 0.2);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #581c87;
+    font: inherit;
+    padding: 10px 12px;
+}
+
+.seller-direct-payment-panel__save-btn {
+    border: none;
+    border-radius: 10px;
+    background: #581c87;
+    color: #ffffff;
+    font-weight: 800;
+    padding: 11px 16px;
+    cursor: pointer;
+}
+
+.seller-direct-payment-panel__save-btn:disabled {
+    cursor: wait;
+    opacity: 0.75;
 }
 
 .seller-chat-messages {

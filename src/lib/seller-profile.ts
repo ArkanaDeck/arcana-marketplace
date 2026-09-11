@@ -7,12 +7,13 @@ type PublicSeller = {
     avatar_url: string | null;
     bio: string | null;
     website_url: string | null;
+    direct_payment_link: string | null;
 };
 
 export async function loadSellerProfile(sellerId: string) {
     if (!supabase) throw new Error('Supabase is not configured.');
     const [{ data: profile, error: profileError }, { data: listings, error: listingsError }] = await Promise.all([
-        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url').eq('id', sellerId).maybeSingle(),
+        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url, direct_payment_link').eq('id', sellerId).maybeSingle(),
         supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status').eq('seller_id', sellerId).eq('is_active', true).eq('review_status', 'approved').order('created_at', { ascending: false }),
     ]);
     if (profileError) throw new Error(profileError.message || 'Unable to load seller profile.');

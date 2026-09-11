@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
-import { createListing, deleteListing, loadListings, updateListing, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { deleteListing, loadListings, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { getSubscriptionStatus, startSubscriptionCheckout } from './lib/subscription';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
+import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
@@ -19,6 +20,17 @@ type DeckListing = MarketplaceListing;
 const SHIPPING_FEE = 2.99;
 const DELIVERY_FEE = 2.99;
 type BasketItem = DeckListing & { courierFee: number };
+
+// ============================================================================
+// ESCROW SYSTEM FEATURE FLAG — DORMANT, NOT DELETED.
+// The old escrow/basket checkout flow (Stripe/PayPal Connect payouts, the `orders`/`payments`
+// tables, basket + CheckoutViewIntegrated, BuyerOrdersPanel/SellerOrdersPanel, dispatch/delivery/
+// dispute handling) is fully intact below and still functional end-to-end — it is just no longer
+// reachable from the active UI. The app now defaults entirely to the Direct Payment Link flow
+// (PayOrMessageButton). Flip this back to `true` to re-expose the old escrow entry points; no
+// other code needs to change to bring it back.
+// ============================================================================
+const ESCROW_LEGACY_ENABLED = false;
 
 // Stricter than a regex prefix check: rejects malformed URLs (e.g. "https://") that a regex alone would accept.
 function isValidExternalUrl(value: string): boolean {
@@ -120,6 +132,9 @@ export const MainLayout: React.FC = () => {
     const [websiteLinkStatus, setWebsiteLinkStatus] = useState<WebsiteLinkStatus>({ websiteUrl: null, isActive: false, expiresAt: null });
     const [websiteUrlInput, setWebsiteUrlInput] = useState('');
     const [isStartingWebsiteLink, setIsStartingWebsiteLink] = useState(false);
+    const [directPaymentLinkInput, setDirectPaymentLinkInput] = useState('');
+    const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = useState(false);
+    const [sellerDirectPaymentLinks, setSellerDirectPaymentLinks] = useState<Record<string, string | null>>({});
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
@@ -145,7 +160,12 @@ export const MainLayout: React.FC = () => {
     useEffect(() => {
         if (!hasSecureBackend) return;
         loadListings()
-            .then(setListings)
+            .then((loadedListings) => {
+                setListings(loadedListings);
+                getSellerDirectPaymentLinks(loadedListings.map((listing) => listing.sellerId))
+                    .then(setSellerDirectPaymentLinks)
+                    .catch(() => setSellerDirectPaymentLinks({}));
+            })
             .catch((error) => setFlashMessage(error instanceof Error ? error.message : 'Unable to load marketplace listings.'));
     }, [hasSecureBackend]);
 
@@ -171,6 +191,7 @@ export const MainLayout: React.FC = () => {
             setDisplayName('');
             setProfileBio('');
             setAvatarUrl('');
+            setDirectPaymentLinkInput('');
             setIsProfileComplete(false);
             setIsProfileLoading(false);
             setSubscriptionStatus('inactive');
@@ -180,10 +201,11 @@ export const MainLayout: React.FC = () => {
         setIsProfileLoading(true);
         (async () => {
             try {
-                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url').eq('id', currentUserId).maybeSingle();
+                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url, direct_payment_link').eq('id', currentUserId).maybeSingle();
                 setDisplayName(data?.display_name || '');
                 setProfileBio(data?.bio || '');
                 setAvatarUrl(data?.avatar_url || '');
+                setDirectPaymentLinkInput(data?.direct_payment_link || '');
                 setIsProfileComplete(Boolean(data));
             } catch {
                 setIsProfileComplete(false);
@@ -225,6 +247,15 @@ export const MainLayout: React.FC = () => {
         setActiveView('Account');
         setAccountMode('signin');
         setAccountStatus('Password updated. Sign in with your new password.');
+        window.history.replaceState({}, '', window.location.pathname);
+    }, []);
+
+    // Refreshes subscription status immediately on return from Stripe, instead of requiring a
+    // manual page refresh (subscription_status only otherwise re-fetches on session change).
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('subscription') !== 'success') return;
+        getSubscriptionStatus().then(setSubscriptionStatus).catch(() => undefined);
+        setAccountStatus('Seller subscription active.');
         window.history.replaceState({}, '', window.location.pathname);
     }, []);
 
@@ -355,10 +386,13 @@ export const MainLayout: React.FC = () => {
             setActiveView('Account');
             return;
         }
+        // The standalone monthly seller-subscription requirement was superseded by the per-listing
+        // 44p/66p fee model (see api/tarot.js submit-listing-batch) and is intentionally no longer
+        // required to publish. Logged for visibility only, per the reported "blocked despite being
+        // registered" bug — this was blocking every registered user who hadn't also paid for the
+        // now-redundant subscription.
         if (subscriptionStatus !== 'active') {
-            alert('An active seller subscription is required before publishing listings.');
-            setActiveView('Account');
-            return;
+            console.log('User subscription status failed validation for user:', session.user.id, '- publish continuing anyway (subscription no longer required).');
         }
         if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
             setExternalLinkUrlError('Enter a valid web store link starting with http:// or https://.');
@@ -375,13 +409,32 @@ export const MainLayout: React.FC = () => {
             const existingListing = editModeData;
             const isEditing = existingListing !== null;
 
-            // Every listing is created hidden ('pending_review') first — the server decides what's owed
-            // (44p for sale, +66p bundle fee after the free-3 threshold, for ANY listing type) and either
-            // approves it immediately at no cost or returns a Stripe Checkout URL for the combined fee.
-            const savedListing = existingListing
-                ? await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition, reviewStatus: 'pending_review' })
-                : await createListing({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, reviewStatus: 'pending_review' });
-            setListings((currentListings) => isEditing ? currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing) : [savedListing, ...currentListings]);
+            // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
+            // the server there computes the same stacked fee and creates the listing hidden until paid.
+            if (!isEditing) {
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
+                if (result.requiresPayment) {
+                    window.location.assign(result.checkoutUrl);
+                    return;
+                }
+                setListings((currentListings) => [result.listing, ...currentListings]);
+                setDeckName('');
+                setDeckPrice('');
+                setDeckDescription('');
+                setCondition('good');
+                setFreeDelivery(false);
+                setListingType('sale');
+                setDeckImageFiles([]);
+                setImagePreviews([]);
+                setFlashMessage(`Published: ${result.listing.name}`);
+                setActiveView('Listings');
+                return;
+            }
+
+            // Existing listing edits still go through the direct-update path — edits don't need to
+            // re-run the unified batch pipeline, only recompute the same stacked fee if one applies.
+            const savedListing = await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition, reviewStatus: 'pending_review' });
+            setListings((currentListings) => currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing));
 
             const feeSession = await getSupabaseSession();
             if (!feeSession?.access_token) throw new Error('Sign in again to publish this listing.');
@@ -427,7 +480,7 @@ export const MainLayout: React.FC = () => {
             setExternalStoreUrl('');
             setExternalLinkUrlError(null);
             setEditModeData(null);
-            setFlashMessage(risk.requiresReview ? `Submitted for review: ${savedListing.name}. ${risk.reasons[0]}` : (isEditing ? `Updated: ${savedListing.name}` : `Published: ${savedListing.name}`));
+            setFlashMessage(risk.requiresReview ? `Submitted for review: ${savedListing.name}. ${risk.reasons[0]}` : `Updated: ${savedListing.name}`);
             setActiveView('Listings');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
@@ -641,6 +694,20 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    // Requirement 2: standalone save handler for the seller's own direct payment link.
+    const handleSaveDirectPaymentLink = async () => {
+        setIsSavingDirectPaymentLink(true);
+        setAccountStatus(null);
+        try {
+            await saveDirectPaymentLink(directPaymentLinkInput);
+            setAccountStatus('Payment link saved.');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to save your payment link.');
+        } finally {
+            setIsSavingDirectPaymentLink(false);
+        }
+    };
+
     const handleStartConnect = async () => {
         setIsStartingConnect(true);
         setAccountStatus(null);
@@ -758,7 +825,7 @@ export const MainLayout: React.FC = () => {
                         </button>
                         <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
                     </div>
-                    <button type="button" className="basket-btn basket-btn--topbar" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
+                    {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--topbar" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
                     <button
                         type="button"
                         className="mobile-menu-toggle"
@@ -773,8 +840,8 @@ export const MainLayout: React.FC = () => {
                     <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
                         <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
-                            <button className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={handleStartCreate}>Sell</button>
-                            <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>
+                            <button type="button" className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={handleStartCreate}>Sell</button>
+                            {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
                         </nav>
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {isAuthenticated ? (
@@ -851,18 +918,33 @@ export const MainLayout: React.FC = () => {
                                                 <button type="button" onClick={handleStartWebsiteLink} disabled={isStartingWebsiteLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingWebsiteLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingWebsiteLink ? 'Opening checkout...' : websiteLinkStatus.isActive ? 'Renew for another 30 days - £2.00' : 'Link your website - £2.00 for 30 days'}</button>
                                             </div>
                                         </details>
-                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
-                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
-                                                <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
-                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: '#fff1d9', color: '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
+                                        <details open style={{ overflow: 'hidden', border: '1px solid rgba(88, 28, 135, 0.18)', borderRadius: '12px', background: '#faf5ff' }}>
+                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#581c87', cursor: 'pointer' }}>
+                                                <span><strong>Direct Payment Link</strong><small>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly \u2014 Arkana never touches the money.</small></span>
+                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: directPaymentLinkInput ? '#f3e8ff' : '#f4f4f5', color: directPaymentLinkInput ? '#7e22ce' : '#71717a', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{directPaymentLinkInput ? 'Linked' : 'Not linked'}</span>
                                             </summary>
-                                            {!isStripePayoutEnabled && <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
-                                                <button type="button" onClick={handleStartConnect} disabled={isStartingConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
-                                                <button type="button" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#2563eb', color: '#ffffff', cursor: isStartingPayPalConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
-                                            </div>}
+                                            <div id="direct-payment-link-form" style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                                <label style={{ display: 'grid', gap: '6px', color: '#581c87', fontSize: '0.82rem', fontWeight: 700 }}>Your checkout link
+                                                    <input id="direct-payment-link-input" style={{ width: '100%', border: '1px solid rgba(88, 28, 135, 0.2)', borderRadius: '8px', background: '#ffffff', color: '#581c87', font: 'inherit', padding: '10px 12px' }} type="url" value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
+                                                </label>
+                                                <button type="button" id="save-direct-payment-link-btn" onClick={handleSaveDirectPaymentLink} disabled={isSavingDirectPaymentLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#581c87', color: '#ffffff', cursor: isSavingDirectPaymentLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
+                                            </div>
                                         </details>
-                                        <BuyerOrdersPanel />
-                                        <SellerOrdersPanel />
+                                        {/* Escrow entry point — dormant while ESCROW_LEGACY_ENABLED is false; logic below is untouched and functional. */}
+                                        {ESCROW_LEGACY_ENABLED && (
+                                            <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
+                                                <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
+                                                    <span><strong>Seller Verification &amp; Payout Setup</strong><small>Verify your identity and choose how you receive seller payouts.</small></span>
+                                                    <span style={{ flex: '0 0 auto', borderRadius: '999px', background: '#fff1d9', color: '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{isStripePayoutEnabled ? 'Stripe payouts enabled' : 'Pending Stripe Connect'}</span>
+                                                </summary>
+                                                {!isStripePayoutEnabled && <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                                    <button type="button" onClick={handleStartConnect} disabled={isStartingConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingConnect ? 'Opening Stripe Connect...' : 'Set up secure payouts with Stripe'}</button>
+                                                    <button type="button" onClick={handleStartPayPalConnect} disabled={isStartingPayPalConnect} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#2563eb', color: '#ffffff', cursor: isStartingPayPalConnect ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingPayPalConnect ? 'Opening PayPal...' : 'Connect your PayPal Account'}</button>
+                                                </div>}
+                                            </details>
+                                        )}
+                                        {ESCROW_LEGACY_ENABLED && <BuyerOrdersPanel />}
+                                        {ESCROW_LEGACY_ENABLED && <SellerOrdersPanel />}
                                     </div>
                                 ) : (
                                     <>
@@ -1003,14 +1085,14 @@ export const MainLayout: React.FC = () => {
                                 <>
                                     {filteredListings.some((item) => item.listingType !== 'free') && (
                                         <div className="listings-live-grid listings-live-grid--paid">
-                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
                                         </div>
                                     )}
                                     {filteredListings.some((item) => item.listingType === 'free') && (
                                         <>
                                             <h3 className="listings-tier-heading">Free to a good home</h3>
                                             <div className="listings-live-grid listings-live-grid--free">
-                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
                                             </div>
                                         </>
                                     )}
@@ -1041,12 +1123,16 @@ export const MainLayout: React.FC = () => {
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 <div className="product-footer">
-                                    <button
-                                        className="buy-btn"
-                                        onClick={() => viewingListing.listingType === 'sale' ? handleAddToBasket(viewingListing) : setFlashMessage(viewingListing.listingType === 'swap' ? `Contact the seller to arrange a swap for ${viewingListing.name}.` : `Contact the seller to arrange collection for ${viewingListing.name}.`)}
-                                    >
-                                        {viewingListing.listingType === 'sale' ? (basket.some((basketItem) => basketItem.id === viewingListing.id) ? 'In basket' : 'Add to basket') : viewingListing.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
-                                    </button>
+                                    {viewingListing.listingType === 'sale' ? (
+                                        <PayOrMessageButton sellerId={viewingListing.sellerId} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} />
+                                    ) : (
+                                        <button
+                                            className="buy-btn"
+                                            onClick={() => setFlashMessage(viewingListing.listingType === 'swap' ? `Contact the seller to arrange a swap for ${viewingListing.name}.` : `Contact the seller to arrange collection for ${viewingListing.name}.`)}
+                                        >
+                                            {viewingListing.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1174,8 +1260,8 @@ export const MainLayout: React.FC = () => {
                         </section>
                     )}
 
-                    {/* 5. CHECKOUT VIEW */}
-                    {activeView === 'Checkout' && (
+                    {/* 5. CHECKOUT VIEW — escrow entry point, dormant while ESCROW_LEGACY_ENABLED is false. */}
+                    {ESCROW_LEGACY_ENABLED && activeView === 'Checkout' && (
                         <CheckoutViewIntegrated basket={basket} onRemoveFromBasket={(listingId) => setBasket((currentBasket) => currentBasket.filter((item) => item.id !== listingId))} onSignIn={() => setActiveView('Account')} onOpenLegal={(page) => setActiveLegalPage(page)} onFlashMessage={setFlashMessage} />
                     )}
 
@@ -1200,8 +1286,8 @@ export const MainLayout: React.FC = () => {
                     </div>
                 </footer>
 
-                {/* OVERLAY CHECKOUT MODAL WINDOW */}
-                {checkoutStep !== null && selectedItem && (
+                {/* OVERLAY CHECKOUT MODAL WINDOW — escrow entry point, dormant while ESCROW_LEGACY_ENABLED is false. */}
+                {ESCROW_LEGACY_ENABLED && checkoutStep !== null && selectedItem && (
                     <div className="modal-backdrop">
                         <div className="checkout-modal-card">
                             <header className="modal-header">
@@ -1490,7 +1576,28 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
     document.body,
 );
 
-const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
+// Requirement 3 & 4: dynamic pay button. Sellers who saved a direct payment link get an active
+// "Pay Direct to Seller" button that opens their external checkout in a new tab; everyone else
+// falls back to routing the buyer to the seller's profile to start a chat instead.
+const PayOrMessageButton: React.FC<{ sellerId: string; directPaymentLink: string | null | undefined }> = ({ sellerId, directPaymentLink }) => {
+    if (directPaymentLink) {
+        return (
+            <div className="direct-pay-wrap" onClick={(event) => event.stopPropagation()}>
+                <button type="button" className="direct-pay-btn" onClick={() => window.open(directPaymentLink, '_blank', 'noopener,noreferrer')}>
+                    💳 Pay Direct to Seller
+                </button>
+                <p className="direct-pay-disclaimer">Arkana does not process this payment, hold funds in escrow, or track delivery. You are dealing directly with the seller.</p>
+            </div>
+        );
+    }
+    return (
+        <button type="button" className="message-seller-btn" onClick={(event) => { event.stopPropagation(); window.location.href = `/app/profile/${encodeURIComponent(sellerId)}`; }}>
+            💬 Message Seller to Buy
+        </button>
+    );
+};
+
+const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
     const [isMagnified, setIsMagnified] = useState(false);
     const images = item.images;
@@ -1512,7 +1619,10 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
             <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
-            <div className="product-footer"><button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); item.listingType === 'sale' ? onAddToBasket(item) : onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'sale' ? (inBasket ? 'In basket' : 'Add to basket') : item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>
+            <div className="product-footer">
+                {item.listingType === 'sale'
+                    ? <PayOrMessageButton sellerId={item.sellerId} directPaymentLink={directPaymentLink} />
+                    : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
                 {(() => {
                     const arkanaUser = currentUserId ? { id: currentUserId } : null;
                     const arkanaListing = { seller_id: item.sellerId };

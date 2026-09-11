@@ -165,3 +165,72 @@ export async function deleteListing(listingId: string) {
     const { error } = await supabase.from('listings').delete().eq('id', listingId);
     if (error) throw new Error(error.message || 'Unable to delete listing.');
 }
+
+export type PublishListingBundleResult =
+    | { requiresPayment: true; checkoutUrl: string }
+    | { requiresPayment: false; listing: MarketplaceListing };
+
+// Unified batch pipeline (new submissions only): uploads images, submits a batch of exactly one
+// deck to the same pipeline the multi-deck tarot authentication flow uses, then either returns
+// the already-approved listing (fee = 0) or a Stripe Checkout URL for the stacked fee.
+export async function publishListingBundle(input: CreateListingInput): Promise<PublishListingBundleResult> {
+    const session = await getSupabaseSession();
+    if (!session?.user || !session.access_token) throw new Error('Sign in before creating a listing.');
+    if (!supabase) throw new Error('Supabase is not configured.');
+    if (!input.name.trim() || !Number.isFinite(input.price) || input.price < 0) throw new Error('Provide a valid listing name and price.');
+    if (input.name.trim().length > 120) throw new Error('Listing names must be 120 characters or fewer.');
+    if ((input.description || '').length > 2000) throw new Error('Descriptions must be 2,000 characters or fewer.');
+    if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
+    if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
+    if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');
+    if ((input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
+
+    const imagePaths: string[] = [];
+    const imageUrls: string[] = [];
+    try {
+        for (const file of (input.imageFiles || []).slice(0, 3)) {
+            if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+            const compressed = await compressImageFile(file);
+            const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+            const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, compressed, { contentType: 'image/jpeg', upsert: false });
+            if (uploadError) throw new Error(uploadError.message || 'Unable to upload listing image.');
+            imagePaths.push(path);
+            const { data: publicUrl } = supabase.storage.from('listing-images').getPublicUrl(path);
+            imageUrls.push(publicUrl.publicUrl);
+        }
+
+        const submitResponse = await fetch('/api/tarot?action=submit-listing-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                decks: [{
+                    name: input.name.trim(),
+                    price: input.price,
+                    description: input.description || undefined,
+                    listingType: input.listingType,
+                    condition: input.condition,
+                    freeDelivery: input.freeDelivery,
+                    images: imageUrls,
+                }],
+            }),
+        });
+        const submitPayload = await submitResponse.json();
+        if (!submitResponse.ok) throw new Error(submitPayload?.error || 'Unable to submit this listing.');
+
+        if (!submitPayload.requiresPayment) {
+            return { requiresPayment: false, listing: mapListing(submitPayload.listings[0]) };
+        }
+
+        const checkoutResponse = await fetch('/api/billing?product=listing-batch-fee', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ batchId: submitPayload.batchId }),
+        });
+        const checkoutPayload = await checkoutResponse.json();
+        if (!checkoutResponse.ok || !checkoutPayload?.url) throw new Error(checkoutPayload?.error || 'Unable to start listing fee checkout.');
+        return { requiresPayment: true, checkoutUrl: checkoutPayload.url };
+    } catch (error) {
+        if (imagePaths.length > 0) await supabase.storage.from('listing-images').remove(imagePaths);
+        throw error;
+    }
+}

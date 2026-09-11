@@ -2,8 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { calculateBatchAuthenticationFeePence } from '../server/lib/tarot-batch-billing.js';
 import { runVisionAuthenticationCheck } from '../server/lib/tarot-vision-check.js';
+import { computeBatchFeeBreakdown } from '../server/lib/listing-fee-engine.js';
+import { assessListingRisk } from '../server/lib/listing-risk-check.js';
 
-// Consolidated tarot authentication hub (submit-batch / status / vision-check), routed via ?action=.
+// Consolidated tarot authentication hub (submit-batch / status / vision-check / submit-listing-batch), routed via ?action=.
 // Merged from three separate files to stay under Vercel's serverless function count limit.
 export default async function handler(req, res) {
     const action = req.query?.action;
@@ -11,6 +13,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET' && action === 'status') return getBatchStatus(req, res);
     if (req.method === 'POST' && action === 'submit-batch') return submitListingBatch(req, res);
     if (req.method === 'POST' && action === 'authenticate-vision') return authenticateDeckVision(req, res);
+    if (req.method === 'POST' && action === 'submit-listing-batch') return submitUnifiedListingBatch(req, res);
     return res.status(400).json({ error: 'Unknown tarot action.' });
 }
 
@@ -255,5 +258,120 @@ async function authenticateDeckVision(req, res) {
     } catch (error) {
         logServerError('tarot:authenticate-vision', error, { userId: user.id });
         return res.status(502).json({ error: error instanceof Error ? error.message : 'Unable to complete vision authentication.' });
+    }
+}
+
+// ============================================================================
+// UNIFIED BATCH PIPELINE — single-listing submissions (a batch of 1) and multi-deck submissions
+// both go through this one code path. Creates an upload_batches row + one or more `listings` rows,
+// computes the stacked fee across the whole batch, and either approves instantly (fee = 0) or
+// leaves it pending_payment for the webhook to atomically activate once the Stripe fee clears.
+// ============================================================================
+async function submitUnifiedListingBatch(req, res) {
+    const auth = await getAuthenticatedUser(req, res);
+    if (!auth) return;
+    const { supabase, user } = auth;
+
+    try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        const decks = Array.isArray(body.decks) ? body.decks : [];
+        if (decks.length === 0) return res.status(400).json({ error: 'A batch must contain at least one deck.' });
+
+        for (const deck of decks) {
+            if (!['sale', 'swap', 'free'].includes(deck?.listingType)) return res.status(400).json({ error: 'Each deck needs a valid listing type.' });
+            if (!deck?.name?.trim()) return res.status(400).json({ error: 'Every deck needs a name.' });
+            const price = Number(deck.price) || 0;
+            if (deck.listingType === 'sale' && price <= 0) return res.status(400).json({ error: 'Sale listings must have a price greater than zero.' });
+            if (deck.listingType !== 'sale' && price !== 0) return res.status(400).json({ error: 'Swap and free listings must have a price of 0.00.' });
+            if (!Array.isArray(deck.images) || deck.images.length === 0) return res.status(400).json({ error: 'Every deck needs at least one image already uploaded to storage.' });
+        }
+
+        const { data: batch, error: batchError } = await supabase
+            .from('upload_batches')
+            .insert({ seller_id: user.id, deck_count: decks.length, fee_amount: 0, status: 'pending_authentication' })
+            .select('id, deck_count')
+            .single();
+        if (batchError || !batch) throw new Error(batchError?.message || 'Unable to create upload batch.');
+
+        const insertedListings = [];
+        for (const deck of decks) {
+            let requiresManualReview;
+            let authenticationReason;
+
+            // Full vision authentication only runs when the seller supplies proof-of-authenticity
+            // images; otherwise fall back to the same deterministic risk heuristic the app already uses.
+            if (deck.silverStampImage && deck.certificationImage) {
+                const verdict = await runVisionAuthenticationCheck({
+                    name: deck.name,
+                    artworkImageUrl: deck.images[0],
+                    silverStampImageUrl: deck.silverStampImage,
+                    certificationImageUrl: deck.certificationImage,
+                });
+                requiresManualReview = verdict.verdict !== 'SECURE';
+                authenticationReason = verdict.reason;
+            } else {
+                const risk = assessListingRisk({
+                    price: Number(deck.price) || 0,
+                    listingType: deck.listingType,
+                    accountCreatedAt: user.created_at,
+                    recentListingCount: 0,
+                });
+                requiresManualReview = risk.requiresReview;
+                authenticationReason = risk.reasons[0];
+            }
+
+            const { data: listing, error: listingError } = await supabase
+                .from('listings')
+                .insert({
+                    batch_id: batch.id,
+                    seller_id: user.id,
+                    name: deck.name.trim(),
+                    price: Number(deck.price) || 0,
+                    description: deck.description || null,
+                    listing_type: deck.listingType,
+                    image: deck.images[0] || null,
+                    images: deck.images,
+                    is_free_delivery: deck.listingType !== 'free' && Boolean(deck.freeDelivery),
+                    condition: deck.condition || 'good',
+                    review_status: 'pending_review',
+                    requires_manual_review: requiresManualReview,
+                })
+                .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status')
+                .single();
+            if (listingError || !listing) throw new Error(listingError?.message || 'Unable to save a listing in this batch.');
+            insertedListings.push({ ...listing, authenticationReason });
+        }
+
+        const { authenticationFeeTotal, insertionFeeTotal, grandTotalPence } = await computeBatchFeeBreakdown(supabase, user.id, decks);
+
+        if (grandTotalPence === 0) {
+            const { error: activateError } = await supabase
+                .from('listings')
+                .update({ review_status: 'approved' })
+                .eq('batch_id', batch.id)
+                .eq('review_status', 'pending_review')
+                .eq('requires_manual_review', false);
+            if (activateError) throw activateError;
+            await supabase.from('upload_batches').update({ status: 'paid', fee_amount: 0 }).eq('id', batch.id);
+            console.log(`[arkana:tarot:submit-listing-batch] batch ${batch.id} owes 0p — approved instantly, no Stripe charge`);
+            return res.status(200).json({ batchId: batch.id, feePence: 0, requiresPayment: false, listings: insertedListings });
+        }
+
+        const { error: pendingError } = await supabase
+            .from('upload_batches')
+            .update({
+                status: 'pending_payment',
+                fee_amount: grandTotalPence / 100,
+                authentication_fee_pence: authenticationFeeTotal,
+                insertion_fee_pence: insertionFeeTotal,
+                grand_total_fee_pence: grandTotalPence,
+            })
+            .eq('id', batch.id);
+        if (pendingError) throw pendingError;
+
+        return res.status(200).json({ batchId: batch.id, feePence: grandTotalPence, requiresPayment: true, listings: insertedListings });
+    } catch (error) {
+        logServerError('tarot:submit-listing-batch', error);
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to submit this listing batch.' });
     }
 }

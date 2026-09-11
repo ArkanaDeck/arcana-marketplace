@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { isValidHttpUrl } from '../server/lib/url-validation.js';
+import { computeListingFeeForBundle } from '../server/lib/listing-fee-engine.js';
 
 // Consolidated Stripe Checkout hub (seller subscription / listing fee / website link / listing external link),
 // routed via ?product=. Merged from four separate files to stay under Vercel's serverless function count limit.
@@ -28,6 +29,7 @@ export default async function handler(req, res) {
 
     if (product === 'seller-subscription') return createSellerSubscriptionCheckout(res, stripe, user);
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
+    if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'website-link') return createWebsiteLinkCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-external-link') return createListingExternalLinkCheckout(res, stripe, supabase, user, body);
     return res.status(400).json({ error: 'Unknown billing product.' });
@@ -66,26 +68,18 @@ function getPositiveIntEnv(name, fallback) {
     return Number.isInteger(value) && value >= 0 ? value : fallback;
 }
 
-const AUTHENTICATION_FEE_PENCE = getPositiveIntEnv('LISTING_AUTHENTICATION_FEE_PENCE', 44);
-const BUNDLE_FEE_PENCE = getPositiveIntEnv('LISTING_BUNDLE_FEE_PENCE', 66);
-const FREE_LISTING_ALLOWANCE = getPositiveIntEnv('LISTING_FREE_ALLOWANCE', 3);
-
-// Server-side fee computation — never trust a client-supplied fee amount.
-async function computeListingFeePence(supabase, sellerId, listingType, currentListingId) {
-    const { count, error } = await supabase
-        .from('listings')
-        .select('id', { count: 'exact', head: true })
-        .eq('seller_id', sellerId)
-        .neq('id', currentListingId);
-    if (error) throw error;
-
-    const existingCount = count || 0;
-    const triggersBundleFee = FREE_LISTING_ALLOWANCE > 0
-        && existingCount >= FREE_LISTING_ALLOWANCE
-        && (existingCount - FREE_LISTING_ALLOWANCE) % FREE_LISTING_ALLOWANCE === 0;
-    const authenticationFee = listingType === 'sale' ? AUTHENTICATION_FEE_PENCE : 0;
-    const bundleFee = triggersBundleFee ? BUNDLE_FEE_PENCE : 0;
-    return { totalPence: authenticationFee + bundleFee, authenticationFee, bundleFee };
+// Pure builder: converts the calculated pence amount + listing id into a Stripe PaymentIntent
+// payload. Kept separate from the actual Checkout Session call below so the amount that reaches
+// Stripe is always the single, cleanly-computed integer from the fee engine — never re-derived inline.
+function buildListingFeePaymentIntentPayload(grandTotalPence, listingId) {
+    if (!Number.isInteger(grandTotalPence) || grandTotalPence <= 0) throw new Error('Fee must be a positive integer number of pence.');
+    if (!listingId) throw new Error('A listing ID is required to track this payment.');
+    return {
+        amount: grandTotalPence,
+        currency: 'gbp',
+        metadata: { listing_id: String(listingId), product: 'listing_fee' },
+        automatic_payment_methods: { enabled: true },
+    };
 }
 
 async function createListingFeeCheckout(res, stripe, supabase, user, body) {
@@ -104,13 +98,21 @@ async function createListingFeeCheckout(res, stripe, supabase, user, body) {
         if (listingError) throw listingError;
         if (!listing) return res.status(404).json({ error: 'Listing not found.' });
 
-        const { totalPence, authenticationFee, bundleFee } = await computeListingFeePence(supabase, user.id, listing.listing_type, listingId);
+        // decksInBundle is 1 today (one deck per Sell-form submission); the engine already
+        // supports multi-deck bundles so a future batch-submit flow can reuse it unchanged.
+        const { authenticationFeeTotal, insertionFeeTotal, grandTotalPence } = await computeListingFeeForBundle(supabase, {
+            sellerId: user.id,
+            listingType: listing.listing_type,
+            currentListingId: listingId,
+            decksInBundle: 1,
+        });
 
-        if (totalPence === 0) {
+        if (grandTotalPence === 0) {
+            console.log(`[arkana:billing:listing-fee] listing ${listingId} owes 0p — approving without a Stripe charge (requiresManualReview=${requiresManualReview})`);
             if (!requiresManualReview) {
                 const { error: approveError } = await supabase
                     .from('listings')
-                    .update({ review_status: 'approved' })
+                    .update({ review_status: 'approved', authentication_fee_pence: 0, insertion_fee_pence: 0, grand_total_fee_pence: 0 })
                     .eq('id', listingId)
                     .eq('review_status', 'pending_review');
                 if (approveError) throw approveError;
@@ -119,9 +121,13 @@ async function createListingFeeCheckout(res, stripe, supabase, user, body) {
         }
 
         const description = [
-            authenticationFee > 0 ? `AI authentication (${authenticationFee}p)` : null,
-            bundleFee > 0 ? `listing insertion fee (${bundleFee}p)` : null,
+            authenticationFeeTotal > 0 ? `AI authentication (${authenticationFeeTotal}p)` : null,
+            insertionFeeTotal > 0 ? `listing insertion fee (${insertionFeeTotal}p)` : null,
         ].filter(Boolean).join(' + ');
+
+        // Sanity-check the payload before it ever reaches Stripe: same integer that was logged above.
+        const paymentIntentPayload = buildListingFeePaymentIntentPayload(grandTotalPence, listingId);
+        console.log(`[arkana:billing:listing-fee] charging listing ${listingId}: ${description} = ${paymentIntentPayload.amount}p total`);
 
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
@@ -130,7 +136,7 @@ async function createListingFeeCheckout(res, stripe, supabase, user, body) {
                 price_data: {
                     currency: 'gbp',
                     product_data: { name: 'Arkana listing fee', description: `${description} for "${deckTitle}"` },
-                    unit_amount: totalPence,
+                    unit_amount: grandTotalPence,
                 },
                 quantity: 1,
             }],
@@ -141,13 +147,57 @@ async function createListingFeeCheckout(res, stripe, supabase, user, body) {
                 deckTitle,
                 listing_id: listingId,
                 requires_manual_review: requiresManualReview ? 'true' : 'false',
+                authentication_fee_pence: String(authenticationFeeTotal),
+                insertion_fee_pence: String(insertionFeeTotal),
+                grand_total_fee_pence: String(grandTotalPence),
                 product: 'listing_fee',
             },
         });
-        return res.status(200).json({ url: session.url, feePence: totalPence });
+        return res.status(200).json({ url: session.url, feePence: grandTotalPence });
     } catch (error) {
         logServerError('billing:listing-fee', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start listing fee checkout.' });
+    }
+}
+
+// Charges the pre-computed stacked fee for a unified-batch-pipeline submission (single or
+// multi-deck). The amount was already calculated and stored on upload_batches by submit-listing-batch.
+async function createListingBatchFeeCheckout(res, stripe, supabase, user, body) {
+    try {
+        const batchId = body.batchId;
+        if (!batchId) return res.status(400).json({ error: 'A batch ID is required.' });
+
+        const { data: batch, error: batchError } = await supabase
+            .from('upload_batches')
+            .select('id, seller_id, deck_count, grand_total_fee_pence, status')
+            .eq('id', batchId)
+            .eq('seller_id', user.id)
+            .maybeSingle();
+        if (batchError) throw batchError;
+        if (!batch) return res.status(404).json({ error: 'Upload batch not found.' });
+        if (batch.status !== 'pending_payment') return res.status(409).json({ error: 'This batch is not awaiting payment.' });
+
+        console.log(`[arkana:billing:listing-batch-fee] charging batch ${batchId}: ${batch.grand_total_fee_pence}p for ${batch.deck_count} deck(s)`);
+
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            customer_email: user.email || undefined,
+            line_items: [{
+                price_data: {
+                    currency: 'gbp',
+                    product_data: { name: 'Arkana listing fee', description: `${batch.deck_count} deck(s) submitted in this batch` },
+                    unit_amount: batch.grand_total_fee_pence,
+                },
+                quantity: 1,
+            }],
+            success_url: body.successUrl || `${APP_URL}/?listing-fee=success`,
+            cancel_url: body.cancelUrl || `${APP_URL}/?listing-fee=cancelled`,
+            metadata: { seller_id: user.id, batch_id: batchId, product: 'listing_batch_fee' },
+        });
+        return res.status(200).json({ url: session.url, feePence: batch.grand_total_fee_pence });
+    } catch (error) {
+        logServerError('billing:listing-batch-fee', error);
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start listing batch fee checkout.' });
     }
 }
 

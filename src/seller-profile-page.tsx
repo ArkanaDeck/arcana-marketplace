@@ -1,5 +1,6 @@
 import React from 'react';
 import { createChatRoom, loadSellerProfile } from './lib/seller-profile';
+import { saveDirectPaymentLink } from './lib/direct-payment';
 import type { MarketplaceListing } from './lib/listings';
 import { getSupabaseSession, supabase } from './lib/supabase';
 
@@ -8,20 +9,48 @@ type SellerProfilePageProps = { sellerId: string; onBack: () => void };
 type Message = { id: string; sender_id: string; text_content: string; created_at: string };
 
 export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack }) => {
-    const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null } | null>(null);
+    const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
     const [listings, setListings] = React.useState<MarketplaceListing[]>([]);
     const [roomId, setRoomId] = React.useState<string | null>(null);
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [messageText, setMessageText] = React.useState('');
     const [status, setStatus] = React.useState<string | null>(null);
     const [loading, setLoading] = React.useState(true);
+    const [viewerId, setViewerId] = React.useState<string | null>(null);
+    const [directPaymentLinkInput, setDirectPaymentLinkInput] = React.useState('');
+    const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = React.useState(false);
 
     React.useEffect(() => {
         loadSellerProfile(sellerId)
-            .then(({ profile: seller, listings: sellerListings }) => { setProfile(seller); setListings(sellerListings); })
+            .then(({ profile: seller, listings: sellerListings }) => {
+                setProfile(seller);
+                setListings(sellerListings);
+                setDirectPaymentLinkInput(seller.direct_payment_link || '');
+            })
             .catch((error) => setStatus(error instanceof Error ? error.message : 'Unable to load this profile.'))
             .finally(() => setLoading(false));
     }, [sellerId]);
+
+    React.useEffect(() => {
+        getSupabaseSession().then((session) => setViewerId(session?.user?.id || null)).catch(() => setViewerId(null));
+    }, []);
+
+    // Requirement 1 & 2: the seller viewing their own profile can edit and save direct_payment_link inline.
+    const handleSaveDirectPaymentLink = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setIsSavingDirectPaymentLink(true);
+        setStatus(null);
+        try {
+            await saveDirectPaymentLink(directPaymentLinkInput);
+            setProfile((current) => current ? { ...current, direct_payment_link: directPaymentLinkInput.trim() || null } : current);
+            setStatus('Payment link saved.');
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : 'Unable to save your payment link.');
+        } finally {
+            setIsSavingDirectPaymentLink(false);
+        }
+    };
+
 
     React.useEffect(() => {
         if (!roomId) return;
@@ -77,6 +106,15 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <button type="button" className="primary-btn seller-profile-chat-btn" onClick={startChat}>Message Seller</button>
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
+        {viewerId === sellerId && (
+            <form className="seller-direct-payment-panel" onSubmit={handleSaveDirectPaymentLink}>
+                <div><p className="eyebrow">Your storefront</p><h2>Direct payment link</h2><p>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly — Arkana never touches the money.</p></div>
+                <label className="seller-direct-payment-panel__field">Checkout link
+                    <input type="url" value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
+                </label>
+                <button type="submit" className="seller-direct-payment-panel__save-btn" disabled={isSavingDirectPaymentLink}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
+            </form>
+        )}
         {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.map((message) => <p key={message.id}>{message.text_content}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
         <div className="seller-profile-grid">{listings.map((listing) => <article className="live-product-card" key={listing.id}><div className="product-image-box">{listing.image ? <img src={listing.image} alt={listing.name} className="live-uploaded-img" /> : <span className="default-card-emoji">🎴</span>}</div><div className="product-details"><h3>{listing.name}</h3><span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>{listing.description && <p>{listing.description}</p>}</div></article>)}</div>
