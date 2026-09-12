@@ -13,6 +13,7 @@ import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
+import { DirectPaymentAction } from './direct-payment-action';
 import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
@@ -1576,25 +1577,9 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
     document.body,
 );
 
-// Requirement 3 & 4: dynamic pay button. Sellers who saved a direct payment link get an active
-// "Pay Direct to Seller" button that opens their external checkout in a new tab; everyone else
-// falls back to routing the buyer to the seller's profile to start a chat instead.
+// Dynamic payment action. The seller profile owns the database-backed chat routine.
 const PayOrMessageButton: React.FC<{ sellerId: string; directPaymentLink: string | null | undefined }> = ({ sellerId, directPaymentLink }) => {
-    if (directPaymentLink) {
-        return (
-            <div className="direct-pay-wrap" onClick={(event) => event.stopPropagation()}>
-                <button type="button" className="direct-pay-btn" onClick={() => window.open(directPaymentLink, '_blank', 'noopener,noreferrer')}>
-                    💳 Pay Direct to Seller
-                </button>
-                <p className="direct-pay-disclaimer">Arkana does not process this payment, hold funds in escrow, or track delivery. You are dealing directly with the seller.</p>
-            </div>
-        );
-    }
-    return (
-        <button type="button" className="message-seller-btn" onClick={(event) => { event.stopPropagation(); window.location.href = `/app/profile/${encodeURIComponent(sellerId)}`; }}>
-            💬 Message Seller to Buy
-        </button>
-    );
+    return <DirectPaymentAction directPaymentLink={directPaymentLink} onChat={() => { window.location.href = `/app/profile/${encodeURIComponent(sellerId)}`; }} />;
 };
 
 const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {

@@ -1843,18 +1843,25 @@ label.field-error .field-error-text {
     outline: none;
 }
 
-.direct-pay-disclaimer {
+.direct-pay-helper {
     margin: 0;
-    color: #71717a;
     font-size: 0.72rem;
     line-height: 1.4;
 }
 
+.direct-pay-helper--secure {
+    color: #26733f;
+}
+
+.direct-pay-helper--notice {
+    color: #71717a;
+}
+
 .message-seller-btn {
-    border: 1px solid rgba(17, 78, 96, 0.2);
+    border: 1px solid #6d28d9;
     width: 100%;
     background: #ffffff;
-    color: #114e60;
+    color: #581c87;
     border-radius: 12px;
     font-weight: 700;
     padding: 11px 18px;

@@ -3,6 +3,7 @@ import { createChatRoom, loadSellerProfile } from './lib/seller-profile';
 import { saveDirectPaymentLink } from './lib/direct-payment';
 import type { MarketplaceListing } from './lib/listings';
 import { getSupabaseSession, supabase } from './lib/supabase';
+import { DirectPaymentAction } from './direct-payment-action';
 
 type SellerProfilePageProps = { sellerId: string; onBack: () => void };
 
@@ -103,7 +104,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
-            {viewerId !== sellerId && <button type="button" className="primary-btn seller-profile-chat-btn" onClick={startChat}>Message Seller</button>}
+            {viewerId !== sellerId && <div className="seller-profile-action"><DirectPaymentAction directPaymentLink={profile.direct_payment_link} onChat={() => { void startChat(); }} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
