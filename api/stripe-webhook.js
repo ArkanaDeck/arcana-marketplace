@@ -112,16 +112,16 @@ export default async function handler(req, res) {
                 if (paymentError) throw paymentError;
             }
         }
-        if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+        if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
             const subscription = event.data.object;
-            const sellerId = subscription.metadata?.seller_id;
-            if (sellerId) {
-                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-                const nextStatus = event.type === 'customer.subscription.deleted' ? 'inactive'
-                    : subscription.status === 'active' ? 'active'
-                        : subscription.status === 'past_due' ? 'past_due' : 'inactive';
-                const { error } = await supabase.from('profiles').update({ subscription_status: nextStatus }).eq('id', sellerId);
-                if (error) throw error;
+            await syncSellerSubscriptionStatus(createClient(supabaseUrl, supabaseServiceRoleKey), subscription, event.type === 'customer.subscription.deleted' ? 'inactive' : subscriptionStatus(subscription.status));
+        }
+        if (event.type === 'invoice.paid' || event.type === 'invoice.payment_failed') {
+            const invoice = event.data.object;
+            if (invoice.subscription) {
+                const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
+                const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+                await syncSellerSubscriptionStatus(createClient(supabaseUrl, supabaseServiceRoleKey), subscription, event.type === 'invoice.paid' ? 'active' : 'past_due');
             }
         }
         return res.status(200).json({ received: true });
@@ -129,4 +129,23 @@ export default async function handler(req, res) {
         logServerError('stripe-webhook', error);
         return res.status(400).json({ error: error instanceof Error ? error.message : 'Webhook processing failed.' });
     }
+}
+
+function subscriptionStatus(stripeStatus) {
+    return stripeStatus === 'active' || stripeStatus === 'trialing' ? 'active'
+        : stripeStatus === 'past_due' || stripeStatus === 'unpaid' ? 'past_due'
+            : 'inactive';
+}
+
+async function syncSellerSubscriptionStatus(supabase, subscription, nextStatus) {
+    const sellerId = subscription.metadata?.seller_id;
+    if (!sellerId) {
+        console.warn('[arkana:stripe-webhook] Subscription event missing seller_id metadata:', subscription.id);
+        return;
+    }
+    const { error } = await supabase
+        .from('profiles')
+        .update({ subscription_status: nextStatus, stripe_subscription_id: subscription.id })
+        .eq('id', sellerId);
+    if (error) throw error;
 }
