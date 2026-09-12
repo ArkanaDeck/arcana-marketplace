@@ -79,6 +79,15 @@ async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes =
     return compressed;
 }
 
+async function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Unable to encode listing image.'));
+        reader.onerror = () => reject(reader.error || new Error('Unable to read listing image.'));
+        reader.readAsDataURL(file);
+    });
+}
+
 export async function createListing(input: CreateListingInput) {
     const session = await getSupabaseSession();
     if (!session?.user) throw new Error('Sign in before creating a listing.');
@@ -187,9 +196,11 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
 
     const imagePaths: string[] = [];
     const imageUrls: string[] = [];
+    const imageBase64: string[] = [];
     try {
         for (const file of (input.imageFiles || []).slice(0, 3)) {
             if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+            imageBase64.push(await fileToDataUrl(file));
             const compressed = await compressImageFile(file);
             const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
             const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, compressed, { contentType: 'image/jpeg', upsert: false });
@@ -211,6 +222,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
                     condition: input.condition,
                     freeDelivery: input.freeDelivery,
                     images: imageUrls,
+                    imagesBase64: imageBase64,
                 }],
             }),
         });

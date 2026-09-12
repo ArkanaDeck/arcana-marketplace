@@ -4,6 +4,7 @@ import { calculateBatchAuthenticationFeePence } from '../server/lib/tarot-batch-
 import { runVisionAuthenticationCheck } from '../server/lib/tarot-vision-check.js';
 import { computeBatchFeeBreakdown } from '../server/lib/listing-fee-engine.js';
 import { assessListingRisk } from '../server/lib/listing-risk-check.js';
+import { verifyCardListingImages } from '../server/lib/card-listing-vision.js';
 
 // Consolidated tarot authentication hub (submit-batch / status / vision-check / submit-listing-batch), routed via ?action=.
 // Merged from three separate files to stay under Vercel's serverless function count limit.
@@ -286,6 +287,20 @@ async function submitUnifiedListingBatch(req, res) {
             if (!Array.isArray(deck.images) || deck.images.length === 0) return res.status(400).json({ error: 'Every deck needs at least one image already uploaded to storage.' });
         }
 
+        const verificationResults = [];
+        for (const deck of decks) {
+            const verification = await verifyCardListingImages(deck);
+            if (!verification.authenticated) {
+                return res.status(422).json({
+                    error: verification.reasoning,
+                    reasoning: verification.reasoning,
+                    confidence: verification.confidence,
+                    verified: verification.verified,
+                });
+            }
+            verificationResults.push(verification);
+        }
+
         const { data: batch, error: batchError } = await supabase
             .from('upload_batches')
             .insert({ seller_id: user.id, deck_count: decks.length, fee_amount: 0, status: 'pending_authentication' })
@@ -294,31 +309,10 @@ async function submitUnifiedListingBatch(req, res) {
         if (batchError || !batch) throw new Error(batchError?.message || 'Unable to create upload batch.');
 
         const insertedListings = [];
-        for (const deck of decks) {
-            let requiresManualReview;
-            let authenticationReason;
-
-            // Full vision authentication only runs when the seller supplies proof-of-authenticity
-            // images; otherwise fall back to the same deterministic risk heuristic the app already uses.
-            if (deck.silverStampImage && deck.certificationImage) {
-                const verdict = await runVisionAuthenticationCheck({
-                    name: deck.name,
-                    artworkImageUrl: deck.images[0],
-                    silverStampImageUrl: deck.silverStampImage,
-                    certificationImageUrl: deck.certificationImage,
-                });
-                requiresManualReview = verdict.verdict !== 'SECURE';
-                authenticationReason = verdict.reason;
-            } else {
-                const risk = assessListingRisk({
-                    price: Number(deck.price) || 0,
-                    listingType: deck.listingType,
-                    accountCreatedAt: user.created_at,
-                    recentListingCount: 0,
-                });
-                requiresManualReview = risk.requiresReview;
-                authenticationReason = risk.reasons[0];
-            }
+        for (const [index, deck] of decks.entries()) {
+            const verification = verificationResults[index];
+            const requiresManualReview = false;
+            const authenticationReason = verification.reasoning;
 
             const { data: listing, error: listingError } = await supabase
                 .from('listings')
@@ -335,8 +329,9 @@ async function submitUnifiedListingBatch(req, res) {
                     condition: deck.condition || 'good',
                     review_status: 'pending_review',
                     requires_manual_review: requiresManualReview,
+                    authenticated: verification.authenticated,
                 })
-                .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status')
+                .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, authenticated')
                 .single();
             if (listingError || !listing) throw new Error(listingError?.message || 'Unable to save a listing in this batch.');
             insertedListings.push({ ...listing, authenticationReason });
