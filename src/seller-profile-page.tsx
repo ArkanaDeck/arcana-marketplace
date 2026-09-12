@@ -103,7 +103,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
-            <button type="button" className="primary-btn seller-profile-chat-btn" onClick={startChat}>Message Seller</button>
+            {viewerId !== sellerId && <button type="button" className="primary-btn seller-profile-chat-btn" onClick={startChat}>Message Seller</button>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
