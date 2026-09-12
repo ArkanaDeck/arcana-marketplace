@@ -1192,23 +1192,27 @@ export const MainLayout: React.FC = () => {
                                     </select>
                                     <span className="field-error-text">This space must be filled in.</span>
                                 </div>
-                                {listingType !== 'free' && <div className="form-group checkbox-group">
-                                    <input
-                                        id="free-delivery"
-                                        type="checkbox"
-                                        checked={freeDelivery}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFreeDelivery(e.target.checked)}
-                                    />
-                                    <label className="checkbox-label" htmlFor="free-delivery">Offer Free Delivery. Include delivery charges in the listing price.</label>
+                                {listingType !== 'free' && <div className="flex items-start space-x-3 py-2 checkbox-group">
+                                    <label className="checkbox-label" htmlFor="free-delivery">
+                                        <input
+                                            id="free-delivery"
+                                            type="checkbox"
+                                            checked={freeDelivery}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFreeDelivery(e.target.checked)}
+                                        />
+                                        <span>Offer Free Delivery. Include delivery charges in the listing price.</span>
+                                    </label>
                                 </div>}
-                                <div className="form-group checkbox-group external-link-toggle">
-                                    <input
-                                        id="external-store-link"
-                                        type="checkbox"
-                                        checked={wantsExternalLink}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setWantsExternalLink(e.target.checked); if (!e.target.checked) setExternalLinkUrlError(null); }}
-                                    />
-                                    <label className="checkbox-label" htmlFor="external-store-link">Drive traffic directly to your own web store? (+£2.00 for 30 Days)</label>
+                                <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
+                                    <label className="checkbox-label" htmlFor="external-store-link">
+                                        <input
+                                            id="external-store-link"
+                                            type="checkbox"
+                                            checked={wantsExternalLink}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setWantsExternalLink(e.target.checked); if (!e.target.checked) setExternalLinkUrlError(null); }}
+                                        />
+                                        <span>Drive traffic directly to your own web store? (+£2.00 for 30 Days)</span>
+                                    </label>
                                 </div>
                                 {wantsExternalLink && (
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
