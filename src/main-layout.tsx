@@ -419,6 +419,20 @@ export const MainLayout: React.FC = () => {
                     return;
                 }
                 setListings((currentListings) => [result.listing, ...currentListings]);
+                if (wantsExternalLink) {
+                    setIsRentingExternalLink(true);
+                    const rentSession = await getSupabaseSession();
+                    if (!rentSession?.access_token) throw new Error('Sign in again to rent an external store link.');
+                    const response = await fetch('/api/listings/rent-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${rentSession.access_token}` },
+                        body: JSON.stringify({ listingId: result.listing.id, externalStoreUrl: externalStoreUrl.trim() }),
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start external link checkout.');
+                    window.location.assign(payload.url);
+                    return;
+                }
                 setDeckName('');
                 setDeckPrice('');
                 setDeckDescription('');
@@ -432,28 +446,11 @@ export const MainLayout: React.FC = () => {
                 return;
             }
 
-            // Existing listing edits still go through the direct-update path — edits don't need to
-            // re-run the unified batch pipeline, only recompute the same stacked fee if one applies.
-            const savedListing = await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition, reviewStatus: 'pending_review' });
+            // Existing listing edits are free in the active rollout. The legacy listing-fee
+            // checkout route remains intact and dormant for a future premium pricing switch.
+            const savedListing = await updateListing(existingListing.id, { name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, existingImages: existingListing.images || [], freeDelivery, condition, reviewStatus: 'approved' });
             setListings((currentListings) => currentListings.map((listing) => listing.id === savedListing.id ? savedListing : listing));
 
-            const feeSession = await getSupabaseSession();
-            if (!feeSession?.access_token) throw new Error('Sign in again to publish this listing.');
-            const feeResponse = await fetch('/api/create-listing-fee-checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${feeSession.access_token}` },
-                body: JSON.stringify({ listingId: savedListing.id, deckTitle: savedListing.name, requiresManualReview: risk.requiresReview }),
-            });
-            const feePayload = await feeResponse.json();
-            if (!feeResponse.ok) throw new Error(feePayload?.error || 'Unable to publish this listing.');
-
-            if (feePayload.url) {
-                // A fee is owed — redirect to Stripe; the webhook approves the listing once payment clears.
-                window.location.assign(feePayload.url);
-                return;
-            }
-
-            // No fee owed (free-tier allowance) — the listing is already approved (unless flagged for manual review).
             if (wantsExternalLink) {
                 setIsRentingExternalLink(true);
                 const rentSession = await getSupabaseSession();

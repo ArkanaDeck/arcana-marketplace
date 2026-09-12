@@ -337,34 +337,32 @@ async function submitUnifiedListingBatch(req, res) {
             insertedListings.push({ ...listing, authenticationReason });
         }
 
-        const { authenticationFeeTotal, insertionFeeTotal, grandTotalPence } = await computeBatchFeeBreakdown(supabase, user.id, decks);
-
-        if (grandTotalPence === 0) {
-            const { error: activateError } = await supabase
-                .from('listings')
-                .update({ review_status: 'approved' })
-                .eq('batch_id', batch.id)
-                .eq('review_status', 'pending_review')
-                .eq('requires_manual_review', false);
-            if (activateError) throw activateError;
-            await supabase.from('upload_batches').update({ status: 'paid', fee_amount: 0 }).eq('id', batch.id);
-            console.log(`[arkana:tarot:submit-listing-batch] batch ${batch.id} owes 0p — approved instantly, no Stripe charge`);
-            return res.status(200).json({ batchId: batch.id, feePence: 0, requiresPayment: false, listings: insertedListings });
+        // Active rollout: listing publication and AI authentication are free. The legacy
+        // stacked-fee engine remains in server/lib/listing-fee-engine.js and the old billing
+        // routes remain available, but are intentionally dormant until this flag is enabled.
+        const LEGACY_LISTING_FEES_ENABLED = false;
+        if (LEGACY_LISTING_FEES_ENABLED) {
+            const { authenticationFeeTotal, insertionFeeTotal, grandTotalPence } = await computeBatchFeeBreakdown(supabase, user.id, decks);
+            const { error: pendingError } = await supabase
+                .from('upload_batches')
+                .update({ status: 'pending_payment', fee_amount: grandTotalPence / 100, authentication_fee_pence: authenticationFeeTotal, insertion_fee_pence: insertionFeeTotal, grand_total_fee_pence: grandTotalPence })
+                .eq('id', batch.id);
+            if (pendingError) throw pendingError;
+            return res.status(200).json({ batchId: batch.id, feePence: grandTotalPence, requiresPayment: true, listings: insertedListings });
         }
 
-        const { error: pendingError } = await supabase
-            .from('upload_batches')
-            .update({
-                status: 'pending_payment',
-                fee_amount: grandTotalPence / 100,
-                authentication_fee_pence: authenticationFeeTotal,
-                insertion_fee_pence: insertionFeeTotal,
-                grand_total_fee_pence: grandTotalPence,
-            })
-            .eq('id', batch.id);
-        if (pendingError) throw pendingError;
-
-        return res.status(200).json({ batchId: batch.id, feePence: grandTotalPence, requiresPayment: true, listings: insertedListings });
+        const { error: activateError } = await supabase
+            .from('listings')
+            .update({ review_status: 'approved' })
+            .eq('batch_id', batch.id)
+            .eq('review_status', 'pending_review')
+            .eq('requires_manual_review', false)
+            .eq('authenticated', true);
+        if (activateError) throw activateError;
+        const { error: batchCompleteError } = await supabase.from('upload_batches').update({ status: 'paid', fee_amount: 0 }).eq('id', batch.id);
+        if (batchCompleteError) throw batchCompleteError;
+        console.log(`[arkana:tarot:submit-listing-batch] batch ${batch.id} approved with no listing/authentication fee`);
+        return res.status(200).json({ batchId: batch.id, feePence: 0, requiresPayment: false, listings: insertedListings });
     } catch (error) {
         logServerError('tarot:submit-listing-batch', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to submit this listing batch.' });
