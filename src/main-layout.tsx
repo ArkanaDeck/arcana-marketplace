@@ -838,7 +838,6 @@ export const MainLayout: React.FC = () => {
                     <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
                         <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
-                            <button type="button" className={`nav-btn ${activeView === 'Sell' ? 'active' : ''}`} onClick={handleStartCreate}>Sell</button>
                             {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
                         </nav>
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -1149,7 +1148,7 @@ export const MainLayout: React.FC = () => {
                                 <div className="form-group">
                                     <label>Listing type</label>
                                     <div className="listing-type-controls">
-                                        <button type="button" className={listingType === 'sale' ? 'active' : ''} onClick={() => setListingType('sale')}>For sale</button>
+                                        <button type="button" className={listingType === 'sale' ? 'active' : ''} onClick={() => setListingType('sale')}>Sell</button>
                                         <button type="button" className={listingType === 'swap' ? 'active' : ''} onClick={() => { setListingType('swap'); setDeckPrice('0.00'); }}>Swap</button>
                                         <button type="button" className={listingType === 'free' ? 'active' : ''} onClick={() => { setListingType('free'); setDeckPrice('0.00'); setFreeDelivery(false); }}>Free</button>
                                     </div>
