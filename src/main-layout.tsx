@@ -807,9 +807,9 @@ export const MainLayout: React.FC = () => {
                 )}
 
                 <div className="trust-badges" aria-label="Trust markers">
-                    <span>Secure checkout</span>
-                    <span>UK shipping</span>
-                    <span>No hidden fees</span>
+                    <span>🟢 Free Listing</span>
+                    <span>🔮 Free AI Authentication Check</span>
+                    <span>💬 Direct Contact with Seller</span>
                 </div>
 
                 <header className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
