@@ -413,7 +413,7 @@ export const MainLayout: React.FC = () => {
             // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
             // the server there computes the same stacked fee and creates the listing hidden until paid.
             if (!isEditing) {
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition });
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;

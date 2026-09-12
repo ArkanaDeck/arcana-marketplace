@@ -82,6 +82,10 @@
       "destination": "/api/billing?product=listing-external-link"
     },
     {
+      "source": "/api/listings/create-premium-session",
+      "destination": "/api/billing?product=premium-listing"
+    },
+    {
       "source": "/api/dispatch-order",
       "destination": "/api/order-actions?action=dispatch"
     },

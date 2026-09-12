@@ -64,6 +64,8 @@ alter table public.listings add column if not exists external_store_url text;
 alter table public.listings add column if not exists external_link_active boolean not null default false;
 alter table public.listings add column if not exists external_link_expires_at timestamptz;
 alter table public.listings add column if not exists authenticated boolean not null default false;
+alter table public.listings add column if not exists is_premium boolean not null default false;
+alter table public.listings add column if not exists premium_stripe_session_id text unique;
 -- Stacked-fee ledger: what was actually charged for this listing's bundle at submission time.
 alter table public.listings add column if not exists authentication_fee_pence integer not null default 0 check (authentication_fee_pence >= 0);
 alter table public.listings add column if not exists insertion_fee_pence integer not null default 0 check (insertion_fee_pence >= 0);

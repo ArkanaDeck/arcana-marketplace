@@ -30,12 +30,52 @@ export default async function handler(req, res) {
     if (product === 'seller-subscription') return createSellerSubscriptionCheckout(res, stripe, user);
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);
+    if (product === 'premium-listing') return createPremiumListingCheckout(res, stripe, user, body);
     if (product === 'website-link') return createWebsiteLinkCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-external-link') return createListingExternalLinkCheckout(res, stripe, supabase, user, body);
     return res.status(400).json({ error: 'Unknown billing product.' });
 }
 
 const APP_URL = process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:5173';
+
+async function createPremiumListingCheckout(res, stripe, user, body) {
+    try {
+        const title = String(body.title || '').trim();
+        const directPaymentLink = String(body.direct_payment_link || '').trim();
+        if (!title || !directPaymentLink) return res.status(400).json({ error: 'Listing title and direct payment link are required.' });
+
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            customer_email: user.email || undefined,
+            line_items: [{
+                price_data: {
+                    currency: 'gbp',
+                    product_data: { name: 'Arkana Premium Store Link Feature - 30 Days' },
+                    unit_amount: 200,
+                },
+                quantity: 1,
+            }],
+            success_url: body.successUrl || `${APP_URL}/?premium-listing=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: body.cancelUrl || `${APP_URL}/?premium-listing=cancelled`,
+            metadata: {
+                product: 'premium_listing',
+                title,
+                price: String(body.price ?? 0),
+                description: String(body.description || ''),
+                condition: String(body.condition || 'good'),
+                direct_payment_link: directPaymentLink,
+                seller_id: user.id,
+                image_url: String(body.image_url || ''),
+                listing_type: String(body.listing_type || 'sale'),
+                free_delivery: body.free_delivery ? 'true' : 'false',
+            },
+        });
+        return res.status(200).json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+        logServerError('billing:premium-listing', error);
+        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start premium listing checkout.' });
+    }
+}
 
 async function createSellerSubscriptionCheckout(res, stripe, user) {
     const SELLER_SUBSCRIPTION_MONTHLY_AMOUNT = 4.99;

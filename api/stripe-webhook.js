@@ -55,6 +55,45 @@ export default async function handler(req, res) {
                 if (error) throw error;
                 if (!activated) console.log(`[arkana:stripe-webhook] batch ${session.metadata.batch_id} was not pending_payment — skipped.`);
             }
+            if (session.metadata?.product === 'premium_listing' && session.payment_status === 'paid') {
+                const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+                const { data: existingPremium, error: existingError } = await supabase
+                    .from('listings')
+                    .select('id')
+                    .eq('premium_stripe_session_id', session.id)
+                    .maybeSingle();
+                if (existingError) throw existingError;
+                if (!existingPremium) {
+                    const { title, price, description, condition, direct_payment_link, seller_id, image_url } = session.metadata;
+                    try {
+                        const { data, error } = await supabase
+                            .from('listings')
+                            .insert([{
+                                seller_id,
+                                name: title,
+                                price: parseFloat(price || '0'),
+                                description,
+                                condition: condition || 'good',
+                                external_store_url: direct_payment_link,
+                                image: image_url || null,
+                                images: image_url ? [image_url] : [],
+                                listing_type: session.metadata.listing_type || 'sale',
+                                is_free_delivery: session.metadata.free_delivery === 'true',
+                                is_premium: true,
+                                authenticated: true,
+                                review_status: 'approved',
+                                premium_stripe_session_id: session.id,
+                            }])
+                            .select('id')
+                            .single();
+                        if (error) throw error;
+                        console.log('[arkana:stripe-webhook] premium listing created:', data?.id);
+                    } catch (insertError) {
+                        console.error('[arkana:stripe-webhook] premium listing insert failed:', insertError);
+                        throw insertError;
+                    }
+                }
+            }
             if (session.metadata?.product === 'listing_credits' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
                 const { error } = await supabase.rpc('add_listing_credits', {

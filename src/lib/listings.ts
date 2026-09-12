@@ -210,6 +210,27 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             imageUrls.push(publicUrl.publicUrl);
         }
 
+        if (input.externalStoreUrl) {
+            const premiumResponse = await fetch('/api/listings/create-premium-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify({
+                    title: input.name.trim(),
+                    price: input.price,
+                    description: input.description || '',
+                    condition: input.condition,
+                    direct_payment_link: input.externalStoreUrl.trim(),
+                    seller_id: session.user.id,
+                    image_url: imageUrls[0] || '',
+                    listing_type: input.listingType,
+                    free_delivery: input.freeDelivery,
+                }),
+            });
+            const premiumPayload = await premiumResponse.json();
+            if (!premiumResponse.ok || !premiumPayload?.url) throw new Error(premiumPayload?.error || 'Unable to start premium listing checkout.');
+            return { requiresPayment: true, checkoutUrl: premiumPayload.url };
+        }
+
         const submitResponse = await fetch('/api/tarot?action=submit-listing-batch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
