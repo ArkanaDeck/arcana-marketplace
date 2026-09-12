@@ -1138,12 +1138,6 @@ export const MainLayout: React.FC = () => {
                     {activeView === 'Sell' && (
                         <section className="sell-section">
                             <h2>Create New Listing</h2>
-                            <div className="listing-fee-notice">
-                                <div>
-                                    <strong>Sale listings: 44p per deck. Your first 3 listings of any type are free.</strong>
-                                    <span>Sale listings always require a flat 44p AI authentication fee. After your first 3 listings (any type), every 3rd listing after that (4th, 7th, 10th...) adds a 66p insertion fee too — these stack, so a sale listing landing on one of those positions is 44p + 66p = £1.10.</span>
-                                </div>
-                            </div>
                             <form onSubmit={handlePublish} className="sell-form">
                                 <div className="form-group">
                                     <label>Listing type</label>
