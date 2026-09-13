@@ -273,6 +273,10 @@ drop policy if exists "Participants can view messages" on public.messages;
 drop policy if exists "Participants can post messages" on public.messages;
 drop policy if exists "Authenticated users can view support messages" on public.support_messages;
 drop policy if exists "Authenticated users can post support messages" on public.support_messages;
+drop policy if exists "Allow anyone to send support messages" on public.support_messages;
+drop policy if exists "Allow anyone to read support messages" on public.support_messages;
+drop policy if exists "Allow users to reply to their own tickets" on public.support_messages;
+drop policy if exists "Allow users to read their own ticket messages" on public.support_messages;
 drop policy if exists "buyers_can_view_own_orders" on public.orders;
 drop policy if exists "buyers_can_create_orders" on public.orders;
 drop policy if exists "buyers_can_update_own_orders" on public.orders;
@@ -333,12 +337,24 @@ with check (
   )
 );
 
-create policy "Authenticated users can view support messages"
-on public.support_messages for select to authenticated
-using ((select auth.uid()) = sender_id);
-create policy "Authenticated users can post support messages"
+create policy "Allow users to reply to their own tickets"
 on public.support_messages for insert to authenticated
-with check ((select auth.uid()) = sender_id);
+with check (
+  exists (
+    select 1 from public.support_tickets
+    where public.support_tickets.id = support_messages.ticket_id
+      and public.support_tickets.user_id = auth.uid()
+  )
+);
+create policy "Allow users to read their own ticket messages"
+on public.support_messages for select to authenticated
+using (
+  exists (
+    select 1 from public.support_tickets
+    where public.support_tickets.id = support_messages.ticket_id
+      and public.support_tickets.user_id = auth.uid()
+  )
+);
 
 create policy "buyers_can_view_own_orders"
 on public.orders for select using (auth.uid() = buyer_id or auth.uid() = (select seller_id from public.listings where id = listing_id));

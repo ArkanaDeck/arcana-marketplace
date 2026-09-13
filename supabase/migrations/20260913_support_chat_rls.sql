@@ -19,6 +19,9 @@ alter table public.support_messages enable row level security;
 drop policy if exists "Allow anyone to create support tickets" on public.support_tickets;
 drop policy if exists "Allow users to view their own tickets" on public.support_tickets;
 drop policy if exists "Allow anyone to send support messages" on public.support_messages;
+drop policy if exists "Allow anyone to read support messages" on public.support_messages;
+drop policy if exists "Allow users to reply to their own tickets" on public.support_messages;
+drop policy if exists "Allow users to read their own ticket messages" on public.support_messages;
 drop policy if exists "Authenticated users can view support messages" on public.support_messages;
 drop policy if exists "Authenticated users can post support messages" on public.support_messages;
 
@@ -32,20 +35,25 @@ on public.support_tickets
 for select to authenticated
 using (auth.uid() = user_id or user_id is null);
 
-create policy "Allow anyone to send support messages"
+create policy "Allow users to reply to their own tickets"
 on public.support_messages
-for insert
-with check (true);
+for insert to authenticated
+with check (
+  exists (
+    select 1 from public.support_tickets
+    where public.support_tickets.id = support_messages.ticket_id
+      and public.support_tickets.user_id = auth.uid()
+  )
+);
 
-create policy "Authenticated users can view support messages"
+create policy "Allow users to read their own ticket messages"
 on public.support_messages
 for select to authenticated
 using (
-  auth.uid() = sender_id
-  or exists (
+  exists (
     select 1 from public.support_tickets
-    where support_tickets.id = support_messages.ticket_id
-      and support_tickets.user_id = auth.uid()
+    where public.support_tickets.id = support_messages.ticket_id
+      and public.support_tickets.user_id = auth.uid()
   )
 );
 

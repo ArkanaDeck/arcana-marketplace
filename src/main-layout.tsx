@@ -1504,6 +1504,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [messages, setMessages] = useState<SupportMessage[]>([]);
     const [messageText, setMessageText] = useState('');
     const [status, setStatus] = useState<string | null>(null);
+    const [ticketId, setTicketId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!supabase) return;
@@ -1513,7 +1514,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         void getSupabaseSession().then(async (session) => {
             if (!session?.user || !isMounted) {
-                if (isMounted) setStatus(null);
+                if (isMounted) setStatus('Sign in to contact Arkana support.');
                 return;
             }
             const { data, error } = await client.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
@@ -1541,7 +1542,19 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         if (!supabase || !content) return;
         try {
             const session = await getSupabaseSession();
-            const { data, error } = await supabase.from('support_messages').insert({ sender_id: session?.user?.id || null, content }).select('id, sender_id, content, created_at').single();
+            if (!session?.user) throw new Error('Sign in to contact Arkana support.');
+            let activeTicketId = ticketId;
+            if (!activeTicketId) {
+                const { data: ticket, error: ticketError } = await supabase
+                    .from('support_tickets')
+                    .insert({ user_id: session.user.id })
+                    .select('id')
+                    .single();
+                if (ticketError || !ticket) throw new Error(ticketError?.message || 'Unable to create support ticket.');
+                activeTicketId = ticket.id;
+                setTicketId(activeTicketId);
+            }
+            const { data, error } = await supabase.from('support_messages').insert({ ticket_id: activeTicketId, sender_id: session.user.id, content }).select('id, sender_id, content, created_at').single();
             if (error || !data) throw new Error(error?.message || 'Unable to send support message.');
             setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as SupportMessage]);
             setMessageText('');
