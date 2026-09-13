@@ -210,6 +210,16 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             imageUrls.push(publicUrl.publicUrl);
         }
 
+        const verificationResponse = await fetch('/api/check-card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ imageBase64: imageBase64[0] }),
+        });
+        const verification = await verificationResponse.json();
+        if (!verificationResponse.ok || !verification.authenticated) {
+            throw new Error(verification.reasoning || verification.error || 'Card authentication failed.');
+        }
+
         if (input.externalStoreUrl) {
             const premiumResponse = await fetch('/api/listings/create-premium-session', {
                 method: 'POST',

@@ -5,6 +5,7 @@ import { runVisionAuthenticationCheck } from '../server/lib/tarot-vision-check.j
 import { computeBatchFeeBreakdown } from '../server/lib/listing-fee-engine.js';
 import { assessListingRisk } from '../server/lib/listing-risk-check.js';
 import { verifyCardListingImages } from '../server/lib/card-listing-vision.js';
+import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
 
 // Consolidated tarot authentication hub (submit-batch / status / vision-check / submit-listing-batch), routed via ?action=.
 // Merged from three separate files to stay under Vercel's serverless function count limit.
@@ -289,7 +290,7 @@ async function submitUnifiedListingBatch(req, res) {
 
         const verificationResults = [];
         for (const deck of decks) {
-            const verification = await verifyCardListingImages(deck);
+            const verification = await verifyCardImageWithOpenAI(deck.imagesBase64?.[0] || deck.images?.[0]);
             if (!verification.authenticated) {
                 return res.status(422).json({
                     error: verification.reasoning,

@@ -482,6 +482,7 @@ export const MainLayout: React.FC = () => {
             setActiveView('Listings');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
+            setFlashMessage(`Card verification failed: ${message}`);
             alert(message);
             setIsRentingExternalLink(false);
             if (message === 'Sign in before creating a listing.') {
