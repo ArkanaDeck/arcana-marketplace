@@ -699,6 +699,12 @@ export const MainLayout: React.FC = () => {
         setAccountStatus(null);
         try {
             await saveDirectPaymentLink(directPaymentLinkInput);
+            if (session?.user?.id) {
+                setSellerDirectPaymentLinks((currentLinks) => ({
+                    ...currentLinks,
+                    [session.user.id]: directPaymentLinkInput.trim() || null,
+                }));
+            }
             setAccountStatus('Payment link saved.');
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to save your payment link.');
@@ -921,12 +927,12 @@ export const MainLayout: React.FC = () => {
                                                 <span><strong>Direct Payment Link</strong><small>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly \u2014 Arkana never touches the money.</small></span>
                                                 <span style={{ flex: '0 0 auto', borderRadius: '999px', background: directPaymentLinkInput ? '#f3e8ff' : '#f4f4f5', color: directPaymentLinkInput ? '#7e22ce' : '#71717a', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{directPaymentLinkInput ? 'Linked' : 'Not linked'}</span>
                                             </summary>
-                                            <div id="direct-payment-link-form" style={{ display: 'grid', gap: '14px', padding: '20px' }}>
+                                            <form id="direct-payment-link-form" onSubmit={(event) => { event.preventDefault(); void handleSaveDirectPaymentLink(); }} style={{ display: 'grid', gap: '14px', padding: '20px' }}>
                                                 <label style={{ display: 'grid', gap: '6px', color: '#581c87', fontSize: '0.82rem', fontWeight: 700 }}>Your checkout link
                                                     <input id="direct-payment-link-input" style={{ width: '100%', border: '1px solid rgba(88, 28, 135, 0.2)', borderRadius: '8px', background: '#ffffff', color: '#581c87', font: 'inherit', padding: '10px 12px' }} type="url" value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
                                                 </label>
-                                                <button type="button" id="save-direct-payment-link-btn" onClick={handleSaveDirectPaymentLink} disabled={isSavingDirectPaymentLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#581c87', color: '#ffffff', cursor: isSavingDirectPaymentLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
-                                            </div>
+                                                <button type="submit" id="save-direct-payment-link-btn" disabled={isSavingDirectPaymentLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#581c87', color: '#ffffff', cursor: isSavingDirectPaymentLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
+                                            </form>
                                         </details>
                                         {/* Escrow entry point — dormant while ESCROW_LEGACY_ENABLED is false; logic below is untouched and functional. */}
                                         {ESCROW_LEGACY_ENABLED && (
