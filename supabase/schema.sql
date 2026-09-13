@@ -147,9 +147,19 @@ alter table public.messages add constraint messages_text_content_length_check ch
 create table if not exists public.support_messages (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default timezone('utc'::text, now()),
-  sender_id uuid not null references auth.users(id) on delete cascade,
+  sender_id uuid references auth.users(id) on delete set null,
+  ticket_id uuid,
   content text not null check (length(trim(content)) between 1 and 2000)
 );
+
+create table if not exists public.support_tickets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  status text not null default 'open' check (status in ('open', 'closed'))
+);
+
+alter table public.support_messages add column if not exists ticket_id uuid references public.support_tickets(id) on delete cascade;
 
 create or replace view public.public_profiles as
 select id, coalesce(display_name, full_name) as full_name, avatar_url, bio,

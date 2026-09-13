@@ -1512,7 +1512,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         void getSupabaseSession().then(async (session) => {
             if (!session?.user || !isMounted) {
-                if (isMounted) setStatus('Sign in to contact Arkana support.');
+                if (isMounted) setStatus(null);
                 return;
             }
             const { data, error } = await client.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
@@ -1540,8 +1540,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         if (!supabase || !content) return;
         try {
             const session = await getSupabaseSession();
-            if (!session?.user) throw new Error('Sign in to contact Arkana support.');
-            const { data, error } = await supabase.from('support_messages').insert({ sender_id: session.user.id, content }).select('id, sender_id, content, created_at').single();
+            const { data, error } = await supabase.from('support_messages').insert({ sender_id: session?.user?.id || null, content }).select('id, sender_id, content, created_at').single();
             if (error || !data) throw new Error(error?.message || 'Unable to send support message.');
             setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as SupportMessage]);
             setMessageText('');
