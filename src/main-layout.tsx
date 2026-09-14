@@ -4,7 +4,6 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { deleteListing, loadListings, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
-import { getSubscriptionStatus, startSubscriptionCheckout } from './lib/subscription';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -130,8 +129,6 @@ export const MainLayout: React.FC = () => {
     const [isStartingConnect, setIsStartingConnect] = useState(false);
     const [isStartingPayPalConnect, setIsStartingPayPalConnect] = useState(false);
     const [isStripePayoutEnabled, setIsStripePayoutEnabled] = useState(false);
-    const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'inactive' | 'past_due'>('inactive');
-    const [isStartingSubscription, setIsStartingSubscription] = useState(false);
     const [websiteLinkStatus, setWebsiteLinkStatus] = useState<WebsiteLinkStatus>({ websiteUrl: null, isActive: false, expiresAt: null });
     const [websiteUrlInput, setWebsiteUrlInput] = useState('');
     const [isStartingWebsiteLink, setIsStartingWebsiteLink] = useState(false);
@@ -197,7 +194,6 @@ export const MainLayout: React.FC = () => {
             setDirectPaymentLinkInput('');
             setIsProfileComplete(false);
             setIsProfileLoading(false);
-            setSubscriptionStatus('inactive');
             return;
         }
         const currentUserId = session.user.id;
@@ -216,7 +212,6 @@ export const MainLayout: React.FC = () => {
                 setIsProfileLoading(false);
             }
         })();
-        getSubscriptionStatus().then(setSubscriptionStatus).catch(() => setSubscriptionStatus('inactive'));
         getWebsiteLinkStatus().then((status) => { setWebsiteLinkStatus(status); setWebsiteUrlInput(status.websiteUrl || ''); }).catch(() => setWebsiteLinkStatus({ websiteUrl: null, isActive: false, expiresAt: null }));
     }, [session]);
 
@@ -250,15 +245,6 @@ export const MainLayout: React.FC = () => {
         setActiveView('Account');
         setAccountMode('signin');
         setAccountStatus('Password updated. Sign in with your new password.');
-        window.history.replaceState({}, '', window.location.pathname);
-    }, []);
-
-    // Refreshes subscription status immediately on return from Stripe, instead of requiring a
-    // manual page refresh (subscription_status only otherwise re-fetches on session change).
-    useEffect(() => {
-        if (new URLSearchParams(window.location.search).get('subscription') !== 'success') return;
-        getSubscriptionStatus().then(setSubscriptionStatus).catch(() => undefined);
-        setAccountStatus('Seller subscription active.');
         window.history.replaceState({}, '', window.location.pathname);
     }, []);
 
@@ -389,14 +375,6 @@ export const MainLayout: React.FC = () => {
             setActiveView('Account');
             return;
         }
-        // The standalone monthly seller-subscription requirement was superseded by the per-listing
-        // 44p/66p fee model (see api/tarot.js submit-listing-batch) and is intentionally no longer
-        // required to publish. Logged for visibility only, per the reported "blocked despite being
-        // registered" bug — this was blocking every registered user who hadn't also paid for the
-        // now-redundant subscription.
-        if (subscriptionStatus !== 'active') {
-            console.log('User subscription status failed validation for user:', session.user.id, '- publish continuing anyway (subscription no longer required).');
-        }
         if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
             setExternalLinkUrlError('Enter a valid web store link starting with http:// or https://.');
             return;
@@ -491,17 +469,6 @@ export const MainLayout: React.FC = () => {
                 setAccountMode('signin');
                 setActiveView('Account');
             }
-        }
-    };
-
-    const handleStartSubscription = async () => {
-        setIsStartingSubscription(true);
-        try {
-            const checkout = await startSubscriptionCheckout();
-            window.location.assign(checkout.url);
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to start seller subscription checkout.');
-            setIsStartingSubscription(false);
         }
     };
 
@@ -858,7 +825,7 @@ export const MainLayout: React.FC = () => {
                         <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {isAuthenticated ? (
                                 <>
-                                    <button type="button" className="auth-link-btn" style={{ cursor: 'pointer' }} onClick={() => setActiveView('Account')}>Your Profile</button>
+                                    <a className="auth-link-btn" href={`/app/profile/${encodeURIComponent(session?.user.id || '')}`}>Your Profile</a>
                                     <button type="button" className="auth-link-btn" onClick={() => void handleSignOut()}>Sign Out</button>
                                 </>
                             ) : (
@@ -909,15 +876,6 @@ export const MainLayout: React.FC = () => {
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Avatar<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="file" accept="image/*" onChange={(event) => setAvatarFile(event.target.files?.[0] || null)} /></label>
                                             <button type="submit" disabled={isSavingProfile} style={{ border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isSavingProfile ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
                                         </form>
-                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
-                                            <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
-                                                <span><strong>Seller Subscription</strong><small>An active subscription is required before publishing listings.</small></span>
-                                                <span style={{ flex: '0 0 auto', borderRadius: '999px', background: subscriptionStatus === 'active' ? '#edf8ef' : '#fff1d9', color: subscriptionStatus === 'active' ? '#26733f' : '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{subscriptionStatus === 'active' ? 'Active' : subscriptionStatus === 'past_due' ? 'Payment past due' : 'Inactive'}</span>
-                                            </summary>
-                                            {subscriptionStatus !== 'active' && <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
-                                                <button type="button" onClick={handleStartSubscription} disabled={isStartingSubscription} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingSubscription ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingSubscription ? 'Opening checkout...' : 'Subscribe to publish listings'}</button>
-                                            </div>}
-                                        </details>
                                         <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
                                             <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
                                                 <span><strong>Link Your Website</strong><small>£2.00 for 30 days on your public seller profile.</small></span>

@@ -66,10 +66,6 @@
       "destination": "/api/create-order-checkout?retired=1"
     },
     {
-      "source": "/api/create-subscription-checkout",
-      "destination": "/api/billing?product=seller-subscription"
-    },
-    {
       "source": "/api/create-listing-fee-checkout",
       "destination": "/api/billing?product=listing-fee"
     },

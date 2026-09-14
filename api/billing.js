@@ -27,7 +27,6 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const product = req.query?.product;
 
-    if (product === 'seller-subscription') return createSellerSubscriptionCheckout(res, stripe, user);
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'premium-listing') return createPremiumListingCheckout(res, stripe, user, body);
@@ -74,32 +73,6 @@ async function createPremiumListingCheckout(res, stripe, user, body) {
     } catch (error) {
         logServerError('billing:premium-listing', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start premium listing checkout.' });
-    }
-}
-
-async function createSellerSubscriptionCheckout(res, stripe, user) {
-    const SELLER_SUBSCRIPTION_MONTHLY_AMOUNT = 4.99;
-    try {
-        const session = await stripe.checkout.sessions.create({
-            mode: 'subscription',
-            customer_email: user.email || undefined,
-            line_items: [{
-                price_data: {
-                    currency: 'gbp',
-                    product_data: { name: 'Arkana seller subscription', description: 'Monthly seller plan required to publish listings' },
-                    unit_amount: Math.round(SELLER_SUBSCRIPTION_MONTHLY_AMOUNT * 100),
-                    recurring: { interval: 'month' },
-                },
-                quantity: 1,
-            }],
-            success_url: `${APP_URL}/?subscription=success`,
-            cancel_url: `${APP_URL}/?subscription=cancelled`,
-            metadata: { seller_id: user.id, product: 'seller_subscription' },
-            subscription_data: { metadata: { seller_id: user.id } },
-        });
-        return res.status(200).json({ url: session.url });
-    } catch (error) {
-        return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to create seller subscription checkout.' });
     }
 }
 

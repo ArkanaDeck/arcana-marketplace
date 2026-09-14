@@ -1,5 +1,6 @@
 import React from 'react';
-import { createChatRoom, loadSellerProfile } from './lib/seller-profile';
+import { loadSellerProfile } from './lib/seller-profile';
+import { openDashboardChat } from './lib/dashboard-chat';
 import { saveDirectPaymentLink } from './lib/direct-payment';
 import type { MarketplaceListing } from './lib/listings';
 import { getSupabaseSession, supabase } from './lib/supabase';
@@ -68,7 +69,9 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
 
     const startChat = async (initialMessage?: string) => {
         try {
-            const id = await createChatRoom(listings[0]?.id || null, sellerId, initialMessage);
+            const listing = listings[0];
+            if (!listing) throw new Error('This seller has no active listing to discuss.');
+            const id = await openDashboardChat(listing.id, sellerId, listing.name);
             setRoomId(id);
             if (supabase) {
                 const { data, error } = await supabase.from('messages').select('id, sender_id, chat_id, text, created_at').eq('chat_id', id).order('created_at', { ascending: true });
@@ -113,7 +116,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
-            {viewerId !== sellerId && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0]?.name || 'this tarot deck'} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} /></div>}
+            {viewerId !== sellerId && listings.length > 0 && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0].name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
