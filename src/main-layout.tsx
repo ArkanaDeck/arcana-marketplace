@@ -757,7 +757,7 @@ export const MainLayout: React.FC = () => {
 
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
-        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} onEditProfile={() => { window.history.replaceState({}, '', '/'); setActiveView('Account'); }} />;
+        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} />;
     }
 
     const messagesRouteMatch = window.location.pathname.match(/^\/app\/messages\/?$/);
