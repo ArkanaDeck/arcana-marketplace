@@ -1822,6 +1822,46 @@ label.field-error .field-error-text {
     width: 100%;
 }
 
+.marketplace-safety-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 8px;
+    padding: 9px 11px;
+    border: 1px solid rgba(88, 28, 135, 0.16);
+    border-radius: 9px;
+    background: #faf5ff;
+    color: #581c87;
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+
+.marketplace-safety-banner strong {
+    font-size: 0.76rem;
+}
+
+.safety-banner-enter {
+    animation: safety-banner-enter 500ms ease-out both;
+}
+
+@keyframes safety-banner-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .safety-banner-enter {
+        animation: none;
+    }
+}
+
 .direct-pay-btn {
     border: none;
     width: 100%;

@@ -20,6 +20,8 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     const [viewerId, setViewerId] = React.useState<string | null>(null);
     const [directPaymentLinkInput, setDirectPaymentLinkInput] = React.useState('');
     const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = React.useState(false);
+    const [pendingInitialMessage, setPendingInitialMessage] = React.useState<string | null>(() => new URLSearchParams(window.location.search).get('initialMessage'));
+    const [hasOpenedPendingChat, setHasOpenedPendingChat] = React.useState(false);
 
     React.useEffect(() => {
         loadSellerProfile(sellerId)
@@ -64,9 +66,9 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         return () => { void channel?.unsubscribe(); };
     }, [roomId]);
 
-    const startChat = async () => {
+    const startChat = async (initialMessage?: string) => {
         try {
-            const id = await createChatRoom(listings[0]?.id || null, sellerId);
+            const id = await createChatRoom(listings[0]?.id || null, sellerId, initialMessage);
             setRoomId(id);
             if (supabase) {
                 const { data, error } = await supabase.from('messages').select('id, sender_id, text_content, created_at').eq('room_id', id).order('created_at', { ascending: true });
@@ -78,6 +80,13 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             setStatus(error instanceof Error ? error.message : 'Unable to start chat.');
         }
     };
+
+    React.useEffect(() => {
+        if (hasOpenedPendingChat || loading || !pendingInitialMessage || viewerId === sellerId || !listings.length) return;
+        setHasOpenedPendingChat(true);
+        void startChat(pendingInitialMessage);
+        window.history.replaceState({}, '', window.location.pathname);
+    }, [hasOpenedPendingChat, loading, listings.length, pendingInitialMessage, sellerId, viewerId]);
 
     const sendMessage = async () => {
         const text = messageText.trim();
@@ -104,7 +113,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
-            {viewerId !== sellerId && <div className="seller-profile-action"><DirectPaymentAction directPaymentLink={profile.direct_payment_link} onChat={() => { void startChat(); }} /></div>}
+            {viewerId !== sellerId && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0]?.name || 'this tarot deck'} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (

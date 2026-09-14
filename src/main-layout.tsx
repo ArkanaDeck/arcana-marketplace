@@ -14,6 +14,8 @@ import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, 
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
+import { openDashboardChat } from './lib/dashboard-chat';
+import { MessagesDashboard } from './messages-dashboard';
 import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
@@ -791,6 +793,12 @@ export const MainLayout: React.FC = () => {
         return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} />;
     }
 
+    const messagesRouteMatch = window.location.pathname.match(/^\/app\/messages\/?$/);
+    if (messagesRouteMatch) {
+        const chatId = new URLSearchParams(window.location.search).get('chatId');
+        return chatId ? <MessagesDashboard chatId={chatId} /> : <section className="seller-profile-page"><p>Select a conversation to view messages.</p></section>;
+    }
+
     if (window.location.pathname === '/reset-password') {
         return <ResetPasswordPage onDone={() => { window.location.href = '/?passwordReset=success'; }} />;
     }
@@ -1128,7 +1136,7 @@ export const MainLayout: React.FC = () => {
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 <div className="product-footer">
                                     {viewingListing.listingType === 'sale' ? (
-                                        <PayOrMessageButton sellerId={viewingListing.sellerId} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} />
+                                        <PayOrMessageButton listingId={viewingListing.id} sellerId={viewingListing.sellerId} listingTitle={viewingListing.name} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} />
                                     ) : (
                                         <button
                                             className="buy-btn"
@@ -1591,8 +1599,15 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
 );
 
 // Dynamic payment action. The seller profile owns the database-backed chat routine.
-const PayOrMessageButton: React.FC<{ sellerId: string; directPaymentLink: string | null | undefined }> = ({ sellerId, directPaymentLink }) => {
-    return <DirectPaymentAction directPaymentLink={directPaymentLink} onChat={() => { window.location.href = `/app/profile/${encodeURIComponent(sellerId)}`; }} />;
+const PayOrMessageButton: React.FC<{ listingId: string; sellerId: string; listingTitle: string; directPaymentLink: string | null | undefined }> = ({ listingId, sellerId, listingTitle, directPaymentLink }) => {
+    return <DirectPaymentAction listingTitle={listingTitle} directPaymentLink={directPaymentLink} onChat={async () => {
+        try {
+            const chatId = await openDashboardChat(listingId, sellerId, listingTitle);
+            window.location.href = `/app/messages?chatId=${encodeURIComponent(chatId)}`;
+        } catch (error) {
+            window.alert(error instanceof Error ? error.message : 'Unable to open chat.');
+        }
+    }} />;
 };
 
 const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
@@ -1619,7 +1634,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
             <div className="product-footer">
                 {item.listingType === 'sale'
-                    ? <PayOrMessageButton sellerId={item.sellerId} directPaymentLink={directPaymentLink} />
+                    ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
                     : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
                 {(() => {
                     const arkanaUser = currentUserId ? { id: currentUserId } : null;

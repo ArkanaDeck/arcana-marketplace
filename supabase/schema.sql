@@ -144,6 +144,21 @@ create table if not exists public.messages (
 alter table public.messages drop constraint if exists messages_text_content_length_check;
 alter table public.messages add constraint messages_text_content_length_check check (length(trim(text_content)) between 1 and 2000);
 
+-- Dashboard chat compatibility layer. Legacy room_id/text_content columns remain intact.
+create table if not exists public.chats (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid references public.listings(id) on delete cascade not null,
+  buyer_id uuid references auth.users(id) on delete cascade not null,
+  seller_id uuid references auth.users(id) on delete cascade not null,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  unique (listing_id, buyer_id, seller_id),
+  constraint chats_participants_differ check (buyer_id <> seller_id)
+);
+alter table public.messages alter column room_id drop not null;
+alter table public.messages alter column text_content drop not null;
+alter table public.messages add column if not exists chat_id uuid references public.chats(id) on delete cascade;
+alter table public.messages add column if not exists text text;
+
 create table if not exists public.support_messages (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default timezone('utc'::text, now()),
