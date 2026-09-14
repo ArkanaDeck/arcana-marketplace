@@ -21,6 +21,7 @@ alter table public.messages enable row level security;
 
 drop policy if exists "Dashboard users can view their chats" on public.chats;
 drop policy if exists "Dashboard users can create chats" on public.chats;
+drop policy if exists "Allow authenticated users to create chats" on public.chats;
 drop policy if exists "Dashboard users can view chat messages" on public.messages;
 drop policy if exists "Dashboard users can send chat messages" on public.messages;
 
@@ -29,6 +30,10 @@ on public.chats for select to authenticated
 using (auth.uid() = buyer_id or auth.uid() = seller_id);
 
 create policy "Dashboard users can create chats"
+on public.chats for insert to authenticated
+with check (auth.uid() = buyer_id and buyer_id <> seller_id);
+
+create policy "Allow authenticated users to create chats"
 on public.chats for insert to authenticated
 with check (auth.uid() = buyer_id and buyer_id <> seller_id);
 

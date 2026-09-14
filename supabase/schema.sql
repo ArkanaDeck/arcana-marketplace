@@ -63,6 +63,11 @@ alter table public.listings add column if not exists review_status text not null
 alter table public.listings add column if not exists external_store_url text;
 alter table public.listings add column if not exists external_link_active boolean not null default false;
 alter table public.listings add column if not exists external_link_expires_at timestamptz;
+alter table public.listings drop constraint if exists listings_active_external_link_requirements;
+alter table public.listings add constraint listings_active_external_link_requirements check (
+  external_link_active = false
+  or (external_store_url is not null and external_link_expires_at is not null)
+);
 alter table public.listings add column if not exists authenticated boolean not null default false;
 alter table public.listings add column if not exists is_premium boolean not null default false;
 alter table public.listings add column if not exists premium_stripe_session_id text unique;
@@ -70,6 +75,32 @@ alter table public.listings add column if not exists premium_stripe_session_id t
 alter table public.listings add column if not exists authentication_fee_pence integer not null default 0 check (authentication_fee_pence >= 0);
 alter table public.listings add column if not exists insertion_fee_pence integer not null default 0 check (insertion_fee_pence >= 0);
 alter table public.listings add column if not exists grand_total_fee_pence integer not null default 0 check (grand_total_fee_pence >= 0);
+
+create or replace function public.handle_listing_url_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.external_store_url is distinct from new.external_store_url
+     and (old.review_status = 'approved' or old.external_link_active = true) then
+    new.review_status := 'pending_review';
+    new.requires_manual_review := true;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists listings_external_url_moderation on public.listings;
+create trigger listings_external_url_moderation
+before update on public.listings
+for each row execute function public.handle_listing_url_changes();
+
+alter table public.listing_credit_purchases add column if not exists activated_listing_id uuid;
+alter table public.listing_credit_purchases drop constraint if exists listing_credit_purchases_activated_listing_id_fkey;
+alter table public.listing_credit_purchases add constraint listing_credit_purchases_activated_listing_id_fkey
+  foreign key (activated_listing_id) references public.listings(id) on delete set null;
 alter table public.listings drop constraint if exists listings_free_delivery_check;
 alter table public.listings add column if not exists condition text not null default 'good';
 alter table public.listings drop constraint if exists listings_condition_check;
@@ -154,6 +185,11 @@ create table if not exists public.chats (
   unique (listing_id, buyer_id, seller_id),
   constraint chats_participants_differ check (buyer_id <> seller_id)
 );
+alter table public.chats enable row level security;
+drop policy if exists "Allow authenticated users to create chats" on public.chats;
+create policy "Allow authenticated users to create chats"
+on public.chats for insert to authenticated
+with check (auth.uid() = buyer_id and buyer_id <> seller_id);
 alter table public.messages alter column room_id drop not null;
 alter table public.messages alter column text_content drop not null;
 alter table public.messages add column if not exists chat_id uuid references public.chats(id) on delete cascade;
