@@ -1614,6 +1614,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
     const [isMagnified, setIsMagnified] = useState(false);
     const images = item.images;
+    const isOwner = item.sellerId === currentUserId;
 
     const changeImage = (event: React.MouseEvent<HTMLButtonElement>, direction: number) => {
         event.preventDefault();
@@ -1621,31 +1622,27 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         setCurrentImgIdx((index) => (index + direction + images.length) % images.length);
     };
 
-    return <div className={`live-product-card ${item.listingType === 'free' ? 'card-free-tier' : 'card-paid-tier'}`} role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
+    return <div className={`live-product-card flex flex-col ${item.listingType === 'free' ? 'card-free-tier' : 'card-paid-tier'}`} role="button" tabIndex={0} onClick={() => onView(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView(item); } }}>
         <div className="product-image-box product-image-box--carousel relative w-full aspect-square overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '1 / 1' }}>
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-contain" style={{ objectFit: 'contain' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
         </div>
-        <div className="product-details">
+        <div className="product-details flex flex-col">
             <h4 className="deck-title">{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
             <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
             <div className="product-footer">
-                {item.listingType === 'sale'
+                {isOwner ? (
+                    <div className="flex gap-2 w-full">
+                        <button className="edit-btn flex-1" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button>
+                        <button className="delete-btn flex-1" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button>
+                    </div>
+                ) : item.listingType === 'sale'
                     ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
                     : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
-                {(() => {
-                    const arkanaUser = currentUserId ? { id: currentUserId } : null;
-                    const arkanaListing = { seller_id: item.sellerId };
-                    return arkanaUser?.id === arkanaListing?.seller_id && (
-                        <>
-                            <button className="edit-btn" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button>
-                            <button className="delete-btn" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button>
-                        </>
-                    );
-                })()}</div>
+            </div>
         </div>
         {isMagnified && images[currentImgIdx] && <ImageLightbox src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} onClose={() => setIsMagnified(false)} />}
     </div>;

@@ -1825,9 +1825,9 @@ label.field-error .field-error-text {
 .marketplace-safety-banner {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     margin-bottom: 8px;
-    padding: 9px 11px;
+    padding: 8px 10px;
     border: 1px solid rgba(88, 28, 135, 0.16);
     border-radius: 9px;
     background: #faf5ff;
@@ -1883,28 +1883,17 @@ label.field-error .field-error-text {
     outline: none;
 }
 
-.direct-pay-helper {
-    margin: 0;
-    font-size: 0.72rem;
-    line-height: 1.4;
-}
-
-.direct-pay-helper--secure {
-    color: #26733f;
-}
-
-.direct-pay-helper--notice {
-    color: #71717a;
-}
-
 .message-seller-btn {
     border: 1px solid #6d28d9;
     width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
     background: #ffffff;
     color: #581c87;
     border-radius: 12px;
     font-weight: 700;
     padding: 11px 18px;
+    display: block;
     cursor: pointer;
     transition: transform 0.12s ease, background-color 0.12s ease;
 }

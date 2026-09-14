@@ -11,8 +11,8 @@ export const DirectPaymentAction: React.FC<DirectPaymentActionProps> = ({ direct
 
     const safetyBanner = (
         <div className="marketplace-safety-banner safety-banner-enter" role="note">
-            <strong>Marketplace safety tip</strong>
-            <span>Keep chats inside Arkana. If completing an external transaction, use “Goods &amp; Services” to preserve available protection pathways.</span>
+            <strong>Marketplace Safety Tip</strong>
+            <span>Keep chats inside Arkana and use “Goods &amp; Services” for external payments to preserve protection pathways.</span>
         </div>
     );
 
@@ -26,8 +26,6 @@ export const DirectPaymentAction: React.FC<DirectPaymentActionProps> = ({ direct
                 <button type="button" className="message-seller-btn" onClick={() => onChat(initialMessage)}>
                     💬 Chat with Seller
                 </button>
-                <p className="direct-pay-helper direct-pay-helper--secure">💳 Secure Checkout: Supports Card, Apple Pay, Google Pay, or PayPal</p>
-                <p className="direct-pay-helper direct-pay-helper--notice">⚠️ You are transacting directly with the seller. Coordinate delivery arrangements via our chat system.</p>
             </div>
         );
     }
@@ -38,7 +36,6 @@ export const DirectPaymentAction: React.FC<DirectPaymentActionProps> = ({ direct
             <button type="button" className="message-seller-btn" onClick={() => onChat(initialMessage)}>
                 💬 Chat with Seller to Buy
             </button>
-            <p className="direct-pay-helper direct-pay-helper--notice">Have a question about this tarot deck? Message the seller directly.</p>
         </div>
     );
 };
