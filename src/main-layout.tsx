@@ -1512,7 +1512,7 @@ export const MainLayout: React.FC = () => {
     );
 };
 
-type SupportMessage = { id: string; sender_id: string; content: string; created_at: string };
+type SupportMessage = { id: string; sender_id: string; text: string; created_at: string };
 
 const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [messages, setMessages] = useState<SupportMessage[]>([]);
@@ -1531,7 +1531,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 if (isMounted) setStatus('Sign in to contact Arkana support.');
                 return;
             }
-            const { data, error } = await client.from('support_messages').select('id, sender_id, content, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
+            const { data, error } = await client.from('support_messages').select('id, sender_id, text, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
             if (!isMounted) return;
             if (error) {
                 setStatus(error.message || 'Unable to load support messages.');
@@ -1568,7 +1568,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 activeTicketId = ticket.id;
                 setTicketId(activeTicketId);
             }
-            const { data, error } = await supabase.from('support_messages').insert({ ticket_id: activeTicketId, sender_id: session.user.id, content }).select('id, sender_id, content, created_at').single();
+            const { data, error } = await supabase.from('support_messages').insert({ ticket_id: activeTicketId, chat_id: null, sender_id: session.user.id, text: content, content }).select('id, sender_id, text, created_at').single();
             if (error || !data) throw new Error(error?.message || 'Unable to send support message.');
             setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as SupportMessage]);
             setMessageText('');
@@ -1583,7 +1583,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <h3 id="support-chat-title">Arkana support</h3>
                 <button type="button" className="close-modal-btn" aria-label="Close support chat" onClick={onClose}>✕</button>
             </div>
-            <div className="seller-chat-messages" aria-live="polite">{messages.length === 0 ? <p>How can we help with your marketplace order?</p> : messages.map((message) => <p key={message.id}>{message.content}</p>)}</div>
+            <div className="seller-chat-messages" aria-live="polite">{messages.length === 0 ? <p>How can we help with your marketplace order?</p> : messages.map((message) => <p key={message.id}>{message.text}</p>)}</div>
             {status && <p className="account-status" role="status">{status}</p>}
             <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>
         </section>

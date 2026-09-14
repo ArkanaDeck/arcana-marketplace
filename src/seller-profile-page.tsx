@@ -7,7 +7,7 @@ import { DirectPaymentAction } from './direct-payment-action';
 
 type SellerProfilePageProps = { sellerId: string; onBack: () => void };
 
-type Message = { id: string; sender_id: string; text_content: string; created_at: string };
+type Message = { id: string; sender_id: string; chat_id: string; text: string; created_at: string };
 
 export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack }) => {
     const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
@@ -59,7 +59,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         if (!roomId) return;
         if (!supabase) return;
         const channel = supabase.channel(`chat:${roomId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, (payload) => {
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${roomId}` }, (payload) => {
                 setMessages((current) => current.some((message) => message.id === payload.new.id) ? current : [...current, payload.new as Message]);
             })
             .subscribe();
@@ -71,7 +71,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             const id = await createChatRoom(listings[0]?.id || null, sellerId, initialMessage);
             setRoomId(id);
             if (supabase) {
-                const { data, error } = await supabase.from('messages').select('id, sender_id, text_content, created_at').eq('room_id', id).order('created_at', { ascending: true });
+                const { data, error } = await supabase.from('messages').select('id, sender_id, chat_id, text, created_at').eq('chat_id', id).order('created_at', { ascending: true });
                 if (error) throw new Error(error.message || 'Unable to load chat history.');
                 setMessages((data || []) as Message[]);
             }
@@ -94,7 +94,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         try {
             const session = await getSupabaseSession();
             if (!session?.user) throw new Error('Sign in to send a message.');
-            const { data, error } = await supabase.from('messages').insert({ room_id: roomId, sender_id: session.user.id, text_content: text }).select('id, sender_id, text_content, created_at').single();
+            const { data, error } = await supabase.from('messages').insert({ chat_id: roomId, sender_id: session.user.id, text }).select('id, sender_id, chat_id, text, created_at').single();
             if (error || !data) throw new Error(error?.message || 'Unable to send message.');
             setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as Message]);
             setMessageText('');
@@ -125,7 +125,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 <button type="submit" className="seller-direct-payment-panel__save-btn" disabled={isSavingDirectPaymentLink}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
             </form>
         )}
-        {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.map((message) => <p key={message.id}>{message.text_content}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
+        {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.map((message) => <p key={message.id}>{message.text}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
         <div className="seller-profile-grid">{listings.map((listing) => <article className="live-product-card" key={listing.id}><div className="product-image-box">{listing.image ? <img src={listing.image} alt={listing.name} className="live-uploaded-img" /> : <span className="default-card-emoji">🎴</span>}</div><div className="product-details"><h3>{listing.name}</h3><span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>{listing.description && <p>{listing.description}</p>}</div></article>)}</div>
     </section>;

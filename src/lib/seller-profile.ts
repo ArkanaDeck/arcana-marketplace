@@ -32,10 +32,10 @@ export async function createChatRoom(listingId: string | null, sellerId: string,
     const session = await getSupabaseSession();
     if (!session?.user) throw new Error('Sign in to message this seller.');
     if (session.user.id === sellerId) throw new Error('You cannot message yourself.');
-    const { data, error } = await supabase.from('chat_rooms').upsert({ listing_id: listingId, buyer_id: session.user.id, seller_id: sellerId }, { onConflict: 'listing_id,buyer_id,seller_id' }).select('id').single();
+    const { data, error } = await supabase.from('chats').upsert({ listing_id: listingId, buyer_id: session.user.id, seller_id: sellerId }, { onConflict: 'listing_id,buyer_id,seller_id' }).select('id').single();
     if (error || !data) throw new Error(error?.message || 'Unable to start chat.');
     if (initialMessage?.trim()) {
-        const { error: messageError } = await supabase.from('messages').insert({ room_id: data.id, sender_id: session.user.id, text_content: initialMessage.trim() });
+        const { error: messageError } = await supabase.from('messages').insert({ chat_id: data.id, sender_id: session.user.id, text: initialMessage.trim() });
         if (messageError) throw new Error(messageError.message || 'Unable to send the opening message.');
     }
     return data.id as string;

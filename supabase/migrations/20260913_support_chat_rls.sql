@@ -13,6 +13,15 @@ alter table public.support_messages
 alter table public.support_messages
   add column if not exists ticket_id uuid references public.support_tickets(id) on delete cascade;
 
+alter table public.support_messages
+  add column if not exists chat_id uuid;
+
+alter table public.support_messages
+  add column if not exists text text;
+
+alter table public.support_messages
+  add column if not exists chat_id uuid;
+
 alter table public.support_tickets enable row level security;
 alter table public.support_messages enable row level security;
 
@@ -22,6 +31,8 @@ drop policy if exists "Allow anyone to send support messages" on public.support_
 drop policy if exists "Allow anyone to read support messages" on public.support_messages;
 drop policy if exists "Allow users to reply to their own tickets" on public.support_messages;
 drop policy if exists "Allow users to read their own ticket messages" on public.support_messages;
+drop policy if exists "Allow support insertions" on public.support_messages;
+drop policy if exists "Allow public support views" on public.support_messages;
 drop policy if exists "Authenticated users can view support messages" on public.support_messages;
 drop policy if exists "Authenticated users can post support messages" on public.support_messages;
 
@@ -35,26 +46,14 @@ on public.support_tickets
 for select to authenticated
 using (auth.uid() = user_id or user_id is null);
 
-create policy "Allow users to reply to their own tickets"
+create policy "Allow support insertions"
 on public.support_messages
-for insert to authenticated
-with check (
-  exists (
-    select 1 from public.support_tickets
-    where public.support_tickets.id = support_messages.ticket_id
-      and public.support_tickets.user_id = auth.uid()
-  )
-);
+for insert to authenticated, anon
+with check (true);
 
-create policy "Allow users to read their own ticket messages"
+create policy "Allow public support views"
 on public.support_messages
-for select to authenticated
-using (
-  exists (
-    select 1 from public.support_tickets
-    where public.support_tickets.id = support_messages.ticket_id
-      and public.support_tickets.user_id = auth.uid()
-  )
-);
+for select to authenticated, anon
+using (true);
 
 notify pgrst, 'reload schema';

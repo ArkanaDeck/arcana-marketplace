@@ -200,8 +200,12 @@ create table if not exists public.support_messages (
   created_at timestamptz not null default timezone('utc'::text, now()),
   sender_id uuid references auth.users(id) on delete set null,
   ticket_id uuid,
+  chat_id uuid,
+  text text,
   content text not null check (length(trim(content)) between 1 and 2000)
 );
+alter table public.support_messages add column if not exists chat_id uuid;
+alter table public.support_messages add column if not exists text text;
 
 create table if not exists public.support_tickets (
   id uuid primary key default gen_random_uuid(),
