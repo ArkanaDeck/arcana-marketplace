@@ -4,8 +4,7 @@
 // screen changes. The active component in src/main-layout.tsx is untouched by this file.
 import React, { useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { createOrderCheckout } from './lib/order-checkout';
-import { createPayPalOrder } from './lib/paypal';
+import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { getRuntimeConfig } from './lib/config';
 import type { MarketplaceListing } from './lib/listings';
 
