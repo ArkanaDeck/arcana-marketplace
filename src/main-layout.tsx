@@ -1627,21 +1627,22 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-contain" style={{ objectFit: 'contain' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
         </div>
-        <div className="product-details flex flex-col">
+        <div className="product-details flex flex-col min-h-[180px]">
             <h4 className="deck-title">{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
             <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
             <div className="product-footer">
-                {isOwner ? (
-                    <div className="flex gap-2 w-full">
+                {item.listingType === 'sale'
+                    ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
+                    : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
+                {isOwner && (
+                    <div className="flex gap-2 w-full border-t border-gray-100 mt-3 pt-3">
                         <button className="edit-btn flex-1" onClick={(event) => { event.stopPropagation(); onEdit(item); }}>✏️ Edit</button>
                         <button className="delete-btn flex-1" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button>
                     </div>
-                ) : item.listingType === 'sale'
-                    ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
-                    : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
+                )}
             </div>
         </div>
         {isMagnified && images[currentImgIdx] && <ImageLightbox src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} onClose={() => setIsMagnified(false)} />}

@@ -1699,9 +1699,11 @@ label.field-error .field-error-text {
 
 .product-footer {
     display: flex;
+    flex-direction: column;
     gap: 8px;
-    justify-content: space-between;
-    align-items: center;
+    align-items: stretch;
+    width: 100%;
+    margin-top: auto;
 }
 
 .sell-form {
