@@ -2,7 +2,7 @@ import { getSupabaseSession, supabase } from './supabase';
 
 export const initialListingMessage = (listingTitle: string) => `Hi! Is "${listingTitle}" still available? I have a question about it and wanted to discuss delivery options.`;
 
-export async function openDashboardChat(listingId: string, sellerId: string, listingTitle: string) {
+export async function openDashboardChat(listingId: string, sellerId: string, listingTitle: string, openingMessage?: string) {
     if (!supabase) throw new Error('Supabase is not configured.');
     const session = await getSupabaseSession();
     if (!session?.user) throw new Error('Sign in to message this seller.');
@@ -28,18 +28,19 @@ export async function openDashboardChat(listingId: string, sellerId: string, lis
         chatId = created.id;
     }
 
+    const messageText = openingMessage?.trim() || initialListingMessage(listingTitle);
     const { data: priorMessage } = await supabase
         .from('messages')
         .select('id')
         .eq('chat_id', chatId)
         .eq('sender_id', session.user.id)
-        .eq('text', initialListingMessage(listingTitle))
+        .eq('text', messageText)
         .maybeSingle();
     if (!priorMessage) {
         const { error: messageError } = await supabase.from('messages').insert({
             chat_id: chatId,
             sender_id: session.user.id,
-            text: initialListingMessage(listingTitle),
+            text: messageText,
         });
         if (messageError) throw new Error(messageError.message || 'Unable to seed the conversation.');
     }

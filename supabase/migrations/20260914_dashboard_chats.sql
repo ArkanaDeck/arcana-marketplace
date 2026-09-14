@@ -19,6 +19,11 @@ alter table public.messages add column if not exists text text;
 alter table public.chats enable row level security;
 alter table public.messages enable row level security;
 
+-- Chat rooms and messages must never be writable by anonymous visitors.
+revoke insert on public.chats from anon;
+revoke insert on public.messages from anon;
+revoke insert on public.chat_rooms from anon;
+
 drop policy if exists "Dashboard users can view their chats" on public.chats;
 drop policy if exists "Dashboard users can create chats" on public.chats;
 drop policy if exists "Allow authenticated users to create chats" on public.chats;

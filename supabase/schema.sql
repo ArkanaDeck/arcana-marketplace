@@ -313,6 +313,11 @@ alter table public.orders enable row level security;
 alter table public.payments enable row level security;
 alter table public.listing_credit_purchases enable row level security;
 
+-- Marketplace conversations require an authenticated buyer or seller.
+revoke insert on public.chats from anon;
+revoke insert on public.messages from anon;
+revoke insert on public.chat_rooms from anon;
+
 drop policy if exists "profiles_are_viewable_by_owners" on public.profiles;
 drop policy if exists "profiles_can_update_own_profile" on public.profiles;
 drop policy if exists "profiles_can_insert_own_profile" on public.profiles;

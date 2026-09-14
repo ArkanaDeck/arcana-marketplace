@@ -6,11 +6,11 @@ import type { MarketplaceListing } from './lib/listings';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { DirectPaymentAction } from './direct-payment-action';
 
-type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void };
+type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void; onSignIn: () => void };
 
 type Message = { id: string; sender_id: string; chat_id: string; text: string; created_at: string };
 
-export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile }) => {
+export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile, onSignIn }) => {
     const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
     const [listings, setListings] = React.useState<MarketplaceListing[]>([]);
     const [roomId, setRoomId] = React.useState<string | null>(null);
@@ -23,6 +23,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = React.useState(false);
     const [pendingInitialMessage, setPendingInitialMessage] = React.useState<string | null>(() => new URLSearchParams(window.location.search).get('initialMessage'));
     const [hasOpenedPendingChat, setHasOpenedPendingChat] = React.useState(false);
+    const [isStartingChat, setIsStartingChat] = React.useState(false);
 
     React.useEffect(() => {
         loadSellerProfile(sellerId)
@@ -68,10 +69,19 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     }, [roomId]);
 
     const startChat = async (initialMessage?: string) => {
+        if (isStartingChat) return;
+        setIsStartingChat(true);
+        setStatus(null);
         try {
             const listing = listings[0];
             if (!listing) throw new Error('This seller has no active listing to discuss.');
-            const id = await openDashboardChat(listing.id, sellerId, listing.name);
+            const session = await getSupabaseSession();
+            if (!session?.user) {
+                setStatus('Sign in to message this seller.');
+                onSignIn();
+                return;
+            }
+            const id = await openDashboardChat(listing.id, sellerId, listing.name, initialMessage);
             setRoomId(id);
             if (supabase) {
                 const { data, error } = await supabase.from('messages').select('id, sender_id, chat_id, text, created_at').eq('chat_id', id).order('created_at', { ascending: true });
@@ -81,6 +91,8 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             setStatus('Chat ready. Send a message to the seller.');
         } catch (error) {
             setStatus(error instanceof Error ? error.message : 'Unable to start chat.');
+        } finally {
+            setIsStartingChat(false);
         }
     };
 
@@ -117,7 +129,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
             {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
-            {viewerId !== sellerId && listings.length > 0 && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0].name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} /></div>}
+            {viewerId !== sellerId && listings.length > 0 && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0].name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
