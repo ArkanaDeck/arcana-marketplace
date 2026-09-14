@@ -6,11 +6,11 @@ import type { MarketplaceListing } from './lib/listings';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { DirectPaymentAction } from './direct-payment-action';
 
-type SellerProfilePageProps = { sellerId: string; onBack: () => void };
+type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void };
 
 type Message = { id: string; sender_id: string; chat_id: string; text: string; created_at: string };
 
-export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack }) => {
+export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile }) => {
     const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
     const [listings, setListings] = React.useState<MarketplaceListing[]>([]);
     const [roomId, setRoomId] = React.useState<string | null>(null);
@@ -116,6 +116,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
+            {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
             {viewerId !== sellerId && listings.length > 0 && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0].name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
@@ -130,6 +131,6 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         )}
         {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.map((message) => <p key={message.id}>{message.text}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
-        <div className="seller-profile-grid">{listings.map((listing) => <article className="live-product-card" key={listing.id}><div className="product-image-box">{listing.image ? <img src={listing.image} alt={listing.name} className="live-uploaded-img" /> : <span className="default-card-emoji">🎴</span>}</div><div className="product-details"><h3>{listing.name}</h3><span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>{listing.description && <p>{listing.description}</p>}</div></article>)}</div>
+        <div className="seller-profile-grid">{listings.map((listing) => <article className="live-product-card" key={listing.id}><div className="product-image-box">{listing.images.length > 0 ? <div className="listing-image-row">{listing.images.map((imageUrl, index) => <a key={imageUrl} href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${listing.name} photo ${index + 1}`}><img src={imageUrl} alt={`${listing.name} photo ${index + 1}`} className="live-uploaded-img" /></a>)}</div> : <span className="default-card-emoji">🎴</span>}</div><div className="product-details"><h3>{listing.name}</h3><span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>{listing.description && <p>{listing.description}</p>}</div></article>)}</div>
     </section>;
 };
