@@ -11,6 +11,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
     const [status, setStatus] = React.useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isComplete, setIsComplete] = React.useState(false);
+    const [showPassword, setShowPassword] = React.useState(false);
 
     React.useEffect(() => {
         if (!supabase) {
@@ -89,10 +90,16 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
                     <p>Enter a new password for your account.</p>
                 </div>
                 <label>New password <span className="text-red-500 font-bold ml-0.5">*</span>
-                    <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                    <span className="password-visibility-field">
+                        <input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                        <button type="button" className="password-visibility-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide new password' : 'Show new password'} aria-pressed={showPassword}>{showPassword ? '🙈' : '👁️'}</button>
+                    </span>
                 </label>
                 <label>Confirm new password <span className="text-red-500 font-bold ml-0.5">*</span>
-                    <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your new password" />
+                    <span className="password-visibility-field">
+                        <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your new password" />
+                        <button type="button" className="password-visibility-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide confirmed password' : 'Show confirmed password'} aria-pressed={showPassword}>{showPassword ? '🙈' : '👁️'}</button>
+                    </span>
                 </label>
                 {status && <p className="account-status" role="status">{status}</p>}
                 <button type="submit" className="primary-btn" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update password'}</button>

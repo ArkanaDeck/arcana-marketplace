@@ -368,6 +368,40 @@ label.field-error .field-error-text {
     padding-right: 46px;
 }
 
+.password-visibility-field {
+    position: relative;
+    display: block;
+}
+
+.password-visibility-field input {
+    width: 100%;
+    padding-right: 46px;
+}
+
+.password-visibility-toggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    transform: translateY(-50%);
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.password-visibility-toggle:hover,
+.password-visibility-toggle:focus-visible {
+    background: rgba(17, 78, 96, 0.08);
+    outline: 2px solid rgba(17, 78, 96, 0.2);
+    outline-offset: 1px;
+}
+
 .password-toggle-btn {
     position: absolute;
     right: 6px;

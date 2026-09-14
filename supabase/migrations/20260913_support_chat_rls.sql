@@ -19,9 +19,6 @@ alter table public.support_messages
 alter table public.support_messages
   add column if not exists text text;
 
-alter table public.support_messages
-  add column if not exists chat_id uuid;
-
 alter table public.support_tickets enable row level security;
 alter table public.support_messages enable row level security;
 
