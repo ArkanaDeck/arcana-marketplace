@@ -15,6 +15,7 @@ import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
 import { openDashboardChat } from './lib/dashboard-chat';
 import { MessagesDashboard } from './messages-dashboard';
+import { AdminSupportDashboard } from './admin-support-dashboard';
 import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
@@ -768,6 +769,10 @@ export const MainLayout: React.FC = () => {
     if (messagesRouteMatch) {
         const chatId = new URLSearchParams(window.location.search).get('chatId');
         return chatId ? <MessagesDashboard chatId={chatId} /> : <section className="seller-profile-page"><p>Select a conversation to view messages.</p></section>;
+    }
+
+    if (window.location.pathname === '/app/admin/support') {
+        return <AdminSupportDashboard />;
     }
 
     if (window.location.pathname === '/reset-password') {
