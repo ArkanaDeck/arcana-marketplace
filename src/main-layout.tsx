@@ -1574,9 +1574,9 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
 
 // Dynamic payment action. The seller profile owns the database-backed chat routine.
 const PayOrMessageButton: React.FC<{ listingId: string; sellerId: string; listingTitle: string; directPaymentLink: string | null | undefined }> = ({ listingId, sellerId, listingTitle, directPaymentLink }) => {
-    return <DirectPaymentAction listingTitle={listingTitle} directPaymentLink={directPaymentLink} onChat={async () => {
+    return <DirectPaymentAction listingTitle={listingTitle} directPaymentLink={directPaymentLink} onChat={async (initialMessage) => {
         try {
-            const chatId = await openDashboardChat(listingId, sellerId, listingTitle);
+            const chatId = await openDashboardChat(listingId, sellerId, listingTitle, initialMessage);
             window.location.href = `/app/messages?chatId=${encodeURIComponent(chatId)}`;
         } catch (error) {
             window.alert(error instanceof Error ? error.message : 'Unable to open chat.');
