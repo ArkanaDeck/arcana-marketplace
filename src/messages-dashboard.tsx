@@ -55,7 +55,7 @@ export const MessagesDashboard: React.FC<{ chatId: string }> = ({ chatId }) => {
 
     return <section className="messages-dashboard" aria-label="Chat messages">
         <div className="seller-chat-messages" aria-live="polite">
-            {messages.map((message) => <p key={message.id}>{message.text || ''}</p>)}
+            {messages.map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{message.text || ''}</p>)}
             <div ref={messagesEndRef} aria-hidden="true" />
         </div>
         {status && <p className="account-status" role="alert">{status}</p>}

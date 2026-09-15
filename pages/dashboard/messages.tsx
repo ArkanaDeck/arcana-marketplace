@@ -108,7 +108,7 @@ export default function MessagesDashboardPage() {
                     <section className="message-viewport" aria-live="polite" aria-label="Conversation messages">
                         {messages.map((message) => (
                             <article key={message.id} className="message-row">
-                                <p>{message.text_content}</p>
+                                <p style={{ whiteSpace: 'pre-line' }}>{message.text_content}</p>
                                 <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString()}</time>
                             </article>
                         ))}

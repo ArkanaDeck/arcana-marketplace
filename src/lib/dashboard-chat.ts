@@ -1,6 +1,8 @@
 import { getSupabaseSession, supabase } from './supabase';
 
-export const initialListingMessage = (listingTitle: string) => `Hi! Is "${listingTitle}" still available? I have a question about it and wanted to discuss delivery options.`;
+export const initialListingMessage = (listingTitle: string) => `Hi!
+Is "${listingTitle}" still available?
+I have a question about it and wanted to discuss delivery options.`;
 
 export async function openDashboardChat(listingId: string, sellerId: string, listingTitle: string, openingMessage?: string) {
     if (!supabase) throw new Error('Supabase is not configured.');

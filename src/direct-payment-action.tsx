@@ -8,7 +8,9 @@ type DirectPaymentActionProps = {
 };
 
 export const DirectPaymentAction: React.FC<DirectPaymentActionProps> = ({ directPaymentLink, onChat, listingTitle, isStartingChat = false }) => {
-    const initialMessage = `Hi! Is "${listingTitle}" still available? I have a question about it and wanted to discuss delivery options.`;
+    const initialMessage = `Hi!
+Is "${listingTitle}" still available?
+I have a question about it and wanted to discuss delivery options.`;
 
     const safetyBanner = (
         <div className="marketplace-safety-banner safety-banner-enter" role="note">

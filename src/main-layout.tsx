@@ -818,6 +818,7 @@ export const MainLayout: React.FC = () => {
                         <span className="mobile-menu-toggle__bar"></span>
                     </button>
                     <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
+                        <a href="/app" className="auth-link-btn">← Back to Marketplace</a>
                         <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
                             {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
