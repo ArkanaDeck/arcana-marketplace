@@ -90,6 +90,7 @@ export const MainLayout: React.FC = () => {
     const [wantsExternalLink, setWantsExternalLink] = useState<boolean>(false);
     const [externalStoreUrl, setExternalStoreUrl] = useState('');
     const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
+    const [wantsAuthentication, setWantsAuthentication] = useState<boolean>(false);
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<BasketItem[]>([]);
@@ -397,7 +398,7 @@ export const MainLayout: React.FC = () => {
             // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
             // the server there computes the same stacked fee and creates the listing hidden until paid.
             if (!isEditing) {
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined });
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;
@@ -425,6 +426,7 @@ export const MainLayout: React.FC = () => {
                 setListingType('sale');
                 setDeckImageFiles([]);
                 setImagePreviews([]);
+                setWantsAuthentication(false);
                 setFlashMessage(`Published: ${result.listing.name}`);
                 setActiveView('Listings');
                 return;
@@ -461,6 +463,7 @@ export const MainLayout: React.FC = () => {
             setWantsExternalLink(false);
             setExternalStoreUrl('');
             setExternalLinkUrlError(null);
+            setWantsAuthentication(false);
             setEditModeData(null);
             setFlashMessage(risk.requiresReview ? `Submitted for review: ${savedListing.name}. ${risk.reasons[0]}` : `Updated: ${savedListing.name}`);
             setActiveView('Listings');
@@ -1192,6 +1195,17 @@ export const MainLayout: React.FC = () => {
                                         <span>Offer Free Delivery. Include delivery charges in the listing price.</span>
                                     </label>
                                 </div>}
+                                <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
+                                    <label className="checkbox-label" htmlFor="ai-authentication-toggle">
+                                        <input
+                                            id="ai-authentication-toggle"
+                                            type="checkbox"
+                                            checked={wantsAuthentication}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWantsAuthentication(e.target.checked)}
+                                        />
+                                        <span>Verify Item Authenticity (Request an AI analysis badge to increase buyer trust)</span>
+                                    </label>
+                                </div>
                                 <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
                                     <label className="checkbox-label" htmlFor="external-store-link">
                                         <input

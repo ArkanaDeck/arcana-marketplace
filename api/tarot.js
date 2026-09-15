@@ -288,8 +288,13 @@ async function submitUnifiedListingBatch(req, res) {
             if (!Array.isArray(deck.images) || deck.images.length === 0) return res.status(400).json({ error: 'Every deck needs at least one image already uploaded to storage.' });
         }
 
+        // AI authenticity checks are opt-in per deck (`wantsAuthentication`); skip the OpenAI call entirely otherwise.
         const verificationResults = [];
         for (const deck of decks) {
+            if (!deck.wantsAuthentication) {
+                verificationResults.push({ authenticated: false, verified: false, confidence: 0, reasoning: null });
+                continue;
+            }
             const verification = await verifyCardImageWithOpenAI(deck.imagesBase64?.[0] || deck.images?.[0]);
             if (!verification.authenticated) {
                 return res.status(422).json({
@@ -331,8 +336,9 @@ async function submitUnifiedListingBatch(req, res) {
                     review_status: 'pending_review',
                     requires_manual_review: requiresManualReview,
                     authenticated: verification.authenticated,
+                    is_ai_authenticated: verification.authenticated,
                 })
-                .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, authenticated')
+                .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, authenticated, is_ai_authenticated')
                 .single();
             if (listingError || !listing) throw new Error(listingError?.message || 'Unable to save a listing in this batch.');
             insertedListings.push({ ...listing, authenticationReason });
@@ -352,13 +358,14 @@ async function submitUnifiedListingBatch(req, res) {
             return res.status(200).json({ batchId: batch.id, feePence: grandTotalPence, requiresPayment: true, listings: insertedListings });
         }
 
+        // Authentication is opt-in, so approval no longer requires `authenticated = true` here —
+        // every deck above either passed its requested check or never needed one.
         const { error: activateError } = await supabase
             .from('listings')
             .update({ review_status: 'approved' })
             .eq('batch_id', batch.id)
             .eq('review_status', 'pending_review')
-            .eq('requires_manual_review', false)
-            .eq('authenticated', true);
+            .eq('requires_manual_review', false);
         if (activateError) throw activateError;
         const { error: batchCompleteError } = await supabase.from('upload_batches').update({ status: 'paid', fee_amount: 0 }).eq('id', batch.id);
         if (batchCompleteError) throw batchCompleteError;

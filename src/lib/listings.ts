@@ -46,7 +46,7 @@ export async function loadPublishedListings() {
     return prioritized.map(mapListing);
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus'> & { imageFiles?: File[]; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string };
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus'> & { imageFiles?: File[]; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 
 // Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
@@ -210,14 +210,18 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             imageUrls.push(publicUrl.publicUrl);
         }
 
-        const verificationResponse = await fetch('/api/check-card', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-            body: JSON.stringify({ imageBase64: imageBase64[0] }),
-        });
-        const verification = await verificationResponse.json();
-        if (!verificationResponse.ok || !verification.authenticated) {
-            throw new Error(verification.reasoning || verification.error || 'Card authentication failed.');
+        // AI authenticity verification is opt-in: skip the OpenAI call entirely (and any credit usage) unless requested.
+        // The server independently re-runs this check for the actual listing insert, since a client flag can't be trusted for it.
+        if (input.wantsAuthentication) {
+            const verificationResponse = await fetch('/api/check-card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify({ imageBase64: imageBase64[0] }),
+            });
+            const verification = await verificationResponse.json();
+            if (!verificationResponse.ok || !verification.authenticated) {
+                throw new Error(verification.reasoning || verification.error || 'Card authentication failed.');
+            }
         }
 
         if (input.externalStoreUrl) {
@@ -254,6 +258,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
                     freeDelivery: input.freeDelivery,
                     images: imageUrls,
                     imagesBase64: imageBase64,
+                    wantsAuthentication: input.wantsAuthentication ?? false,
                 }],
             }),
         });
