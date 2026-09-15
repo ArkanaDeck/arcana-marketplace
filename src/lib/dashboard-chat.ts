@@ -4,6 +4,17 @@ export const initialListingMessage = (listingTitle: string) => `Hi!
 Is "${listingTitle}" still available?
 I have a question about it and wanted to discuss delivery options.`;
 
+export function isListingOpeningMessage(text: string): boolean {
+    return /^Hi!\s*Is "[\s\S]+" still available\?\s*I have a question about it and wanted to discuss delivery options\.$/.test(text);
+}
+
+export function formatChatMessage(text: string): string {
+    const legacyMatch = text.match(/^Hi!\s*Is "([\s\S]+)" still available\?\s*I have a question about it and wanted to discuss delivery options\.$/);
+    return legacyMatch
+        ? `Hi!\nIs "${legacyMatch[1]}" still available?\nI have a question about it and wanted to discuss delivery options.`
+        : text;
+}
+
 export async function openDashboardChat(listingId: string, sellerId: string, listingTitle: string, openingMessage?: string) {
     if (!supabase) throw new Error('Supabase is not configured.');
     const session = await getSupabaseSession();
@@ -31,14 +42,13 @@ export async function openDashboardChat(listingId: string, sellerId: string, lis
     }
 
     const messageText = openingMessage?.trim() || initialListingMessage(listingTitle);
-    const { data: priorMessage } = await supabase
+    const { data: priorMessages } = await supabase
         .from('messages')
-        .select('id')
+        .select('id, text')
         .eq('chat_id', chatId)
-        .eq('sender_id', session.user.id)
-        .eq('text', messageText)
-        .maybeSingle();
-    if (!priorMessage) {
+        .eq('sender_id', session.user.id);
+    const hasOpeningMessage = (priorMessages || []).some((message) => isListingOpeningMessage(message.text || ''));
+    if (!hasOpeningMessage) {
         const { error: messageError } = await supabase.from('messages').insert({
             chat_id: chatId,
             sender_id: session.user.id,

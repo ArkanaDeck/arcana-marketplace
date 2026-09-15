@@ -1,5 +1,6 @@
 import React from 'react';
 import { getSupabaseSession, supabase } from './lib/supabase';
+import { formatChatMessage, isListingOpeningMessage } from './lib/dashboard-chat';
 
 type DashboardMessage = { id: string; chat_id: string; sender_id: string; text: string | null; created_at: string };
 
@@ -54,8 +55,9 @@ export const MessagesDashboard: React.FC<{ chatId: string }> = ({ chatId }) => {
     };
 
     return <section className="messages-dashboard" aria-label="Chat messages">
+        <a href="/app" className="auth-link-btn">← Back to Marketplace</a>
         <div className="seller-chat-messages" aria-live="polite">
-            {messages.map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{message.text || ''}</p>)}
+            {messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text || '') || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text || '')) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text || '')}</p>)}
             <div ref={messagesEndRef} aria-hidden="true" />
         </div>
         {status && <p className="account-status" role="alert">{status}</p>}
