@@ -20,6 +20,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     const [loading, setLoading] = React.useState(true);
     const [viewerId, setViewerId] = React.useState<string | null>(null);
     const [directPaymentLinkInput, setDirectPaymentLinkInput] = React.useState('');
+    const [isEditingDirectPaymentLink, setIsEditingDirectPaymentLink] = React.useState(false);
     const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = React.useState(false);
     const [pendingInitialMessage, setPendingInitialMessage] = React.useState<string | null>(() => new URLSearchParams(window.location.search).get('initialMessage'));
     const [hasOpenedPendingChat, setHasOpenedPendingChat] = React.useState(false);
@@ -31,6 +32,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 setProfile(seller);
                 setListings(sellerListings);
                 setDirectPaymentLinkInput(seller.direct_payment_link || '');
+                setIsEditingDirectPaymentLink(false);
             })
             .catch((error) => setStatus(error instanceof Error ? error.message : 'Unable to load this profile.'))
             .finally(() => setLoading(false));
@@ -48,6 +50,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         try {
             await saveDirectPaymentLink(directPaymentLinkInput);
             setProfile((current) => current ? { ...current, direct_payment_link: directPaymentLinkInput.trim() || null } : current);
+            setIsEditingDirectPaymentLink(false);
             setStatus('Payment link saved.');
         } catch (error) {
             setStatus(error instanceof Error ? error.message : 'Unable to save your payment link.');
@@ -133,13 +136,22 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
-            <form className="seller-direct-payment-panel" onSubmit={handleSaveDirectPaymentLink}>
+            <section className="seller-direct-payment-panel">
                 <div><p className="eyebrow">Your storefront</p><h2>Direct payment link</h2><p>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly — Arkana never touches the money.</p></div>
-                <label className="seller-direct-payment-panel__field">Checkout link
-                    <input type="url" value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
-                </label>
-                <button type="submit" className="seller-direct-payment-panel__save-btn" disabled={isSavingDirectPaymentLink}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
-            </form>
+                {directPaymentLinkInput && !isEditingDirectPaymentLink ? (
+                    <div className="seller-direct-payment-panel__saved">
+                        <p>Your active payment link: <a href={directPaymentLinkInput} target="_blank" rel="noopener noreferrer nofollow">{directPaymentLinkInput}</a></p>
+                        <button type="button" className="seller-direct-payment-panel__edit-btn" onClick={() => setIsEditingDirectPaymentLink(true)}>Edit link</button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSaveDirectPaymentLink}>
+                        <label className="seller-direct-payment-panel__field">Checkout link
+                            <input type="url" value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
+                        </label>
+                        <button type="submit" className="seller-direct-payment-panel__save-btn" disabled={isSavingDirectPaymentLink}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
+                    </form>
+                )}
+            </section>
         )}
         {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text) || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text)) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text)}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
