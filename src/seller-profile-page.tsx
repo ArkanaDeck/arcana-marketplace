@@ -128,7 +128,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>
         <header className="seller-profile-header">
             {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="seller-profile-avatar" /> : <div className="seller-profile-avatar seller-profile-avatar--fallback">ARK</div>}
-            <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1><p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>
+            <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1>{(profile.bio || viewerId !== sellerId) && <p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>}
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
             {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
