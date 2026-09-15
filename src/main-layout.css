@@ -2272,6 +2272,10 @@ label.field-error .field-error-text {
     display: flex;
     align-items: flex-start;
     gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    box-sizing: border-box;
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -2289,10 +2293,9 @@ label.field-error .field-error-text {
     cursor: pointer;
 }
 
+/* Same padding/border box as .checkbox-group so its checkbox lines up with sibling checkbox rows */
 .external-link-toggle {
-    padding: 10px 12px;
-    border: 1px solid rgba(17, 78, 96, 0.14);
-    border-radius: 10px;
+    border-color: rgba(17, 78, 96, 0.14);
     background: #f8fafc;
 }
 
