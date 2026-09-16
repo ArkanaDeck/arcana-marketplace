@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { paypalRequest } from '../server/lib/server-paypal.js';
 import { logServerError } from '../server/lib/server-logger.js';
+import { createListingStatusUpdater } from '../server/lib/listing-status.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
@@ -28,6 +29,10 @@ export default async function handler(req, res) {
         if (!customIds.length) return res.status(400).json({ error: 'PayPal payment did not contain an Arkana order reference.' });
         const { error: updateError } = await supabase.from('orders').update({ status: 'paid' }).in('id', customIds).eq('buyer_id', user.id);
         if (updateError) throw updateError;
+        const { data: paidOrders, error: paidOrdersError } = await supabase.from('orders').select('listing_id').in('id', customIds).eq('buyer_id', user.id).eq('status', 'paid');
+        if (paidOrdersError) throw paidOrdersError;
+        const { markAsSold } = createListingStatusUpdater(supabase);
+        await Promise.all((paidOrders || []).map((order) => markAsSold(order.listing_id)));
         return res.status(200).json({ orderIds: customIds, status: 'paid' });
     } catch (error) {
         logServerError('capture-paypal-order', error, { paypalOrderId: body?.paypalOrderId || null });
@@ -58,10 +63,19 @@ async function captureMarketplaceOrder(req, res, body) {
         if (paypalOrder.status !== 'COMPLETED') return res.status(400).json({ error: 'PayPal payment was not completed.', paypal: paypalOrder });
 
         const { error: updateError } = await supabase.from('orders')
-            .update({ status: 'completed' })
+            .update({ status: 'paid' })
             .eq('paypal_order_id', paypalOrderId)
             .eq('buyer_id', user.id);
         if (updateError) throw updateError;
+
+        const { data: paidOrders, error: paidOrdersError } = await supabase.from('orders')
+            .select('listing_id')
+            .eq('paypal_order_id', paypalOrderId)
+            .eq('buyer_id', user.id)
+            .eq('status', 'paid');
+        if (paidOrdersError) throw paidOrdersError;
+        const { markAsSold } = createListingStatusUpdater(supabase);
+        await Promise.all((paidOrders || []).map((order) => markAsSold(order.listing_id)));
 
         return res.status(200).json(paypalOrder);
     } catch (error) {

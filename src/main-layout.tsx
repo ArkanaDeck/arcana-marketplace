@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
-import { deleteListing, loadListings, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -64,7 +64,7 @@ export const MainLayout: React.FC = () => {
     const [listings, setListings] = useState<DeckListing[]>(() => {
         try {
             const savedListings = localStorage.getItem('arkana_listings');
-            return savedListings ? JSON.parse(savedListings) : [];
+            return savedListings ? JSON.parse(savedListings).map((listing: DeckListing) => ({ ...listing, status: listing.status || 'active' })) : [];
         } catch {
             return [];
         }
@@ -138,11 +138,13 @@ export const MainLayout: React.FC = () => {
     const [isEditingDirectPaymentLink, setIsEditingDirectPaymentLink] = useState(false);
     const [isSavingDirectPaymentLink, setIsSavingDirectPaymentLink] = useState(false);
     const [sellerDirectPaymentLinks, setSellerDirectPaymentLinks] = useState<Record<string, string | null>>({});
+    const [buyerSoldListingIds, setBuyerSoldListingIds] = useState<Set<string>>(new Set());
 
     // Auth form state placeholders
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const filteredListings = listings.filter((listing) => {
+        if (listing.status === 'completed') return false;
         if (listing.reviewStatus !== 'approved' && listing.sellerId !== session?.user?.id) return false;
         const query = searchQuery.trim().toLowerCase();
         return !query || listing.name.toLowerCase().includes(query) || listing.description?.toLowerCase().includes(query);
@@ -188,6 +190,32 @@ export const MainLayout: React.FC = () => {
         });
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (!session?.user) {
+            setBuyerSoldListingIds(new Set());
+            return;
+        }
+        loadBuyerSoldListingIds()
+            .then(setBuyerSoldListingIds)
+            .catch(() => setBuyerSoldListingIds(new Set()));
+    }, [session?.user?.id]);
+
+    const handleConfirmOrderAccepted = async (listingId: string) => {
+        try {
+            await confirmOrderAccepted(listingId);
+            setListings((currentListings) => currentListings.filter((listing) => listing.id !== listingId));
+            setBuyerSoldListingIds((currentIds) => {
+                const nextIds = new Set(currentIds);
+                nextIds.delete(listingId);
+                return nextIds;
+            });
+            if (viewingListing?.id === listingId) setViewingListing(null);
+            setFlashMessage('Order accepted. The listing has been completed.');
+        } catch (error) {
+            setFlashMessage(error instanceof Error ? error.message : 'Unable to confirm this order.');
+        }
+    };
 
     useEffect(() => {
         if (!supabase || !session?.user) {
@@ -1074,14 +1102,14 @@ export const MainLayout: React.FC = () => {
                                 <>
                                     {filteredListings.some((item) => item.listingType !== 'free') && (
                                         <div className="listings-live-grid listings-live-grid--paid">
-                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} />)}
                                         </div>
                                     )}
                                     {filteredListings.some((item) => item.listingType === 'free') && (
                                         <>
                                             <h3 className="listings-tier-heading">Free to a good home</h3>
                                             <div className="listings-live-grid listings-live-grid--free">
-                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onFlashMessage={setFlashMessage} />)}
+                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} />)}
                                             </div>
                                         </>
                                     )}
@@ -1107,11 +1135,19 @@ export const MainLayout: React.FC = () => {
                                 ) : (
                                     <span className="default-card-emoji">🎴</span>
                                 )}
-                                <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+                                {viewingListing.status === 'sold'
+                                    ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
+                                    : <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
-                                <div className="product-footer">
+                                {viewingListing.status === 'sold' && buyerSoldListingIds.has(viewingListing.id) && (
+                                    <div className="buyer-order-acceptance">
+                                        <span>Item marked as sold. Have you safely received your deck?</span>
+                                        <button type="button" onClick={() => void handleConfirmOrderAccepted(viewingListing.id)}>Confirm Order Accepted</button>
+                                    </div>
+                                )}
+                                {viewingListing.status === 'active' && <div className="product-footer">
                                     {viewingListing.listingType === 'sale' ? (
                                         <PayOrMessageButton listingId={viewingListing.id} sellerId={viewingListing.sellerId} listingTitle={viewingListing.name} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} />
                                     ) : (
@@ -1122,7 +1158,7 @@ export const MainLayout: React.FC = () => {
                                             {viewingListing.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}
                                         </button>
                                     )}
-                                </div>
+                                </div>}
                             </div>
                         </div>
                     )}
@@ -1598,7 +1634,7 @@ const PayOrMessageButton: React.FC<{ listingId: string; sellerId: string; listin
     }} />;
 };
 
-const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onFlashMessage }) => {
+const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; canConfirmOrderAccepted: boolean; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onConfirmOrderAccepted: (id: string) => Promise<void>; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, canConfirmOrderAccepted, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onConfirmOrderAccepted, onFlashMessage }) => {
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
     const [isMagnified, setIsMagnified] = useState(false);
     const images = item.images;
@@ -1618,10 +1654,18 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-details flex flex-col min-h-[180px]">
             <h4 className="deck-title">{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
-            <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+            {item.status === 'sold'
+                ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
+                : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
-            <div className="product-footer">
+            {item.status === 'sold' && canConfirmOrderAccepted && (
+                <div className="buyer-order-acceptance" onClick={(event) => event.stopPropagation()}>
+                    <span>Item marked as sold. Have you safely received your deck?</span>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void onConfirmOrderAccepted(item.id); }}>Confirm Order Accepted</button>
+                </div>
+            )}
+            {item.status === 'active' && <div className="product-footer">
                 {item.listingType === 'sale'
                     ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
                     : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
@@ -1631,7 +1675,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
                         <button className="delete-btn flex-1" onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}>🗑️ Delete</button>
                     </div>
                 )}
-            </div>
+            </div>}
         </div>
         {isMagnified && images[currentImgIdx] && <ImageLightbox src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} onClose={() => setIsMagnified(false)} />}
     </div>;

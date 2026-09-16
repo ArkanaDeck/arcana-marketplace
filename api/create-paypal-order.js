@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         const supabase = createClient(supabaseUrl, serviceRoleKey);
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         if (userError || !user) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
-        const { data: listings, error: listingError } = await supabase.from('listings').select('id, name, price, seller_id, listing_type, is_free_delivery').in('id', listingIds);
+        const { data: listings, error: listingError } = await supabase.from('listings').select('id, name, price, seller_id, listing_type, is_free_delivery').in('id', listingIds).eq('status', 'active');
         if (listingError || !listings || listings.length !== listingIds.length || listings.some((listing) => !listing.seller_id || listing.listing_type !== 'sale' || Number(listing.price) <= 0)) {
             return res.status(404).json({ error: 'One or more listings are no longer available for sale.' });
         }

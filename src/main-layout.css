@@ -1679,6 +1679,51 @@ label.field-error .field-error-text {
     color: #a13a3a;
 }
 
+.listing-sold-badge {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.buyer-order-acceptance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(17, 78, 96, 0.18);
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #114e60;
+}
+
+.buyer-order-acceptance button {
+    flex: 0 0 auto;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: #114e60;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .buyer-order-acceptance {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 .tarot-activation-status {
     display: flex;
     flex-direction: column;

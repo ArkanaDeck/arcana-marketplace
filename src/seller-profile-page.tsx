@@ -76,7 +76,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         setIsStartingChat(true);
         setStatus(null);
         try {
-            const listing = listings[0];
+            const listing = listings.find((candidate) => candidate.status === 'active');
             if (!listing) throw new Error('This seller has no active listing to discuss.');
             const session = await getSupabaseSession();
             if (!session?.user) {
@@ -123,6 +123,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
 
     if (loading) return <section className="seller-profile-page"><p>Loading seller profile...</p></section>;
     if (!profile) return <section className="seller-profile-page"><p className="account-status" role="alert">{status || 'Seller profile not found.'}</p><button type="button" className="secondary-btn" onClick={onBack}>Back to marketplace</button></section>;
+    const activeListing = listings.find((listing) => listing.status === 'active');
 
     return <section className="seller-profile-page">
         <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>
@@ -132,7 +133,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
             {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
-            {viewerId !== sellerId && listings.length > 0 && <div className="seller-profile-action"><DirectPaymentAction listingTitle={listings[0].name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
+            {viewerId !== sellerId && activeListing && <div className="seller-profile-action"><DirectPaymentAction listingTitle={activeListing.name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
@@ -182,7 +183,9 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing 
         </div>
         <div className="product-details">
             <h3>{listing.name}</h3>
-            <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>
+            {listing.status === 'sold'
+                ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
+                : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {listing.description && <p>{listing.description}</p>}
         </div>
     </article>;

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendTransactionalEmail } from '../server/lib/server-email.js';
+import { createListingStatusUpdater } from '../server/lib/listing-status.js';
 
 // Consolidated hub for buyer/seller order-lifecycle actions (dispatch/mark-delivered/confirm-received/report-problem).
 // Merged from four separate files to stay under Vercel's serverless function count limit — routed via ?action=.
@@ -60,13 +61,20 @@ async function markOrderDelivered(res, supabase, user, body) {
 
 async function confirmOrderReceived(res, supabase, user, body) {
     try {
-        if (!body.orderId) return res.status(400).json({ error: 'Order ID is required.' });
-        const { data: order, error: orderError } = await supabase.from('orders').select('id, buyer_id, listing_id, total, status, payout_status, listings(seller_id)').eq('id', body.orderId).single();
+        if (!body.orderId && !body.listingId) return res.status(400).json({ error: 'Order ID or listing ID is required.' });
+        let orderQuery = supabase.from('orders').select('id, buyer_id, listing_id, total, status, payout_status, listings(seller_id)').eq('buyer_id', user.id);
+        orderQuery = body.orderId ? orderQuery.eq('id', body.orderId) : orderQuery.eq('listing_id', body.listingId).order('created_at', { ascending: false }).limit(1);
+        const { data: order, error: orderError } = await orderQuery.maybeSingle();
         if (orderError || !order || order.buyer_id !== user.id) return res.status(404).json({ error: 'Order not found.' });
-        if (!['dispatched', 'delivered'].includes(order.status)) return res.status(400).json({ error: 'This order must be dispatched before it can be confirmed.' });
-        if (order.payout_status === 'released') return res.status(200).json({ released: true });
+        if (!['paid', 'dispatched', 'delivered', 'completed'].includes(order.status)) return res.status(400).json({ error: 'This order has not been paid.' });
+        const { confirmOrderAccepted } = createListingStatusUpdater(supabase);
+        if (order.payout_status === 'released') {
+            await confirmOrderAccepted(order.listing_id);
+            return res.status(200).json({ released: true });
+        }
         const { error: updateError } = await supabase.from('orders').update({ status: 'completed', buyer_confirmed_at: new Date().toISOString(), payout_status: 'released' }).eq('id', order.id).eq('payout_status', 'held');
         if (updateError) throw updateError;
+        await confirmOrderAccepted(order.listing_id);
         return res.status(200).json({ released: true });
     } catch (error) {
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to release the seller payout.' });

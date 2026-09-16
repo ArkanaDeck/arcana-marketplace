@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
+import { createListingStatusUpdater } from '../server/lib/listing-status.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -142,8 +143,10 @@ export default async function handler(req, res) {
                     .eq('status', 'pending_payment');
                 if (orderError) throw orderError;
 
-                const { data: paidOrders, error: paidOrdersError } = await supabase.from('orders').select('id, total').in('id', orderIds).eq('status', 'paid');
+                const { data: paidOrders, error: paidOrdersError } = await supabase.from('orders').select('id, listing_id, total').in('id', orderIds).eq('status', 'paid');
                 if (paidOrdersError) throw paidOrdersError;
+                const { markAsSold } = createListingStatusUpdater(supabase);
+                await Promise.all((paidOrders || []).map((order) => markAsSold(order.listing_id)));
                 const { error: paymentError } = await supabase.from('payments').upsert((paidOrders || []).map((order) => ({
                     order_id: order.id, provider: 'stripe', provider_payment_id: `${session.payment_intent || session.id}:${order.id}`,
                     status: 'paid', amount: Number(order.total),

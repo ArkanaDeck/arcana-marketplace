@@ -50,6 +50,7 @@ create table if not exists public.listings (
   image text,
   images text[] not null default '{}',
   is_active boolean not null default true,
+  status text not null default 'active' check (status in ('active', 'sold', 'completed')),
   is_free_delivery boolean not null default false,
   condition text not null default 'good' check (condition in ('new', 'like new', 'good', 'fair', 'poor')),
   created_at timestamptz not null default now()
@@ -58,6 +59,9 @@ alter table public.listings add column if not exists description text;
 alter table public.listings add column if not exists listing_type text not null default 'sale' check (listing_type in ('sale', 'swap', 'free'));
 alter table public.listings add column if not exists images text[] not null default '{}';
 alter table public.listings add column if not exists is_active boolean not null default true;
+alter table public.listings add column if not exists status text not null default 'active';
+alter table public.listings drop constraint if exists listings_status_check;
+alter table public.listings add constraint listings_status_check check (status in ('active', 'sold', 'completed'));
 alter table public.listings add column if not exists is_free_delivery boolean not null default false;
 alter table public.listings add column if not exists review_status text not null default 'approved' check (review_status in ('approved', 'pending_review', 'rejected'));
 alter table public.listings add column if not exists external_store_url text;
