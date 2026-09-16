@@ -39,3 +39,26 @@ export async function getSupabaseSession() {
     if (error) throw error;
     return session;
 }
+
+export async function uploadDeckImage(file: File): Promise<string | null> {
+    try {
+        if (!supabase) throw new Error('Supabase is not configured.');
+        if (!(file instanceof File) || !file.type.startsWith('image/')) {
+            throw new Error('Choose a valid image file.');
+        }
+
+        const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const filePath = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage
+            .from('deck-images')
+            .upload(filePath, file, { contentType: file.type, upsert: false });
+
+        if (error) throw error;
+
+        const { data } = supabase.storage.from('deck-images').getPublicUrl(filePath);
+        return data.publicUrl || null;
+    } catch (error) {
+        console.error('Unable to upload deck image.', error);
+        return null;
+    }
+}

@@ -48,7 +48,7 @@ export async function loadPublishedListings() {
     return prioritized.map(mapListing);
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status'> & { imageFiles?: File[]; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 
 // Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
@@ -221,12 +221,15 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
     if ((input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
 
     const imagePaths: string[] = [];
-    const imageUrls: string[] = [];
+    const imageUrls: string[] = input.uploadedImageUrl ? [input.uploadedImageUrl] : [];
     const imageBase64: string[] = [];
     try {
-        for (const file of (input.imageFiles || []).slice(0, 3)) {
-            if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+        const imageFiles = (input.imageFiles || []).slice(0, 3);
+        for (const file of imageFiles) {
             imageBase64.push(await fileToDataUrl(file));
+        }
+        for (const file of imageFiles.slice(input.uploadedImageUrl ? 1 : 0)) {
+            if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
             const compressed = await compressImageFile(file);
             const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
             const { error: uploadError } = await supabase.storage.from('listing-images').upload(path, compressed, { contentType: 'image/jpeg', upsert: false });

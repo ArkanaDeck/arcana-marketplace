@@ -10,7 +10,7 @@ import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
-import { getSupabaseSession, supabase } from './lib/supabase';
+import { getSupabaseSession, supabase, uploadDeckImage } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
 import { openDashboardChat } from './lib/dashboard-chat';
@@ -426,7 +426,9 @@ export const MainLayout: React.FC = () => {
             // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
             // the server there computes the same stacked fee and creates the listing hidden until paid.
             if (!isEditing) {
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
+                const uploadedImageUrl = deckImageFiles[0] ? await uploadDeckImage(deckImageFiles[0]) : null;
+                if (deckImageFiles[0] && !uploadedImageUrl) throw new Error('Unable to upload the deck image. Please try again.');
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, uploadedImageUrl: uploadedImageUrl || undefined, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;
