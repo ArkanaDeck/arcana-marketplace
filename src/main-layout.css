@@ -105,7 +105,7 @@ label.field-error .field-error-text {
 .trust-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin: 0 0 18px;
 }
 
@@ -116,10 +116,10 @@ label.field-error .field-error-text {
     color: #114E60;
     border: 1px solid rgba(17, 78, 96, 0.12);
     border-radius: 999px;
-    font-size: 0.72rem;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    padding: 6px 10px;
+    padding: 5px 8px;
 }
 
 .topbar {
@@ -1183,7 +1183,8 @@ label.field-error .field-error-text {
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 16px;
+    column-gap: 8px;
+    row-gap: 4px;
     width: 100%;
 }
 
@@ -1196,6 +1197,15 @@ label.field-error .field-error-text {
 }
 
 @media (min-width: 768px) {
+    .trust-badges {
+        gap: 8px;
+    }
+
+    .trust-badges span {
+        font-size: 0.72rem;
+        padding: 6px 10px;
+    }
+
     .site-footer-inner {
         flex-direction: row;
         align-items: center;
@@ -1205,6 +1215,11 @@ label.field-error .field-error-text {
     .footer-links {
         justify-content: flex-end;
         width: auto;
+        gap: 16px;
+    }
+
+    .footer-link-btn {
+        font-size: 0.8rem;
     }
 }
 
@@ -1212,7 +1227,7 @@ label.field-error .field-error-text {
     border: none;
     background: transparent;
     color: #325288;
-    font-size: 0.8rem;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     padding: 4px 0;

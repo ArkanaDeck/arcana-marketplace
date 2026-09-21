@@ -1311,9 +1311,9 @@ export const MainLayout: React.FC = () => {
                 </main>
 
                 <footer className="site-footer">
-                    <div className="site-footer-inner flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="site-footer-inner">
                         <p className="footer-brand whitespace-nowrap">Arkana</p>
-                        <div className="footer-links flex flex-wrap gap-4" aria-label="Legal information">
+                        <div className="footer-links" aria-label="Legal information">
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
                             <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('refunds')}>Refunds</button>
