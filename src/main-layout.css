@@ -4373,7 +4373,7 @@ label.field-error .field-error-text {
     margin: 16px 0;
 }
 
-.settings-options-list {
+.ios-settings-group {
     display: grid;
     background: #fff;
     border: 1px solid rgba(60, 60, 67, 0.14);
@@ -4389,13 +4389,13 @@ label.field-error .field-error-text {
     width: 100%;
     box-sizing: border-box;
     border: none;
-    border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+    border-bottom: 1px solid #f1f5f9;
     background: #fff;
     color: #114E60;
     font-size: 15px;
     font-weight: 600;
     text-align: left;
-    padding: 14px 16px;
+    padding: 15px 16px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
@@ -4422,6 +4422,81 @@ label.field-error .field-error-text {
 
 .settings-action-row.is-logout::after {
     content: none;
+}
+
+/* --- Native account / sign-in card layout --- */
+
+/* .main-viewport already offsets the notch and header, so this only adds breathing room. */
+.app-container .account-auth-container {
+    display: block;
+    place-items: initial;
+    min-height: 0;
+    padding: 20px 0 0;
+}
+
+.app-container .account-panel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px 18px;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(17, 78, 96, 0.08);
+}
+
+.app-container .account-panel h2 {
+    font-size: 1.55rem;
+    letter-spacing: -0.02em;
+}
+
+.app-container .account-intro {
+    margin: 8px 0 4px;
+    font-size: 15px;
+}
+
+.app-container .account-tabs {
+    margin: 26px 0 22px;
+}
+
+.app-container .account-tabs button {
+    font-size: 15px;
+    padding: 12px 10px;
+}
+
+.app-container .account-form {
+    gap: 20px;
+}
+
+.app-container .account-form label {
+    gap: 9px;
+    font-size: 0.86rem;
+}
+
+/* 16px keeps iOS from zooming the viewport on focus. */
+.app-container .account-form input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 0;
+    padding: 14px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+.app-container .account-form .primary-btn {
+    width: 100%;
+    min-height: 52px;
+    border: none;
+    border-radius: 12px;
+    background: #114E60;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.app-container .account-form .primary-btn:disabled {
+    opacity: 0.6;
 }
 
 .danger-zone-section {

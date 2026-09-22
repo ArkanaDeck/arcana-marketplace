@@ -986,14 +986,14 @@ export const MainLayout: React.FC = () => {
                     )}
 
                     {activeView === 'Account' && (
-                        <section className="account-page">
+                        <section className={`account-page${isNativeApp ? ' account-auth-container' : ''}`}>
                             <div className="account-panel">
                                 <p className="account-kicker">Arkana account</p>
                                 <h2>{isAuthenticated ? 'Your account' : accountMode === 'signin' ? 'Welcome back' : 'Create your seller account'}</h2>
                                 <p className="account-intro">{isAuthenticated ? 'You can now manage listings and fulfil paid orders.' : 'Sign in to sell, manage listings, and receive order updates.'}</p>
                                 {isNativeApp && (
                                     <div className="account-profile-view">
-                                        <div className="settings-options-list">
+                                        <div className="ios-settings-group">
                                             {isAuthenticated && (
                                                 <button type="button" className="settings-action-row" onClick={() => profileFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Edit Profile Details</button>
                                             )}
@@ -1061,7 +1061,7 @@ export const MainLayout: React.FC = () => {
                                             </summary>
                                             <div style={{ display: 'grid', gap: '14px', padding: '20px' }}>
                                                 <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Website URL
-                                                    <input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="text" name="marketplaceProfileEndpoint" inputMode="url" autoComplete="new-password" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={websiteUrlInput} onChange={(event) => setWebsiteUrlInput(event.target.value)} placeholder="https://your-store.example.com" />
+                                                    <input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="text" name="marketplaceProfileEndpoint" inputMode="url" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={websiteUrlInput} onChange={(event) => setWebsiteUrlInput(event.target.value)} placeholder="https://your-store.example.com" />
                                                 </label>
                                                 <button type="button" onClick={handleStartWebsiteLink} disabled={isStartingWebsiteLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingWebsiteLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingWebsiteLink ? 'Opening checkout...' : websiteLinkStatus.isActive ? 'Renew for another 30 days - £2.00' : 'Link your website - £2.00 for 30 days'}</button>
                                             </div>
@@ -1079,7 +1079,7 @@ export const MainLayout: React.FC = () => {
                                             ) : (
                                                 <form id="direct-payment-link-form" onSubmit={(event) => { event.preventDefault(); void handleSaveDirectPaymentLink(); }} style={{ display: 'grid', gap: '14px', padding: '20px' }}>
                                                     <label style={{ display: 'grid', gap: '6px', color: '#581c87', fontSize: '0.82rem', fontWeight: 700 }}>Your checkout link
-                                                        <input id="direct-payment-link-input" style={{ width: '100%', border: '1px solid rgba(88, 28, 135, 0.2)', borderRadius: '8px', background: '#ffffff', color: '#581c87', font: 'inherit', padding: '10px 12px' }} type="text" name="marketplacePayoutEndpoint" inputMode="url" autoComplete="new-password" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
+                                                        <input id="direct-payment-link-input" style={{ width: '100%', border: '1px solid rgba(88, 28, 135, 0.2)', borderRadius: '8px', background: '#ffffff', color: '#581c87', font: 'inherit', padding: '10px 12px' }} type="text" name="marketplacePayoutEndpoint" inputMode="url" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={directPaymentLinkInput} onChange={(event) => setDirectPaymentLinkInput(event.target.value)} placeholder="https://buy.stripe.com/... or https://paypal.me/yourname" />
                                                     </label>
                                                     <button type="submit" id="save-direct-payment-link-btn" disabled={isSavingDirectPaymentLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#581c87', color: '#ffffff', cursor: isSavingDirectPaymentLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingDirectPaymentLink ? 'Saving...' : 'Save payment link'}</button>
                                                 </form>
@@ -1401,7 +1401,7 @@ export const MainLayout: React.FC = () => {
                                             type="text"
                                             name="marketplaceExternalUrl"
                                             inputMode="url"
-                                            autoComplete="new-password"
+                                            autoComplete="off"
                                             autoCorrect="off"
                                             autoCapitalize="none"
                                             spellCheck={false}
