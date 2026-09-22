@@ -867,6 +867,15 @@ export const MainLayout: React.FC = () => {
         setActiveView('Listings');
     };
 
+    const handleRequireSignIn = () => {
+        setViewingListing(null);
+        setAccountMode('signin');
+        setAccountStatus(SIGN_IN_REQUIRED_MESSAGE);
+        setIsEmailSent(false);
+        setIsResetView(false);
+        setActiveView('Account');
+    };
+
     return (
         <div className={`container${isNativeApp ? ' app-container' : ''}`}>
             <div className="frame">
@@ -1240,14 +1249,14 @@ export const MainLayout: React.FC = () => {
                                 <>
                                     {filteredListings.some((item) => item.listingType !== 'free') && (
                                         <div className="listings-live-grid listings-live-grid--paid">
-                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} />)}
+                                            {filteredListings.filter((item) => item.listingType !== 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} onRequireSignIn={handleRequireSignIn} />)}
                                         </div>
                                     )}
                                     {filteredListings.some((item) => item.listingType === 'free') && (
                                         <>
                                             <h3 className="listings-tier-heading">Free to a good home</h3>
                                             <div className="listings-live-grid listings-live-grid--free">
-                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} />)}
+                                                {filteredListings.filter((item) => item.listingType === 'free').map((item) => <ProductListingCard key={item.id} item={item} inBasket={basket.some((basketItem) => basketItem.id === item.id)} currentUserId={session?.user.id ?? null} canConfirmOrderAccepted={buyerSoldListingIds.has(item.id)} directPaymentLink={sellerDirectPaymentLinks[item.sellerId]} onView={setViewingListing} onAddToBasket={handleAddToBasket} onEdit={handleStartEdit} onDelete={handleDelete} onConfirmOrderAccepted={handleConfirmOrderAccepted} onFlashMessage={setFlashMessage} onRequireSignIn={handleRequireSignIn} />)}
                                             </div>
                                         </>
                                     )}
@@ -1287,7 +1296,7 @@ export const MainLayout: React.FC = () => {
                                 )}
                                 {viewingListing.status === 'active' && <div className="product-footer">
                                     {viewingListing.listingType === 'sale' ? (
-                                        <PayOrMessageButton listingId={viewingListing.id} sellerId={viewingListing.sellerId} listingTitle={viewingListing.name} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} />
+                                        <PayOrMessageButton listingId={viewingListing.id} sellerId={viewingListing.sellerId} listingTitle={viewingListing.name} directPaymentLink={sellerDirectPaymentLinks[viewingListing.sellerId]} onRequireSignIn={handleRequireSignIn} />
                                     ) : (
                                         <button
                                             className="buy-btn"
@@ -1819,19 +1828,27 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
     document.body,
 );
 
+// Thrown by openDashboardChat when there is no session; used to route the user to sign in.
+const SIGN_IN_REQUIRED_MESSAGE = 'Sign in to message this seller.';
+
 // Dynamic payment action. The seller profile owns the database-backed chat routine.
-const PayOrMessageButton: React.FC<{ listingId: string; sellerId: string; listingTitle: string; directPaymentLink: string | null | undefined }> = ({ listingId, sellerId, listingTitle, directPaymentLink }) => {
+const PayOrMessageButton: React.FC<{ listingId: string; sellerId: string; listingTitle: string; directPaymentLink: string | null | undefined; onRequireSignIn: () => void }> = ({ listingId, sellerId, listingTitle, directPaymentLink, onRequireSignIn }) => {
     return <DirectPaymentAction listingTitle={listingTitle} directPaymentLink={directPaymentLink} onChat={async (initialMessage) => {
         try {
             const chatId = await openDashboardChat(listingId, sellerId, listingTitle, initialMessage);
             window.location.href = `/app/messages?chatId=${encodeURIComponent(chatId)}`;
         } catch (error) {
-            window.alert(error instanceof Error ? error.message : 'Unable to open chat.');
+            const message = error instanceof Error ? error.message : 'Unable to open chat.';
+            if (message === SIGN_IN_REQUIRED_MESSAGE) {
+                if (window.confirm(message)) onRequireSignIn();
+                return;
+            }
+            window.alert(message);
         }
     }} />;
 };
 
-const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; canConfirmOrderAccepted: boolean; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onConfirmOrderAccepted: (id: string) => Promise<void>; onFlashMessage: (message: string) => void }> = ({ item, inBasket, currentUserId, canConfirmOrderAccepted, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onConfirmOrderAccepted, onFlashMessage }) => {
+const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; currentUserId: string | null; canConfirmOrderAccepted: boolean; directPaymentLink?: string | null; onView: (item: DeckListing) => void; onAddToBasket: (item: DeckListing) => void; onEdit: (item: DeckListing) => void; onDelete: (id: string) => void; onConfirmOrderAccepted: (id: string) => Promise<void>; onFlashMessage: (message: string) => void; onRequireSignIn: () => void }> = ({ item, inBasket, currentUserId, canConfirmOrderAccepted, directPaymentLink, onView, onAddToBasket, onEdit, onDelete, onConfirmOrderAccepted, onFlashMessage, onRequireSignIn }) => {
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
     const [isMagnified, setIsMagnified] = useState(false);
     const images = item.images;
@@ -1864,7 +1881,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
             )}
             {item.status === 'active' && <div className="product-footer">
                 {item.listingType === 'sale'
-                    ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} />
+                    ? <PayOrMessageButton listingId={item.id} sellerId={item.sellerId} listingTitle={item.name} directPaymentLink={directPaymentLink} onRequireSignIn={onRequireSignIn} />
                     : <button className="buy-btn btn-basket" onClick={(event) => { event.stopPropagation(); onFlashMessage(item.listingType === 'swap' ? `Contact the seller to arrange a swap for ${item.name}.` : `Contact the seller to arrange collection for ${item.name}.`); }}>{item.listingType === 'swap' ? 'Arrange swap' : 'Request deck'}</button>}
                 {isOwner && (
                     <div className="flex gap-2 w-full border-t border-gray-100 mt-3 pt-3">
