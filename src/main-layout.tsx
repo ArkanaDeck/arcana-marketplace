@@ -2294,7 +2294,7 @@ const HELP_FAQ_ITEMS = [
     },
     {
         question: "What is the 'Pay Direct to Seller' button?",
-        answer: 'Sellers with a premium notice profile can attach a direct checkout link (like a custom Stripe or PayPal link) to their listing card. This allows buyers to purchase the deck directly from the owner securely off-platform. Arkana takes zero commission on these transactions.',
+        answer: 'Anyone can attach a direct checkout link (like a custom Stripe or PayPal link) to their listing card. This allows buyers to purchase the deck directly from the owner securely off-platform. Arkana takes zero commission on these transactions.',
     },
     {
         question: 'Can I link to my own website storefront?',
