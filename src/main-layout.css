@@ -4270,55 +4270,154 @@ label.field-error .field-error-text {
     font-weight: 700;
 }
 
-/* --- Native account options (replaces the web drawer) --- */
+/* --- Native account settings + Apple-mandated deletion --- */
 
-.account-quick-links {
+.account-profile-view {
     display: grid;
-    gap: 1px;
+    gap: 22px;
     margin: 16px 0;
+}
+
+.settings-options-list {
+    display: grid;
+    background: #fff;
+    border: 1px solid rgba(60, 60, 67, 0.14);
     border-radius: 12px;
-    background: rgba(60, 60, 67, 0.12);
     overflow: hidden;
 }
 
-.account-quick-links button {
+.settings-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
     border: none;
+    border-bottom: 1px solid rgba(60, 60, 67, 0.12);
     background: #fff;
     color: #114E60;
     font-size: 15px;
     font-weight: 600;
     text-align: left;
-    padding: 13px 16px;
+    padding: 14px 16px;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.account-quick-links button.is-destructive {
+.settings-action-row:last-child {
+    border-bottom: none;
+}
+
+.settings-action-row:active {
+    background: rgba(118, 118, 128, 0.1);
+}
+
+.settings-action-row::after {
+    content: '›';
+    color: #C7C7CC;
+    font-size: 19px;
+    line-height: 1;
+}
+
+.settings-action-row.is-logout {
     color: #d7263d;
+    justify-content: center;
 }
 
-.account-delete-confirm {
+.settings-action-row.is-logout::after {
+    content: none;
+}
+
+.danger-zone-section {
     display: grid;
     gap: 10px;
-    margin: 16px 0;
     padding: 16px;
-    border: 1px solid rgba(215, 38, 61, 0.3);
+    border: 1px dashed rgba(215, 38, 61, 0.55);
     border-radius: 12px;
-    background: #fff;
+    background: rgba(215, 38, 61, 0.06);
 }
 
-.account-delete-confirm p {
+.danger-zone-title {
     margin: 0;
-    color: #325288;
-    font-size: 14px;
+    color: #b3122a;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.danger-zone-warning {
+    margin: 0;
+    color: #6b2130;
+    font-size: 13px;
     line-height: 1.5;
 }
 
-.account-delete-confirm-actions {
+.account-delete-submit-btn {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    border-radius: 10px;
+    background: #d7263d;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 14px 16px;
+    cursor: pointer;
+}
+
+.account-delete-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* --- Destructive confirmation dialog (iOS-style alert) --- */
+
+.confirm-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+
+.confirm-dialog {
+    width: min(320px, 100%);
+    box-sizing: border-box;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.26);
+    padding: 22px 20px 16px;
+    text-align: center;
+}
+
+.confirm-dialog-title {
+    margin: 0 0 8px;
+    color: #114E60;
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.confirm-dialog-text {
+    margin: 0 0 18px;
+    color: #54717b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.confirm-dialog-actions {
     display: flex;
     gap: 10px;
 }
 
-.account-delete-confirm-actions button {
+.confirm-dialog-btn {
     flex: 1 1 0;
     border: none;
     border-radius: 10px;
@@ -4328,12 +4427,17 @@ label.field-error .field-error-text {
     cursor: pointer;
 }
 
-.account-delete-confirm-actions .is-destructive {
-    background: #d7263d;
-    color: #fff;
+.confirm-dialog-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
 }
 
-.account-delete-confirm-actions .is-cancel {
+.confirm-dialog-btn.is-cancel {
     background: rgba(118, 118, 128, 0.12);
     color: #114E60;
+}
+
+.confirm-dialog-btn.is-destructive {
+    background: #d7263d;
+    color: #fff;
 }

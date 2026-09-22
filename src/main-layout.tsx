@@ -53,9 +53,10 @@ export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const nativeSearchRef = useRef<HTMLInputElement>(null);
+    const profileFormRef = useRef<HTMLFormElement>(null);
     const hasSecureBackend = runtimeConfig.supabaseEnabled;
     const isSecureCheckoutEnabled = runtimeConfig.isSecureMode;
     const productionChecklist = getProductionChecklist({
@@ -677,7 +678,6 @@ export const MainLayout: React.FC = () => {
         try {
             await deleteOwnAccount();
             setIsAuthenticated(false);
-            setIsDeleteConfirmOpen(false);
             setAccountStatus('Your account has been permanently deleted.');
             window.history.pushState({}, '', '/');
             setActiveView('Home');
@@ -685,6 +685,7 @@ export const MainLayout: React.FC = () => {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to delete your account.');
         } finally {
             setIsDeletingAccount(false);
+            setIsDeleteDialogOpen(false);
         }
     };
 
@@ -948,22 +949,51 @@ export const MainLayout: React.FC = () => {
                                 <h2>{isAuthenticated ? 'Your account' : accountMode === 'signin' ? 'Welcome back' : 'Create your seller account'}</h2>
                                 <p className="account-intro">{isAuthenticated ? 'You can now manage listings and fulfil paid orders.' : 'Sign in to sell, manage listings, and receive order updates.'}</p>
                                 {isNativeApp && (
-                                    <div className="account-quick-links">
-                                        <button type="button" onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
-                                        <button type="button" onClick={() => setActiveLegalPage('terms')}>Terms &amp; Conditions</button>
-                                        <button type="button" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
-                                        {isAuthenticated && !isDeleteConfirmOpen && (
-                                            <button type="button" className="is-destructive" onClick={() => setIsDeleteConfirmOpen(true)}>Delete Account</button>
-                                        )}
-                                    </div>
-                                )}
-                                {isNativeApp && isAuthenticated && isDeleteConfirmOpen && (
-                                    <div className="account-delete-confirm" role="alertdialog" aria-label="Confirm account deletion">
-                                        <p>This permanently deletes your Arkana account and listings. This cannot be undone.</p>
-                                        <div className="account-delete-confirm-actions">
-                                            <button type="button" className="is-cancel" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeletingAccount}>Cancel</button>
-                                            <button type="button" className="is-destructive" onClick={() => void handleDeleteAccount()} disabled={isDeletingAccount}>{isDeletingAccount ? 'Deleting...' : 'Delete Account'}</button>
+                                    <div className="account-profile-view">
+                                        <div className="settings-options-list">
+                                            {isAuthenticated && (
+                                                <button type="button" className="settings-action-row" onClick={() => profileFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Edit Profile Details</button>
+                                            )}
+                                            <button type="button" className="settings-action-row" onClick={() => setActiveView('Help')}>Help &amp; Support FAQ</button>
+                                            <button type="button" className="settings-action-row" onClick={() => setActiveLegalPage('terms')}>Terms &amp; Conditions</button>
+                                            <button type="button" className="settings-action-row" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                                            {isAuthenticated && (
+                                                <button type="button" className="settings-action-row is-logout" onClick={() => void handleSignOut()}>Log Out</button>
+                                            )}
                                         </div>
+
+                                        {isAuthenticated && (
+                                            <section className="danger-zone-section" aria-labelledby="danger-zone-title">
+                                                <h3 className="danger-zone-title" id="danger-zone-title">Danger Zone</h3>
+                                                <p className="danger-zone-warning">
+                                                    Deleting your account is permanent and cannot be undone. Every card marketplace listing you have published, along with your seller profile and message history, will be wiped out immediately.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    className="account-delete-submit-btn"
+                                                    disabled={isDeletingAccount}
+                                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                                >
+                                                    {isDeletingAccount ? 'Deleting...' : 'Delete My Account Permanently'}
+                                                </button>
+
+                                                {isDeleteDialogOpen && createPortal(
+                                                    <div className="confirm-dialog-backdrop" onClick={() => { if (!isDeletingAccount) setIsDeleteDialogOpen(false); }}>
+                                                        <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-text" onClick={(event) => event.stopPropagation()}>
+                                                            <h2 className="confirm-dialog-title" id="delete-dialog-title">Delete your account?</h2>
+                                                            <p className="confirm-dialog-text" id="delete-dialog-text">
+                                                                Are you absolutely sure you want to permanently delete your Arkana account? All of your listings and profile data will be erased. This action cannot be undone.
+                                                            </p>
+                                                            <div className="confirm-dialog-actions">
+                                                                <button type="button" className="confirm-dialog-btn is-cancel" disabled={isDeletingAccount} onClick={() => setIsDeleteDialogOpen(false)}>Cancel</button>
+                                                                <button type="button" className="confirm-dialog-btn is-destructive" disabled={isDeletingAccount} onClick={() => void handleDeleteAccount()}>{isDeletingAccount ? 'Deleting...' : 'Delete'}</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>,
+                                                    document.body,
+                                                )}
+                                            </section>
+                                        )}
                                     </div>
                                 )}
                                 {isAuthenticated ? (
@@ -974,7 +1004,7 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" className="primary-btn" onClick={handleStartCreate}>Create a listing</button>
                                             <button type="button" className="account-text-btn" onClick={handleSignOut}>Sign out</button>
                                         </div>
-                                        <form onSubmit={handleSaveProfile} style={{ display: 'grid', gap: '14px', padding: '20px', border: '1px solid rgba(17, 78, 96, 0.14)', borderRadius: '12px', background: '#ffffff' }}>
+                                        <form ref={profileFormRef} onSubmit={handleSaveProfile} style={{ display: 'grid', gap: '14px', padding: '20px', border: '1px solid rgba(17, 78, 96, 0.14)', borderRadius: '12px', background: '#ffffff' }}>
                                             <div><h3 style={{ margin: 0, color: '#114e60', fontSize: '1rem' }}>Public profile</h3><p style={{ margin: '4px 0 0', color: '#54717b', fontSize: '0.8rem' }}>These details appear on your seller profile.</p></div>
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Display name<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="Your display name" /></label>
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Bio<textarea style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px', resize: 'vertical' }} value={profileBio} onChange={(event) => setProfileBio(event.target.value)} maxLength={500} rows={3} placeholder="Tell buyers a little about your collection." /></label>
