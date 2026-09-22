@@ -86,3 +86,13 @@ export async function signOut() {
         throw new Error(error.message || 'Unable to sign out.');
     }
 }
+
+// Apple requires in-app account deletion. The RPC deletes only the caller's own auth row.
+export async function deleteOwnAccount() {
+    assertSupabaseConfigured();
+    const { error } = await supabase!.rpc('delete_own_account');
+    if (error) {
+        throw new Error(error.message || 'Unable to delete your account.');
+    }
+    await supabase!.auth.signOut();
+}

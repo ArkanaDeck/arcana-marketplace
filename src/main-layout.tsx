@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
@@ -9,7 +10,7 @@ import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct
 import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
-import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail } from './lib/auth';
+import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail, deleteOwnAccount } from './lib/auth';
 import { getSupabaseSession, supabase, uploadDeckImage } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
@@ -45,10 +46,16 @@ function isValidExternalUrl(value: string): boolean {
     }
 }
 
+// True only inside the Capacitor iOS/Android wrapper, never in the browser build.
+const isNativeApp = Capacitor.isNativePlatform();
+
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const nativeSearchRef = useRef<HTMLInputElement>(null);
     const hasSecureBackend = runtimeConfig.supabaseEnabled;
     const isSecureCheckoutEnabled = runtimeConfig.isSecureMode;
     const productionChecklist = getProductionChecklist({
@@ -665,6 +672,22 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        setIsDeletingAccount(true);
+        try {
+            await deleteOwnAccount();
+            setIsAuthenticated(false);
+            setIsDeleteConfirmOpen(false);
+            setAccountStatus('Your account has been permanently deleted.');
+            window.history.pushState({}, '', '/');
+            setActiveView('Home');
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Unable to delete your account.');
+        } finally {
+            setIsDeletingAccount(false);
+        }
+    };
+
     const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!supabase) return;
@@ -813,9 +836,9 @@ export const MainLayout: React.FC = () => {
     }
 
     return (
-        <div className="container">
+        <div className={`container${isNativeApp ? ' app-container' : ''}`}>
             <div className="frame">
-                {runtimeConfig.warnings.length > 0 && (
+                {!isNativeApp && runtimeConfig.warnings.length > 0 && (
                     <div className="runtime-warning-banner" role="alert">
                         <span className="runtime-warning-title">Production blockers:</span>
                         {runtimeConfig.warnings.map((warning) => (
@@ -830,59 +853,80 @@ export const MainLayout: React.FC = () => {
                     </div>
                 )}
 
-                <div className="trust-badges" aria-label="Trust markers">
-                    <span>🟢 Free Listing</span>
-                    <span>🔮 Free AI Authentication Check</span>
-                    <span>💬 Direct Contact with Seller</span>
-                </div>
-
-                <header className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 280px', minWidth: 0 }}>
-                        <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
-                            <div className="brand-mark">ARK</div>
-                            <div>
-                                <strong>Arkana</strong>
-                                <span>Zero-commission marketplace</span>
-                            </div>
-                        </button>
-                        <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
-                    </div>
-                    {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--topbar" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
-                    <button
-                        type="button"
-                        className="mobile-menu-toggle"
-                        aria-label="Toggle navigation menu"
-                        aria-expanded={isMobileMenuOpen}
-                        onClick={() => setIsMobileMenuOpen((current) => !current)}
-                    >
-                        <span className="mobile-menu-toggle__bar"></span>
-                        <span className="mobile-menu-toggle__bar"></span>
-                        <span className="mobile-menu-toggle__bar"></span>
-                    </button>
-                    <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
-                        <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
-                            {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
-                        </nav>
-                        <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            {isAuthenticated ? (
-                                <>
-                                    <a className="auth-link-btn" href={`/app/profile/${encodeURIComponent(session?.user.id || '')}`}>Your Profile</a>
-                                    <button type="button" className="auth-link-btn" onClick={() => void handleSignOut()}>Sign Out</button>
-                                </>
-                            ) : (
-                                <>
-                                    <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
-                                    <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
-                                </>
-                            )}
-                            <button type="button" className="primary-btn" onClick={handleStartCreate}>Create Listing</button>
-                            <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                {isNativeApp && (
+                    <header className="native-header">
+                        <div className="native-header-bar">
+                            <button type="button" className="native-header-brand" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
+                                <span className="native-header-mark">ARK</span>
+                                <span className="native-header-title">Arkana</span>
+                            </button>
+                            <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>
                         </div>
-                    </div>
-                </header>
+                        {activeView === 'Listings' && (
+                            <div className="native-header-search">
+                                <input ref={nativeSearchRef} type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search decks..." aria-label="Search decks" />
+                            </div>
+                        )}
+                    </header>
+                )}
 
-                <main className="page-content">
+                {!isNativeApp && (
+                    <>
+                        <div className="trust-badges" aria-label="Trust markers">
+                            <span>🟢 Free Listing</span>
+                            <span>🔮 Free AI Authentication Check</span>
+                            <span>💬 Direct Contact with Seller</span>
+                        </div>
+
+                        <header className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: '100%', boxSizing: 'border-box', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 280px', minWidth: 0 }}>
+                                <button className="brand" type="button" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
+                                    <div className="brand-mark">ARK</div>
+                                    <div>
+                                        <strong>Arkana</strong>
+                                        <span>Zero-commission marketplace</span>
+                                    </div>
+                                </button>
+                                <input className="header-search" type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} onFocus={() => setActiveView('Listings')} placeholder="Search decks..." aria-label="Search decks" style={{ flex: '1 1 160px' }} />
+                            </div>
+                            {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--topbar" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
+                            <button
+                                type="button"
+                                className="mobile-menu-toggle"
+                                aria-label="Toggle navigation menu"
+                                aria-expanded={isMobileMenuOpen}
+                                onClick={() => setIsMobileMenuOpen((current) => !current)}
+                            >
+                                <span className="mobile-menu-toggle__bar"></span>
+                                <span className="mobile-menu-toggle__bar"></span>
+                                <span className="mobile-menu-toggle__bar"></span>
+                            </button>
+                            <div className={`mobile-nav-panel${isMobileMenuOpen ? ' is-open' : ''}`}>
+                                <nav className="nav-links" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button className={`nav-btn ${activeView === 'Listings' ? 'active' : ''}`} onClick={() => setActiveView('Listings')}>Marketplace</button>
+                                    {ESCROW_LEGACY_ENABLED && <button type="button" className="basket-btn basket-btn--nav" onClick={() => setActiveView('Checkout')}>Basket <span>{basket.length}</span></button>}
+                                </nav>
+                                <div className="auth-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                    {isAuthenticated ? (
+                                        <>
+                                            <a className="auth-link-btn" href={`/app/profile/${encodeURIComponent(session?.user.id || '')}`}>Your Profile</a>
+                                            <button type="button" className="auth-link-btn" onClick={() => void handleSignOut()}>Sign Out</button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signin'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Sign in</button>
+                                            <button type="button" className="auth-link-btn" onClick={() => { setAccountMode('signup'); setAccountStatus(null); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }}>Register</button>
+                                        </>
+                                    )}
+                                    <button type="button" className="primary-btn" onClick={handleStartCreate}>Create Listing</button>
+                                    <button type="button" className={`nav-btn ${activeView === 'Help' ? 'active' : ''}`} onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                                </div>
+                            </div>
+                        </header>
+                    </>
+                )}
+
+                <main className={`page-content${isNativeApp ? ' main-viewport' : ''}${isNativeApp && activeView === 'Listings' ? ' main-viewport--search' : ''}`}>
                     {/* 1. HOME VIEW */}
                     {activeView === 'Home' && (
                         <section className="hero-grid">
@@ -903,6 +947,25 @@ export const MainLayout: React.FC = () => {
                                 <p className="account-kicker">Arkana account</p>
                                 <h2>{isAuthenticated ? 'Your account' : accountMode === 'signin' ? 'Welcome back' : 'Create your seller account'}</h2>
                                 <p className="account-intro">{isAuthenticated ? 'You can now manage listings and fulfil paid orders.' : 'Sign in to sell, manage listings, and receive order updates.'}</p>
+                                {isNativeApp && (
+                                    <div className="account-quick-links">
+                                        <button type="button" onClick={() => setActiveView('Help')}>Help &amp; FAQ</button>
+                                        <button type="button" onClick={() => setActiveLegalPage('terms')}>Terms &amp; Conditions</button>
+                                        <button type="button" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                                        {isAuthenticated && !isDeleteConfirmOpen && (
+                                            <button type="button" className="is-destructive" onClick={() => setIsDeleteConfirmOpen(true)}>Delete Account</button>
+                                        )}
+                                    </div>
+                                )}
+                                {isNativeApp && isAuthenticated && isDeleteConfirmOpen && (
+                                    <div className="account-delete-confirm" role="alertdialog" aria-label="Confirm account deletion">
+                                        <p>This permanently deletes your Arkana account and listings. This cannot be undone.</p>
+                                        <div className="account-delete-confirm-actions">
+                                            <button type="button" className="is-cancel" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeletingAccount}>Cancel</button>
+                                            <button type="button" className="is-destructive" onClick={() => void handleDeleteAccount()} disabled={isDeletingAccount}>{isDeletingAccount ? 'Deleting...' : 'Delete Account'}</button>
+                                        </div>
+                                    </div>
+                                )}
                                 {isAuthenticated ? (
                                     <div className="account-signed-in">
                                         <strong>Signed in as {accountEmail || 'your Arkana account'}</strong>
@@ -1310,17 +1373,62 @@ export const MainLayout: React.FC = () => {
                     )}
                 </main>
 
-                <footer className="site-footer">
-                    <div className="site-footer-inner">
-                        <p className="footer-brand whitespace-nowrap">Arkana</p>
-                        <div className="footer-links" aria-label="Legal information">
-                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
-                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
-                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('refunds')}>Refunds</button>
-                            <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('shipping')}>Shipping</button>
+                {!isNativeApp && (
+                    <footer className="site-footer">
+                        <div className="site-footer-inner">
+                            <p className="footer-brand whitespace-nowrap">Arkana</p>
+                            <div className="footer-links" aria-label="Legal information">
+                                <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('terms')}>Terms & Conditions</button>
+                                <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                                <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('refunds')}>Refunds</button>
+                                <button type="button" className="footer-link-btn" onClick={() => setActiveLegalPage('shipping')}>Shipping</button>
+                            </div>
                         </div>
-                    </div>
-                </footer>
+                    </footer>
+                )}
+
+                {isNativeApp && (
+                    <nav className="bottom-tab-bar" aria-label="Primary">
+                        <button
+                            type="button"
+                            className={`tab-item${activeView === 'Listings' || activeView === 'Home' ? ' is-active' : ''}`}
+                            aria-current={activeView === 'Listings' || activeView === 'Home' ? 'page' : undefined}
+                            onClick={() => setActiveView('Listings')}
+                        >
+                            <span className="tab-icon" aria-hidden="true">🛍</span>
+                            <span className="tab-label">Marketplace</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="tab-item"
+                            onClick={() => {
+                                setActiveView('Listings');
+                                requestAnimationFrame(() => nativeSearchRef.current?.focus());
+                            }}
+                        >
+                            <span className="tab-icon" aria-hidden="true">🔍</span>
+                            <span className="tab-label">Search</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`tab-item tab-item--primary${activeView === 'Sell' ? ' is-active' : ''}`}
+                            aria-current={activeView === 'Sell' ? 'page' : undefined}
+                            onClick={handleStartCreate}
+                        >
+                            <span className="tab-icon tab-icon--primary" aria-hidden="true">+</span>
+                            <span className="tab-label">Create</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`tab-item${activeView === 'Account' ? ' is-active' : ''}`}
+                            aria-current={activeView === 'Account' ? 'page' : undefined}
+                            onClick={() => { setIsMobileMenuOpen(false); setActiveView('Account'); }}
+                        >
+                            <span className="tab-icon" aria-hidden="true">👤</span>
+                            <span className="tab-label">Account</span>
+                        </button>
+                    </nav>
+                )}
 
                 {/* OVERLAY CHECKOUT MODAL WINDOW — escrow entry point, dormant while ESCROW_LEGACY_ENABLED is false. */}
                 {ESCROW_LEGACY_ENABLED && checkoutStep !== null && selectedItem && (
@@ -1718,7 +1826,7 @@ const CheckoutViewIntegrated: React.FC<{ basket: BasketItem[]; onRemoveFromBaske
     const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value.toUpperCase();
         setPostcode(val);
-        const ukPostcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/;
+        const ukPostcodeRegex = /^[A-Z]{1, 2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/;
         setIsPostcodeValid(val === '' || ukPostcodeRegex.test(val));
     };
 

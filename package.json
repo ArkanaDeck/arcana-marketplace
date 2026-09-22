@@ -14,6 +14,9 @@
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@react-email/components": "^1.0.12",
     "@supabase/supabase-js": "^2.112.4",
     "openai": "^7.15.0",

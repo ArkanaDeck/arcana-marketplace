@@ -4077,3 +4077,263 @@ label.field-error .field-error-text {
     color: #325288;
     line-height: 1.5;
 }
+
+/* ==========================================================
+   NATIVE APP SHELL — Capacitor iOS / Android only.
+   Scoped under .app-container so the web layout is untouched.
+   ========================================================== */
+
+.app-container {
+    background: #f2f2f7;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+.app-container .frame {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* --- Sticky native header --- */
+
+.native-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
+    backdrop-filter: saturate(180%) blur(10px);
+    border-bottom: 1px solid rgba(60, 60, 67, 0.14);
+}
+
+.native-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 52px;
+    padding: 0 16px;
+}
+
+.native-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.native-header-mark {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: 1px solid rgba(253, 101, 116, 0.35);
+    background: #fff;
+    color: #FD6574;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.native-header-title {
+    color: #114E60;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.native-header-action {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(17, 78, 96, 0.07);
+    color: #114E60;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.native-header-search {
+    padding: 0 16px 10px;
+}
+
+.native-header-search input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(118, 118, 128, 0.12);
+    color: #114E60;
+    font-size: 16px;
+    padding: 0 12px;
+}
+
+.native-header-search input:focus {
+    outline: 2px solid rgba(17, 78, 96, 0.25);
+}
+
+/* --- Scrollable viewport between the two fixed bars.
+       Safe-area insets are added to the bar heights so content
+       clears both the notch and the home indicator. --- */
+
+.main-viewport {
+    box-sizing: border-box;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: calc(env(safe-area-inset-top, 44px) + 64px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 34px) + 76px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+.main-viewport--search {
+    padding-top: calc(env(safe-area-inset-top, 44px) + 110px);
+}
+
+/* --- Persistent bottom tab bar --- */
+
+.bottom-tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: stretch;
+    box-sizing: border-box;
+    padding-bottom: env(safe-area-inset-bottom, 34px);
+    background: rgba(255, 255, 255, 0.82);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
+    backdrop-filter: saturate(180%) blur(10px);
+    border-top: 1px solid rgba(60, 60, 67, 0.14);
+}
+
+.tab-item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 49px;
+    padding: 6px 4px;
+    border: none;
+    background: none;
+    color: #8E8E93;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tab-item.is-active {
+    color: #114E60;
+}
+
+.tab-icon {
+    font-size: 19px;
+    line-height: 1;
+}
+
+.tab-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.tab-item--primary {
+    color: #FD6574;
+}
+
+.tab-item--primary .tab-icon--primary {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(253, 101, 116, 0.45);
+    background: #FD6574;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* --- Native account options (replaces the web drawer) --- */
+
+.account-quick-links {
+    display: grid;
+    gap: 1px;
+    margin: 16px 0;
+    border-radius: 12px;
+    background: rgba(60, 60, 67, 0.12);
+    overflow: hidden;
+}
+
+.account-quick-links button {
+    border: none;
+    background: #fff;
+    color: #114E60;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: left;
+    padding: 13px 16px;
+    cursor: pointer;
+}
+
+.account-quick-links button.is-destructive {
+    color: #d7263d;
+}
+
+.account-delete-confirm {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+    padding: 16px;
+    border: 1px solid rgba(215, 38, 61, 0.3);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.account-delete-confirm p {
+    margin: 0;
+    color: #325288;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.account-delete-confirm-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.account-delete-confirm-actions button {
+    flex: 1 1 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 12px;
+    cursor: pointer;
+}
+
+.account-delete-confirm-actions .is-destructive {
+    background: #d7263d;
+    color: #fff;
+}
+
+.account-delete-confirm-actions .is-cancel {
+    background: rgba(118, 118, 128, 0.12);
+    color: #114E60;
+}
