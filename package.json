@@ -14,6 +14,7 @@
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.12",
     "@supabase/supabase-js": "^2.112.4",
     "openai": "^7.15.0",
     "qrcode.react": "^4.2.0",
