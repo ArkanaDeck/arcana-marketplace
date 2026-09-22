@@ -435,8 +435,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
         if (!session?.user) {
-            alert('Sign in before publishing a listing.');
-            setActiveView('Account');
+            handleRequireSignIn('Sign in before publishing a listing.');
             return;
         }
         if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
@@ -530,13 +529,13 @@ export const MainLayout: React.FC = () => {
             setActiveView('Listings');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
-            setFlashMessage(`Card verification failed: ${message}`);
-            alert(message);
             setIsRentingExternalLink(false);
             if (message === 'Sign in before creating a listing.') {
-                setAccountMode('signin');
-                setActiveView('Account');
+                handleRequireSignIn(message);
+                return;
             }
+            setFlashMessage(`Card verification failed: ${message}`);
+            alert(message);
         }
     };
 
@@ -781,8 +780,11 @@ export const MainLayout: React.FC = () => {
             if (!response.ok || !payload?.url) throw new Error(payload?.error || 'Unable to start Stripe Connect onboarding.');
             window.location.href = payload.url;
         } catch (error) {
-            window.alert(error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.');
-            window.location.reload();
+            const message = error instanceof Error ? error.message : 'Unable to start Stripe Connect onboarding.';
+            if (message === 'Sign in before setting up payouts.') handleRequireSignIn(message);
+            else setAccountStatus(message);
+        } finally {
+            setIsStartingConnect(false);
         }
     };
 
@@ -867,10 +869,10 @@ export const MainLayout: React.FC = () => {
         setActiveView('Listings');
     };
 
-    const handleRequireSignIn = () => {
+    const handleRequireSignIn = (message: string = SIGN_IN_REQUIRED_MESSAGE) => {
         setViewingListing(null);
         setAccountMode('signin');
-        setAccountStatus(SIGN_IN_REQUIRED_MESSAGE);
+        setAccountStatus(message);
         setIsEmailSent(false);
         setIsResetView(false);
         setActiveView('Account');
@@ -1736,7 +1738,7 @@ export const MainLayout: React.FC = () => {
                 <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
                     <button type="button" aria-label="Open support chat" style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '24px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} onClick={() => setIsChatOpen(!isChatOpen)}>🔮</button>
                 </div>
-                {isChatOpen && <SupportChatModal onClose={() => setIsChatOpen(false)} />}
+                {isChatOpen && <SupportChatModal onClose={() => setIsChatOpen(false)} onRequireSignIn={(message) => { setIsChatOpen(false); handleRequireSignIn(message); }} />}
             </div>
         </div>
     );
@@ -1744,9 +1746,12 @@ export const MainLayout: React.FC = () => {
 
 type SupportMessage = { id: string; sender_id: string; text: string; created_at: string };
 
-const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const SUPPORT_SIGN_IN_MESSAGE = 'Sign in to contact Arkana support.';
+
+const SupportChatModal: React.FC<{ onClose: () => void; onRequireSignIn: (message: string) => void }> = ({ onClose, onRequireSignIn }) => {
     const [messages, setMessages] = useState<SupportMessage[]>([]);
     const [messageText, setMessageText] = useState('');
+    const [needsSignIn, setNeedsSignIn] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [ticketId, setTicketId] = useState<string | null>(null);
 
@@ -1758,7 +1763,10 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         void getSupabaseSession().then(async (session) => {
             if (!session?.user || !isMounted) {
-                if (isMounted) setStatus('Sign in to contact Arkana support.');
+                if (isMounted) {
+                    setStatus(SUPPORT_SIGN_IN_MESSAGE);
+                    setNeedsSignIn(true);
+                }
                 return;
             }
             const { data, error } = await client.from('support_messages').select('id, sender_id, text, created_at').eq('sender_id', session.user.id).order('created_at', { ascending: true });
@@ -1786,7 +1794,7 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         if (!supabase || !content) return;
         try {
             const session = await getSupabaseSession();
-            if (!session?.user) throw new Error('Sign in to contact Arkana support.');
+            if (!session?.user) throw new Error(SUPPORT_SIGN_IN_MESSAGE);
             let activeTicketId = ticketId;
             if (!activeTicketId) {
                 const { data: ticket, error: ticketError } = await supabase
@@ -1803,7 +1811,9 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             setMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data as SupportMessage]);
             setMessageText('');
         } catch (error) {
-            setStatus(error instanceof Error ? error.message : 'Unable to send support message.');
+            const message = error instanceof Error ? error.message : 'Unable to send support message.';
+            if (message === SUPPORT_SIGN_IN_MESSAGE) setNeedsSignIn(true);
+            setStatus(message);
         }
     };
 
@@ -1815,7 +1825,9 @@ const SupportChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div className="seller-chat-messages" aria-live="polite">{messages.length === 0 ? <p>How can we help with your marketplace order?</p> : messages.map((message) => <p key={message.id}>{message.text}</p>)}</div>
             {status && <p className="account-status" role="status">{status}</p>}
-            <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>
+            {needsSignIn
+                ? <button type="button" className="primary-btn" onClick={() => onRequireSignIn(SUPPORT_SIGN_IN_MESSAGE)}>Go to sign in</button>
+                : <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>}
         </section>
     </div>;
 };
