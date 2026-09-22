@@ -2275,6 +2275,33 @@ const SellerOrdersPanel: React.FC = () => {
     </section>;
 };
 
+const HELP_FAQ_ITEMS = [
+    {
+        question: 'How does delivery work?',
+        answer: 'Arkana is a direct peer-to-peer notice board. Buyers and sellers communicate directly via our contact methods to arrange mutually agreeable collection, local drop-off, or postage options.',
+    },
+    {
+        question: 'How do payments work?',
+        answer: 'As a commission-free notice board, Arkana does not process financial transactions directly on the app. All arrangements, payments, or deck swaps are handled completely independently between the buyer and seller.',
+    },
+    {
+        question: 'What if there is a problem with a listing?',
+        answer: 'Buyers can report fraudulent, inaccurate, or inappropriate notice board listings directly through the app interface. Our team will review flagged items and permanently remove listings or profiles violating community safety guidelines.',
+    },
+    {
+        question: 'How do swaps and free decks work?',
+        answer: "Sellers can mark their card listings as available for 'Swap' or 'Free'. Simply tap the contact method on the listing notice card to coordinate trading details directly with the owner.",
+    },
+    {
+        question: "What is the 'Pay Direct to Seller' button?",
+        answer: 'Sellers with a premium notice profile can attach a direct checkout link (like a custom Stripe or PayPal link) to their listing card. This allows buyers to purchase the deck directly from the owner securely off-platform. Arkana takes zero commission on these transactions.',
+    },
+    {
+        question: 'Can I link to my own website storefront?',
+        answer: "Yes! Premium profiles can add their personal web address link directly to their notice card listings. Tapping 'View seller profile' or their custom web link will open their independent shop canvas in a secure browser window.",
+    },
+];
+
 const HelpView: React.FC = () => (
     <section className="help-page">
         <div className="help-page-heading">
@@ -2282,49 +2309,12 @@ const HelpView: React.FC = () => (
             <h2>Buying and selling on Arkana</h2>
         </div>
         <div className="help-grid">
-            <article className="help-card">
-                <h3>How do I sell a deck?</h3>
-                <ol><li>Create an account and complete seller information.</li><li>Choose Sale, Swap, or Free and publish your listing.</li><li>For paid orders, package the deck and buy postage through Parcel2Go or your preferred courier.</li><li>Add the courier tracking reference to the order.</li></ol>
-            </article>
-            <article className="help-card">
-                <h3>Who pays for delivery?</h3>
-                <p>The buyer chooses and pays the delivery option at checkout. The seller uses the delivery budget to buy the postage label. Collection in person has no delivery charge.</p>
-            </article>
-            <article className="help-card">
-                <h3>How are sellers paid?</h3>
-                <p>For paid orders, funds are held until the buyer confirms the deck arrived and matches its description. Sellers set up payouts securely with Stripe Connect.</p>
-            </article>
-            <article className="help-card">
-                <h3>What if there is a problem?</h3>
-                <p>Buyers can report a delivery or description problem from their account. This pauses the seller payout while the issue is reviewed.</p>
-            </article>
-            <article className="help-card">
-                <h3>How do swaps and free decks work?</h3>
-                <p>Swap and Free listings do not use checkout. Use the request button to arrange the exchange or collection directly with the seller.</p>
-            </article>
-            <article className="help-card help-card--steps">
-                <h3>Do buyers need a PayPal Merchant ID?</h3>
-                <ol>
-                    <li>No. Buyers never need a Merchant ID to pay on Arkana.</li>
-                    <li>Simply add a deck to your basket and choose <strong>Pay with PayPal</strong> at checkout.</li>
-                    <li>Sign in to your own PayPal account when PayPal prompts you, and confirm the payment.</li>
-                    <li>Arkana routes the funds to the seller automatically using their payout details.</li>
-                </ol>
-            </article>
-            <article className="help-card help-card--steps">
-                <h3>How do sellers find their PayPal Merchant ID?</h3>
-                <ol>
-                    <li>Log in to your PayPal Business account at paypal.com.</li>
-                    <li>Go to <strong>Account Settings</strong> &gt; <strong>Business Information</strong>.</li>
-                    <li>Find the line labelled <strong>Merchant account ID</strong> and copy the 13-character code.</li>
-                    <li>Return to Arkana and open <strong>Your account</strong> &gt; <strong>Seller Verification &amp; Payout Setup</strong>.</li>
-                    <li>Paste the ID into the <strong>PayPal merchant ID</strong> field and save your seller information.</li>
-                </ol>
-            </article>
-            <article className="help-card">
-                <h3>Where do I find Terms & Conditions?</h3>
-                <p>Use the footer links for Terms & Conditions, Privacy Policy, Refunds, and Shipping information.</p>
-            </article>
+            {HELP_FAQ_ITEMS.map((item) => (
+                <article className="help-card" key={item.question}>
+                    <h3>{item.question}</h3>
+                    <p>{item.answer}</p>
+                </article>
+            ))}
         </div>
     </section>
 );
