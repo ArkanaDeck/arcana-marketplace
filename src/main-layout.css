@@ -4368,9 +4368,10 @@ label.field-error .field-error-text {
 /* --- Native account settings + Apple-mandated deletion --- */
 
 .account-profile-view {
-    display: grid;
-    gap: 22px;
-    margin: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 24px;
 }
 
 .ios-settings-group {
@@ -4378,6 +4379,8 @@ label.field-error .field-error-text {
     background: #fff;
     border: 1px solid rgba(60, 60, 67, 0.14);
     border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     overflow: hidden;
 }
 
@@ -4392,10 +4395,10 @@ label.field-error .field-error-text {
     border-bottom: 1px solid #f1f5f9;
     background: #fff;
     color: #114E60;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     text-align: left;
-    padding: 15px 16px;
+    padding: 18px 20px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
@@ -4450,8 +4453,10 @@ label.field-error .field-error-text {
 }
 
 .app-container .account-intro {
-    margin: 8px 0 4px;
+    margin: 8px 0 12px;
+    color: #64748b;
     font-size: 15px;
+    line-height: 1.5;
 }
 
 .app-container .account-tabs {
@@ -4464,12 +4469,17 @@ label.field-error .field-error-text {
 }
 
 .app-container .account-form {
+    display: flex;
+    flex-direction: column;
     gap: 20px;
+    margin-top: 12px;
 }
 
 .app-container .account-form label {
     gap: 9px;
-    font-size: 0.86rem;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 /* 16px keeps iOS from zooming the viewport on focus. */
