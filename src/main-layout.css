@@ -3585,6 +3585,47 @@ label.field-error .field-error-text {
     gap: 10px;
 }
 
+/* --- Removable upload preview thumbnails --- */
+
+.image-preview-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    max-width: 250px;
+    margin: 10px 10px 0 0;
+    border-radius: 8px;
+}
+
+.image-preview-wrapper .image-preview-thumbnail {
+    display: block;
+    margin-top: 0;
+}
+
+.image-delete-badge-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    z-index: 10;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.image-delete-badge-btn:active {
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
 .seller-profile-page {
     max-width: 1180px;
     margin: 0 auto;
@@ -4113,12 +4154,66 @@ label.field-error .field-error-text {
 }
 
 .native-header-bar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     height: 52px;
     padding: 0 16px;
+}
+
+/* --- Sub-page back / cancel navigation --- */
+
+.header-back-button {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 44px;
+    min-height: 44px;
+    margin-left: -10px;
+    padding: 0 10px;
+    border: none;
+    background: transparent;
+    color: #114E60;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.header-back-button:active {
+    opacity: 0.55;
+}
+
+.header-back-chevron {
+    font-size: 27px;
+    font-weight: 400;
+    line-height: 1;
+    margin-top: -3px;
+}
+
+.header-back-button.is-cancel {
+    margin-left: 0;
+    margin-right: -10px;
+    justify-content: flex-end;
+    font-weight: 500;
+}
+
+/* Centred like a UINavigationBar title, independent of the side button widths. */
+.native-header-screen-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 52%;
+    color: #114E60;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
 }
 
 .native-header-brand {

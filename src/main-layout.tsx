@@ -49,6 +49,16 @@ function isValidExternalUrl(value: string): boolean {
 // True only inside the Capacitor iOS/Android wrapper, never in the browser build.
 const isNativeApp = Capacitor.isNativePlatform();
 
+// Views reachable from the bottom tab bar keep the brand mark; everything else gets a back button.
+const NATIVE_ROOT_VIEWS = ['Home', 'Listings', 'Account'];
+const NATIVE_VIEW_TITLES: Record<string, string> = {
+    Sell: 'Create Listing',
+    Help: 'Help & FAQ',
+    Dashboard: 'Dashboard',
+    Checkout: 'Checkout',
+    Production: 'Production',
+};
+
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
@@ -364,6 +374,19 @@ export const MainLayout: React.FC = () => {
         setDeckImageFiles(mergedFiles);
         setImagePreviews([...existingImageUrls, ...mergedFiles.map((file) => URL.createObjectURL(file))]);
         e.target.value = '';
+    };
+
+    const handleRemoveImage = (index: number) => {
+        const previewUrl = imagePreviews[index];
+        if (!previewUrl) return;
+        // Blob previews map 1:1 onto deckImageFiles, which always sit after any saved image URLs.
+        if (previewUrl.startsWith('blob:')) {
+            const savedImageCount = imagePreviews.filter((url) => !url.startsWith('blob:')).length;
+            const fileIndex = index - savedImageCount;
+            setDeckImageFiles((files) => files.filter((_, position) => position !== fileIndex));
+            URL.revokeObjectURL(previewUrl);
+        }
+        setImagePreviews((previews) => previews.filter((_, position) => position !== index));
     };
 
     const handleStartCreate = () => {
@@ -836,6 +859,14 @@ export const MainLayout: React.FC = () => {
         return <ResetPasswordPage onDone={() => { window.location.href = '/?passwordReset=success'; }} />;
     }
 
+    const isNestedNativeView = isNativeApp && !NATIVE_ROOT_VIEWS.includes(activeView);
+    const nativeScreenTitle = activeView === 'Sell' && editModeData ? 'Edit Listing' : NATIVE_VIEW_TITLES[activeView] || 'Arkana';
+
+    const handleNativeBack = () => {
+        setIsMobileMenuOpen(false);
+        setActiveView('Listings');
+    };
+
     return (
         <div className={`container${isNativeApp ? ' app-container' : ''}`}>
             <div className="frame">
@@ -857,11 +888,23 @@ export const MainLayout: React.FC = () => {
                 {isNativeApp && (
                     <header className="native-header">
                         <div className="native-header-bar">
-                            <button type="button" className="native-header-brand" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
-                                <span className="native-header-mark">ARK</span>
-                                <span className="native-header-title">Arkana</span>
-                            </button>
-                            <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>
+                            {isNestedNativeView ? (
+                                <>
+                                    <button type="button" className="header-back-button" onClick={handleNativeBack} aria-label="Back to Marketplace">
+                                        <span className="header-back-chevron" aria-hidden="true">‹</span>
+                                        <span className="header-back-label">Back</span>
+                                    </button>
+                                    <span className="native-header-screen-title">{nativeScreenTitle}</span>
+                                </>
+                            ) : (
+                                <button type="button" className="native-header-brand" onClick={() => setActiveView('Home')} aria-label="Go to Arkana home">
+                                    <span className="native-header-mark">ARK</span>
+                                    <span className="native-header-title">Arkana</span>
+                                </button>
+                            )}
+                            {isNestedNativeView
+                                ? <button type="button" className="header-back-button is-cancel" onClick={handleNativeBack}>Cancel</button>
+                                : <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>}
                         </div>
                         {activeView === 'Listings' && (
                             <div className="native-header-search">
@@ -1352,7 +1395,13 @@ export const MainLayout: React.FC = () => {
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
                                         <label>Your web store link <span className="text-red-500 font-bold ml-0.5">*</span></label>
                                         <input
-                                            type="url"
+                                            type="text"
+                                            name="marketplaceExternalUrl"
+                                            inputMode="url"
+                                            autoComplete="new-password"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
                                             value={externalStoreUrl}
                                             onChange={(e) => { setExternalStoreUrl(e.target.value); if (externalLinkUrlError) setExternalLinkUrlError(null); }}
                                             onBlur={(e) => setExternalLinkUrlError(e.target.value.trim() && !isValidExternalUrl(e.target.value) ? 'Enter a valid URL starting with http:// or https://.' : null)}
@@ -1381,7 +1430,12 @@ export const MainLayout: React.FC = () => {
                                     />
                                     {imagePreviews.length > 0 && <div className="image-status">{imagePreviews.length} image{imagePreviews.length === 1 ? '' : 's'} selected and ready to publish</div>}
                                     {imagePreviews.length > 0 && <div className="image-preview-list">
-                                        {imagePreviews.map((previewUrl) => <img key={previewUrl} src={previewUrl} alt="Selected deck preview" className="image-preview-thumbnail" />)}
+                                        {imagePreviews.map((previewUrl, index) => (
+                                            <div key={previewUrl} className="image-preview-wrapper">
+                                                <img src={previewUrl} alt={`Selected deck preview ${index + 1}`} className="image-preview-thumbnail" />
+                                                <button type="button" className="image-delete-badge-btn" onClick={() => handleRemoveImage(index)} aria-label={`Remove image ${index + 1}`}>✕</button>
+                                            </div>
+                                        ))}
                                     </div>}
                                 </div>
                                 <button type="submit" className="primary-btn" disabled={isRentingExternalLink}>{isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}</button>
