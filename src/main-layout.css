@@ -1808,6 +1808,35 @@ label.field-error .field-error-text {
     max-width: 620px;
 }
 
+/* --- Native Create Listing keyboard-safe scroll region --- */
+
+.app-container .sell-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: calc(100dvh - env(safe-area-inset-top, 44px) - env(safe-area-inset-bottom, 34px) - 140px);
+    overflow: hidden;
+}
+
+.app-container .create-listing-scroll-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 140px;
+    scroll-padding-bottom: 140px;
+}
+
+.app-container .publish-listing-btn {
+    width: 100%;
+    min-height: 52px;
+    margin-top: 8px;
+}
+
 .runtime-warning-banner {
     display: flex;
     flex-wrap: wrap;
@@ -4691,6 +4720,16 @@ label.field-error .field-error-text {
     margin-bottom: 32px;
 }
 
+.app-container .auth-form-scroll-wrapper {
+    max-height: calc(100dvh - env(safe-area-inset-top, 44px) - env(safe-area-inset-bottom, 34px) - 250px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    padding-bottom: 40px;
+    scroll-padding-bottom: 40px;
+}
+
 .app-container .auth-flow-shell>.ios-settings-group {
     margin-bottom: 0;
 }
@@ -4703,15 +4742,22 @@ label.field-error .field-error-text {
 .app-container .account-form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px !important;
     margin-top: 12px;
 }
 
 .app-container .account-form label {
-    gap: 9px;
-    margin-bottom: 6px;
+    gap: 6px;
+    margin-bottom: 0;
     font-size: 14px;
     font-weight: 500;
+}
+
+.app-container .account-form .forgot-password-link {
+    align-self: flex-end;
+    margin-top: -2px;
+    margin-bottom: 2px;
+    font-size: 14px;
 }
 
 /* 16px keeps iOS from zooming the viewport on focus. */

@@ -1194,7 +1194,7 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" role="tab" aria-selected={accountMode === 'signin'} className={accountMode === 'signin' ? 'active' : ''} onClick={() => { setAccountMode('signin'); setAccountStatus(null); }}>Sign in</button>
                                             <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
                                         </div>
-                                        <div className="auth-primary-module">
+                                        <div className="auth-primary-module auth-form-scroll-wrapper">
                                             {isEmailSent ? (
                                                 <div className="email-verification-panel" role="status">
                                                     <div className="email-verification-icon" aria-hidden="true">✉</div>
@@ -1400,7 +1400,7 @@ export const MainLayout: React.FC = () => {
                     {activeView === 'Sell' && (
                         <section className="sell-section">
                             <h2>Create New Listing</h2>
-                            <form onSubmit={handlePublish} className="sell-form">
+                            <form onSubmit={handlePublish} className="sell-form create-listing-scroll-container">
                                 <div className="form-group">
                                     <label>Listing type</label>
                                     <div className="listing-type-controls">
@@ -1537,7 +1537,7 @@ export const MainLayout: React.FC = () => {
                                         ))}
                                     </div>}
                                 </div>
-                                <button type="submit" className="primary-btn" disabled={isRentingExternalLink}>{isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}</button>
+                                <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink}>{isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}</button>
                             </form>
                         </section>
                     )}
