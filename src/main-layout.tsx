@@ -71,6 +71,7 @@ const NATIVE_VIEW_TITLES: Record<string, string> = {
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
     const [activeView, setActiveView] = useState('Home');
+    const [redirectPath, setRedirectPath] = useState<string | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -453,6 +454,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
         if (!session?.user) {
+            setRedirectPath('Sell');
             handleRequireSignIn('Sign in before publishing a listing.');
             return;
         }
@@ -647,6 +649,12 @@ export const MainLayout: React.FC = () => {
                 if (result.session) {
                     setIsAuthenticated(true);
                     setAccountStatus('Account created. You are ready to sell.');
+                    if (redirectPath) {
+                        setActiveView(redirectPath);
+                        setRedirectPath(null);
+                    } else {
+                        setActiveView('Listings');
+                    }
                 } else {
                     setIsEmailSent(true);
                     setAccountStatus(null);
@@ -656,6 +664,12 @@ export const MainLayout: React.FC = () => {
                 setIsAuthenticated(true);
                 setAccountEmail(accountEmail.trim());
                 setAccountStatus('Signed in successfully.');
+                if (redirectPath) {
+                    setActiveView(redirectPath);
+                    setRedirectPath(null);
+                } else {
+                    setActiveView('Listings');
+                }
             }
             setAccountPassword('');
             setAccountConfirmPassword('');
