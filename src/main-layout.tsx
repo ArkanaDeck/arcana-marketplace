@@ -24,6 +24,15 @@ type DeckListing = MarketplaceListing;
 const SHIPPING_FEE = 2.99;
 const DELIVERY_FEE = 2.99;
 type BasketItem = DeckListing & { courierFee: number };
+type DiscoveryCategory = 'all' | 'tarot' | 'oracle' | 'lenormand' | 'swap';
+
+const DISCOVERY_CATEGORIES: Array<{ value: DiscoveryCategory; label: string }> = [
+    { value: 'all', label: 'All Decks' },
+    { value: 'tarot', label: 'Tarot Cards' },
+    { value: 'oracle', label: 'Oracle Decks' },
+    { value: 'lenormand', label: 'Lenormand' },
+    { value: 'swap', label: 'Decks for Swap' },
+];
 
 // ============================================================================
 // ESCROW SYSTEM FEATURE FLAG — DORMANT, NOT DELETED.
@@ -112,6 +121,7 @@ export const MainLayout: React.FC = () => {
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [discoveryCategory, setDiscoveryCategory] = useState<DiscoveryCategory>('all');
     const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Checkout Flow States
@@ -166,6 +176,15 @@ export const MainLayout: React.FC = () => {
         const query = searchQuery.trim().toLowerCase();
         return !query || listing.name.toLowerCase().includes(query) || listing.description?.toLowerCase().includes(query);
     });
+    const discoveryListings = listings
+        .filter((listing) => listing.status === 'active' && listing.reviewStatus === 'approved')
+        .filter((listing) => {
+            if (discoveryCategory === 'all') return true;
+            if (discoveryCategory === 'swap') return listing.listingType === 'swap';
+            const searchableText = `${listing.name} ${listing.description || ''}`.toLowerCase();
+            return searchableText.includes(discoveryCategory);
+        })
+        .slice(0, 4);
 
     const handleRequiredFieldInvalid = (event: React.FormEvent<HTMLInputElement | HTMLSelectElement>) => {
         event.currentTarget.classList.add('field-border-error');
@@ -983,16 +1002,74 @@ export const MainLayout: React.FC = () => {
                 <main className={`page-content${isNativeApp ? ' main-viewport' : ''}${isNativeApp && activeView === 'Listings' ? ' main-viewport--search' : ''}`}>
                     {/* 1. HOME VIEW */}
                     {activeView === 'Home' && (
-                        <section className="hero-grid">
-                            <div className="hero-card">
-                                <h1>Welcome to Arkana</h1>
-                                <p>Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
-                                <button className="secondary-btn" onClick={() => setActiveView('Listings')}>
-                                    Browse listings
-                                </button>
-                            </div>
-                            <div className="hero-img"></div>
-                        </section>
+                        <div className="home-view">
+                            <section className="hero-grid">
+                                <div className="hero-card">
+                                    <h1>Welcome to Arkana</h1>
+                                    <p>Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
+                                </div>
+                                <div className="hero-img" aria-hidden="true"></div>
+                            </section>
+
+                            <section className="home-discovery-feed" aria-label="Discover listings">
+                                <div className="home-discovery-module">
+                                    <div className="home-discovery-heading">
+                                        <div>
+                                            <p>Explore</p>
+                                            <h2>Browse Categories</h2>
+                                        </div>
+                                    </div>
+                                    <div className="category-filter-row" role="group" aria-label="Filter recent listings by category">
+                                        {DISCOVERY_CATEGORIES.map((category) => (
+                                            <button
+                                                type="button"
+                                                key={category.value}
+                                                className={`category-filter-btn${discoveryCategory === category.value ? ' is-active' : ''}`}
+                                                aria-pressed={discoveryCategory === category.value}
+                                                onClick={() => setDiscoveryCategory(category.value)}
+                                            >
+                                                {category.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="home-discovery-module">
+                                    <div className="home-discovery-heading">
+                                        <div>
+                                            <p>Fresh finds</p>
+                                            <h2>Recent Notice Postings</h2>
+                                        </div>
+                                        <button type="button" onClick={() => setActiveView('Listings')}>See all</button>
+                                    </div>
+                                    {discoveryListings.length > 0 ? (
+                                        <div className="listings-mini-grid">
+                                            {discoveryListings.map((listing) => (
+                                                <button type="button" className="mini-listing-card" key={listing.id} onClick={() => setViewingListing(listing)}>
+                                                    <div className="mini-listing-image-wrap">
+                                                        {listing.images[0]
+                                                            ? <img src={listing.images[0]} alt={listing.name} className="mini-listing-image" />
+                                                            : <span className="mini-listing-placeholder" aria-hidden="true">ARK</span>}
+                                                    </div>
+                                                    <div className="mini-listing-copy">
+                                                        <h3>{listing.name}</h3>
+                                                        <span className={`mini-listing-badge mini-listing-badge--${listing.listingType}`}>
+                                                            {listing.listingType === 'sale' ? `£${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Swap' : 'Free'}
+                                                        </span>
+                                                        <span className="mini-listing-location">Direct with seller</span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="home-discovery-empty">
+                                            <p>No matching notices yet.</p>
+                                            <button type="button" onClick={() => setDiscoveryCategory('all')}>View all recent listings</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                        </div>
                     )}
 
                     {activeView === 'Account' && (
@@ -1001,7 +1078,7 @@ export const MainLayout: React.FC = () => {
                                 <p className="account-kicker">Arkana account</p>
                                 <h2>{isAuthenticated ? 'Your account' : accountMode === 'signin' ? 'Welcome back' : 'Create your seller account'}</h2>
                                 <p className="account-intro">{isAuthenticated ? 'You can now manage listings and fulfil paid orders.' : 'Sign in to sell, manage listings, and receive order updates.'}</p>
-                                {isNativeApp && (
+                                {isNativeApp && isAuthenticated && (
                                     <div className="account-profile-view">
                                         <div className="ios-settings-group">
                                             {isAuthenticated && (
@@ -1112,78 +1189,87 @@ export const MainLayout: React.FC = () => {
                                         {ESCROW_LEGACY_ENABLED && <SellerOrdersPanel />}
                                     </div>
                                 ) : (
-                                    <>
+                                    <div className="auth-flow-shell">
                                         <div className="account-tabs" role="tablist" aria-label="Account option">
                                             <button type="button" role="tab" aria-selected={accountMode === 'signin'} className={accountMode === 'signin' ? 'active' : ''} onClick={() => { setAccountMode('signin'); setAccountStatus(null); }}>Sign in</button>
                                             <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
                                         </div>
-                                        {isEmailSent ? (
-                                            <div className="email-verification-panel" role="status">
-                                                <div className="email-verification-icon" aria-hidden="true">✉</div>
-                                                <h3>Account created successfully!</h3>
-                                                <p>Account created successfully! Please check your email inbox to verify your account before logging in.</p>
-                                                {accountStatus && <p className="account-status">{accountStatus}</p>}
-                                                <button type="button" className="resend-verification-btn" onClick={handleResendVerification} disabled={isResendingVerification}>
-                                                    {isResendingVerification ? 'Sending...' : "Didn't receive the email? Click here to resend."}
-                                                </button>
-                                                <button type="button" className="account-text-btn" onClick={() => { setIsEmailSent(false); setAccountMode('signin'); setAccountStatus(null); }}>Back to sign in</button>
-                                            </div>
-                                        ) : isResetView ? (
-                                            isResetSent ? (
+                                        <div className="auth-primary-module">
+                                            {isEmailSent ? (
                                                 <div className="email-verification-panel" role="status">
                                                     <div className="email-verification-icon" aria-hidden="true">✉</div>
-                                                    <h3>Reset link sent</h3>
-                                                    <p>Check your inbox for a password reset link. Follow it to choose a new password, then sign in.</p>
-                                                    <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setIsResetSent(false); setAccountStatus(null); }}>Back to sign in</button>
+                                                    <h3>Account created successfully!</h3>
+                                                    <p>Account created successfully! Please check your email inbox to verify your account before logging in.</p>
+                                                    {accountStatus && <p className="account-status">{accountStatus}</p>}
+                                                    <button type="button" className="resend-verification-btn" onClick={handleResendVerification} disabled={isResendingVerification}>
+                                                        {isResendingVerification ? 'Sending...' : "Didn't receive the email? Click here to resend."}
+                                                    </button>
+                                                    <button type="button" className="account-text-btn" onClick={() => { setIsEmailSent(false); setAccountMode('signin'); setAccountStatus(null); }}>Back to sign in</button>
                                                 </div>
-                                            ) : (
-                                                <form className="account-form" onSubmit={handlePasswordReset} autoComplete="on">
-                                                    <div className="password-reset-intro">
-                                                        <h3>Reset your password</h3>
-                                                        <p>Enter the email address on your account and we'll send you a secure reset link.</p>
+                                            ) : isResetView ? (
+                                                isResetSent ? (
+                                                    <div className="email-verification-panel" role="status">
+                                                        <div className="email-verification-icon" aria-hidden="true">✉</div>
+                                                        <h3>Reset link sent</h3>
+                                                        <p>Check your inbox for a password reset link. Follow it to choose a new password, then sign in.</p>
+                                                        <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setIsResetSent(false); setAccountStatus(null); }}>Back to sign in</button>
                                                     </div>
-                                                    <label htmlFor="reset-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="reset-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
-                                                    {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
-                                                    <button type="submit" className="primary-btn" disabled={isResetSubmitting}>{isResetSubmitting ? 'Sending...' : 'Send reset link'}</button>
-                                                    <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setAccountStatus(null); }}>Back to sign in</button>
-                                                </form>
-                                            )
-                                        ) : (
-                                            <form className="account-form" onSubmit={handleAccountSubmit} autoComplete="on">
-                                                <label htmlFor="account-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="account-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
-                                                <label htmlFor="account-password">Password <span className="text-red-500 font-bold ml-0.5">*</span>
-                                                    <span className="password-field-wrap">
-                                                        <input id="account-password" name={accountMode === 'signin' ? 'password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
-                                                        <button type="button" className="password-toggle-btn" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
-                                                            {showPassword ? (
-                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                                                            ) : (
-                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12A3 3 0 1 1 9.88 9.88" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-                                                            )}
-                                                        </button>
-                                                    </span>
-                                                    <span className="field-error-text">This space must be filled in.</span>
-                                                </label>
-                                                {accountMode === 'signup' && (
-                                                    <label htmlFor="account-confirm-password">Confirm Password <span className="text-red-500 font-bold ml-0.5">*</span>
+                                                ) : (
+                                                    <form className="account-form" onSubmit={handlePasswordReset} autoComplete="on">
+                                                        <div className="password-reset-intro">
+                                                            <h3>Reset your password</h3>
+                                                            <p>Enter the email address on your account and we'll send you a secure reset link.</p>
+                                                        </div>
+                                                        <label htmlFor="reset-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="reset-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
+                                                        {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
+                                                        <button type="submit" className="primary-btn" disabled={isResetSubmitting}>{isResetSubmitting ? 'Sending...' : 'Send reset link'}</button>
+                                                        <button type="button" className="account-text-btn" onClick={() => { setIsResetView(false); setAccountStatus(null); }}>Back to sign in</button>
+                                                    </form>
+                                                )
+                                            ) : (
+                                                <form className="account-form" onSubmit={handleAccountSubmit} autoComplete="on">
+                                                    <label htmlFor="account-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="account-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
+                                                    <label htmlFor="account-password">Password <span className="text-red-500 font-bold ml-0.5">*</span>
                                                         <span className="password-field-wrap">
-                                                            <input id="account-confirm-password" name="new-password-confirmation" type={showPassword ? 'text' : 'password'} value={accountConfirmPassword} onChange={(event) => setAccountConfirmPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your password" />
+                                                            <input id="account-password" name={accountMode === 'signin' ? 'password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                                                            <button type="button" className="password-toggle-btn" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+                                                                {showPassword ? (
+                                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                                                                ) : (
+                                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12A3 3 0 1 1 9.88 9.88" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                                                                )}
+                                                            </button>
                                                         </span>
                                                         <span className="field-error-text">This space must be filled in.</span>
                                                     </label>
-                                                )}
-                                                {accountMode === 'signin' && (
-                                                    <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); setShowResetMessage(true); }}>Forgot Password?</button>
-                                                )}
-                                                {showResetMessage && (
-                                                    <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: '2px 0 0' }}>Check your email to renew your password</p>
-                                                )}
-                                                {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
-                                                <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
-                                                {accountMode === 'signup' && <p className="signup-consent">By creating an account, you agree to Arkana's <a href="#terms" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Terms of Service</a>, <a href="#privacy" onClick={(event) => { event.preventDefault(); setActiveLegalPage('privacy'); }}>Privacy Policy</a>, and <a href="#guidelines" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Seller Guidelines</a>. We use essential cookies to keep you securely signed in.</p>}
-                                            </form>
+                                                    {accountMode === 'signup' && (
+                                                        <label htmlFor="account-confirm-password">Confirm Password <span className="text-red-500 font-bold ml-0.5">*</span>
+                                                            <span className="password-field-wrap">
+                                                                <input id="account-confirm-password" name="new-password-confirmation" type={showPassword ? 'text' : 'password'} value={accountConfirmPassword} onChange={(event) => setAccountConfirmPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your password" />
+                                                            </span>
+                                                            <span className="field-error-text">This space must be filled in.</span>
+                                                        </label>
+                                                    )}
+                                                    {accountMode === 'signin' && (
+                                                        <button type="button" className="forgot-password-link" onClick={() => { setIsResetView(true); setIsResetSent(false); setAccountStatus(null); setShowResetMessage(true); }}>Forgot Password?</button>
+                                                    )}
+                                                    {showResetMessage && (
+                                                        <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: '2px 0 0' }}>Check your email to renew your password</p>
+                                                    )}
+                                                    {accountStatus && <p className="account-status" role="status">{accountStatus}</p>}
+                                                    <button type="submit" className="primary-btn" disabled={isAccountSubmitting}>{isAccountSubmitting ? 'Please wait...' : accountMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+                                                    {accountMode === 'signup' && <p className="signup-consent">By creating an account, you agree to Arkana's <a href="#terms" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Terms of Service</a>, <a href="#privacy" onClick={(event) => { event.preventDefault(); setActiveLegalPage('privacy'); }}>Privacy Policy</a>, and <a href="#guidelines" onClick={(event) => { event.preventDefault(); setActiveLegalPage('terms'); }}>Seller Guidelines</a>. We use essential cookies to keep you securely signed in.</p>}
+                                                </form>
+                                            )}
+                                        </div>
+                                        {isNativeApp && (
+                                            <div className="ios-settings-group">
+                                                <button type="button" className="settings-action-row" onClick={() => setActiveView('Help')}>Help &amp; Support FAQ</button>
+                                                <button type="button" className="settings-action-row" onClick={() => setActiveLegalPage('terms')}>Terms &amp; Conditions</button>
+                                                <button type="button" className="settings-action-row" onClick={() => setActiveLegalPage('privacy')}>Privacy Policy</button>
+                                            </div>
                                         )}
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </section>
