@@ -10,14 +10,13 @@ export interface ProductionChecklistInput {
     VITE_SUPABASE_URL?: string;
     VITE_SUPABASE_ANON_KEY?: string;
     VITE_STRIPE_PUBLISHABLE_KEY?: string;
-    VITE_PAYPAL_ENABLED?: string;
     VITE_APP_URL?: string;
     VITE_SITE_NAME?: string;
 }
 
 export function getProductionChecklist(env: ProductionChecklistInput): ProductionChecklistItem[] {
     const hasSupabase = !!env.VITE_SUPABASE_URL && !!env.VITE_SUPABASE_ANON_KEY;
-    const hasPaymentProvider = !!env.VITE_STRIPE_PUBLISHABLE_KEY || env.VITE_PAYPAL_ENABLED?.toLowerCase() === 'true';
+    const hasPaymentProvider = !!env.VITE_STRIPE_PUBLISHABLE_KEY;
     const hasAppUrl = !!env.VITE_APP_URL;
 
     return [
@@ -34,7 +33,7 @@ export function getProductionChecklist(env: ProductionChecklistInput): Productio
         {
             title: 'Server-side payment confirmation',
             status: hasPaymentProvider ? 'complete' : 'pending',
-            detail: 'Use Stripe or PayPal server endpoints to confirm payments before creating an order or crediting sellers.'
+            detail: 'Use Stripe server endpoints to confirm premium payments before activating paid features.'
         },
         {
             title: 'Environment variables and deployment',

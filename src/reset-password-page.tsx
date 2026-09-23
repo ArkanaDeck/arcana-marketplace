@@ -84,20 +84,20 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
 
     return (
         <section className="seller-profile-page">
-            <form className="account-form" onSubmit={handleSubmit}>
+            <form className="account-form" onSubmit={handleSubmit} autoComplete="on">
                 <div className="password-reset-intro">
                     <h3>Choose a new password</h3>
                     <p>Enter a new password for your account.</p>
                 </div>
-                <label>New password <span className="text-red-500 font-bold ml-0.5">*</span>
+                <label htmlFor="recovery-password">New password <span className="text-red-500 font-bold ml-0.5">*</span>
                     <span className="password-visibility-field">
-                        <input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                        <input id="recovery-password" name="new-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
                         <button type="button" className="password-visibility-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide new password' : 'Show new password'} aria-pressed={showPassword}>{showPassword ? '🙈' : '👁️'}</button>
                     </span>
                 </label>
-                <label>Confirm new password <span className="text-red-500 font-bold ml-0.5">*</span>
+                <label htmlFor="recovery-confirm-password">Confirm new password <span className="text-red-500 font-bold ml-0.5">*</span>
                     <span className="password-visibility-field">
-                        <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your new password" />
+                        <input id="recovery-confirm-password" name="new-password-confirmation" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your new password" />
                         <button type="button" className="password-visibility-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide confirmed password' : 'Show confirmed password'} aria-pressed={showPassword}>{showPassword ? '🙈' : '👁️'}</button>
                     </span>
                 </label>

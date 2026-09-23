@@ -7,7 +7,6 @@ test('production checklist includes the required launch gates', () => {
         VITE_SUPABASE_URL: 'https://example.supabase.co',
         VITE_SUPABASE_ANON_KEY: 'anon-key',
         VITE_STRIPE_PUBLISHABLE_KEY: 'pk_test_123',
-        VITE_PAYPAL_ENABLED: 'false',
         VITE_APP_URL: 'https://app.example.com',
     });
 
@@ -32,8 +31,8 @@ test('production checklist shows pending tasks when env values are missing', () 
     assert.equal(items.find(item => item.title === 'Order lifecycle and seller payouts')?.status, 'complete');
 });
 
-test('production checklist accepts PayPal as a configured payment provider', () => {
-    const payments = getProductionChecklist({ VITE_PAYPAL_ENABLED: 'true' })
+test('production checklist requires Stripe as the configured premium payment provider', () => {
+    const payments = getProductionChecklist({})
         .find(item => item.title === 'Server-side payment confirmation');
-    assert.equal(payments?.status, 'complete');
+    assert.equal(payments?.status, 'pending');
 });
