@@ -1240,8 +1240,8 @@ label.field-error .field-error-text {
 
 .hero-grid {
     display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
-    gap: 22px;
+    grid-template-columns: 1.5fr 0.5fr;
+    gap: 16px;
     align-items: stretch;
 }
 
@@ -1258,31 +1258,32 @@ label.field-error .field-error-text {
 }
 
 .hero-card {
-    padding: 28px 26px;
+    padding: 16px 24px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: 240px;
+    min-height: 140px;
 }
 
-.hero-card h1 {
-    margin: 0 0 10px;
-    font-size: clamp(2rem, 3vw, 3.2rem);
-    line-height: 1.05;
-    letter-spacing: -0.05em;
+.hero-card .hero-title {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0;
     color: #114E60;
 }
 
-.hero-card p {
-    margin: 0 0 14px;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: #325288;
+.hero-card .hero-subtitle {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #64748b;
     max-width: 560px;
 }
 
 .hero-img {
-    min-height: 260px;
+    min-height: 140px;
     background:
         linear-gradient(135deg, rgba(17, 78, 96, 0.82), rgba(50, 82, 136, 0.56)),
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.4), transparent 28%),
@@ -4330,10 +4331,14 @@ label.field-error .field-error-text {
 /* --- Native home discovery feed --- */
 
 .home-discovery-feed {
-    margin-top: 24px;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+.explore-section {
+    margin-bottom: 20px;
 }
 
 .home-discovery-module {
@@ -4536,7 +4541,7 @@ label.field-error .field-error-text {
 
     .app-container .hero-card {
         min-height: 0;
-        padding: 24px 20px;
+        padding: 16px 20px;
     }
 
     .app-container .hero-card p {
@@ -4544,7 +4549,7 @@ label.field-error .field-error-text {
     }
 
     .app-container .hero-img {
-        min-height: 180px;
+        min-height: 120px;
     }
 }
 

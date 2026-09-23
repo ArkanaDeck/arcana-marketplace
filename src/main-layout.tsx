@@ -1003,37 +1003,37 @@ export const MainLayout: React.FC = () => {
                     {/* 1. HOME VIEW */}
                     {activeView === 'Home' && (
                         <div className="home-view">
-                            <section className="hero-grid">
+                            <section className="explore-section home-discovery-module" aria-labelledby="browse-categories-title">
+                                <div className="home-discovery-heading">
+                                    <div>
+                                        <p>Explore</p>
+                                        <h2 id="browse-categories-title">Browse Categories</h2>
+                                    </div>
+                                </div>
+                                <div className="category-filter-row" role="group" aria-label="Filter recent listings by category">
+                                    {DISCOVERY_CATEGORIES.map((category) => (
+                                        <button
+                                            type="button"
+                                            key={category.value}
+                                            className={`category-filter-btn${discoveryCategory === category.value ? ' is-active' : ''}`}
+                                            aria-pressed={discoveryCategory === category.value}
+                                            onClick={() => setDiscoveryCategory(category.value)}
+                                        >
+                                            {category.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="hero-grid home-hero">
                                 <div className="hero-card">
-                                    <h1>Welcome to Arkana</h1>
-                                    <p>Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
+                                    <h1 className="hero-title">Welcome to Arkana</h1>
+                                    <p className="hero-subtitle">Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
                                 </div>
                                 <div className="hero-img" aria-hidden="true"></div>
                             </section>
 
                             <section className="home-discovery-feed" aria-label="Discover listings">
-                                <div className="home-discovery-module">
-                                    <div className="home-discovery-heading">
-                                        <div>
-                                            <p>Explore</p>
-                                            <h2>Browse Categories</h2>
-                                        </div>
-                                    </div>
-                                    <div className="category-filter-row" role="group" aria-label="Filter recent listings by category">
-                                        {DISCOVERY_CATEGORIES.map((category) => (
-                                            <button
-                                                type="button"
-                                                key={category.value}
-                                                className={`category-filter-btn${discoveryCategory === category.value ? ' is-active' : ''}`}
-                                                aria-pressed={discoveryCategory === category.value}
-                                                onClick={() => setDiscoveryCategory(category.value)}
-                                            >
-                                                {category.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
                                 <div className="home-discovery-module">
                                     <div className="home-discovery-heading">
                                         <div>
