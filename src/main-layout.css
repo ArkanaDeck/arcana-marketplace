@@ -3899,6 +3899,53 @@ label.field-error .field-error-text {
     flex: 1;
 }
 
+.messages-dashboard {
+    width: min(720px, 100%);
+    margin: 0 auto;
+}
+
+.messages-dashboard__toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: 52px;
+    margin: 0 0 12px;
+    border-bottom: 1px solid rgba(17, 78, 96, 0.12);
+}
+
+.messages-dashboard__toolbar h1 {
+    margin: 0;
+    color: #114e60;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.messages-dashboard__back-button {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    color: #087f8c;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 0 6px;
+}
+
+.messages-dashboard__back-button span:first-child {
+    font-size: 1.65rem;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.messages-dashboard__back-button:focus-visible {
+    outline: 2px solid #087f8c;
+    outline-offset: 2px;
+}
+
 @media (max-width: 720px) {
     .seller-profile-header {
         align-items: flex-start;

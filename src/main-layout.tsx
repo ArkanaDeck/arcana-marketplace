@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
+import { Seo } from './seo';
 import { confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
@@ -900,6 +901,11 @@ export const MainLayout: React.FC = () => {
 
     const isNestedNativeView = isNativeApp && !NATIVE_ROOT_VIEWS.includes(activeView);
     const nativeScreenTitle = activeView === 'Sell' && editModeData ? 'Edit Listing' : NATIVE_VIEW_TITLES[activeView] || 'Arkana';
+    const noticeTitle = viewingListing?.name?.trim()
+        ? `${viewingListing.name.trim()} | ArkCards Public Notice Board`
+        : 'ArkCards Public Notice Board';
+    const noticeDescription = viewingListing?.description?.trim().slice(0, 150)
+        || 'ArkCards is a public notice board for local notices, community events, and community listings.';
 
     const handleNativeBack = () => {
         setIsMobileMenuOpen(false);
@@ -917,6 +923,7 @@ export const MainLayout: React.FC = () => {
 
     return (
         <div className={`container${isNativeApp ? ' app-container' : ''}`}>
+            <Seo title={noticeTitle} description={noticeDescription} />
             <div className="frame">
                 {!isNativeApp && runtimeConfig.warnings.length > 0 && (
                     <div className="runtime-warning-banner" role="alert">

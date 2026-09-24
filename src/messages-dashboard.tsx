@@ -55,7 +55,14 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
     };
 
     return <section className="messages-dashboard" aria-label="Chat messages">
-        <button type="button" className="auth-link-btn" onClick={onBack}>← Back to Marketplace</button>
+        <header className="messages-dashboard__toolbar">
+            <button type="button" className="messages-dashboard__back-button" onClick={onBack} aria-label="Back to Marketplace">
+                <span aria-hidden="true">&lt;</span>
+                <span>Back</span>
+            </button>
+            <h1>Messages</h1>
+            <span aria-hidden="true" />
+        </header>
         <div className="seller-chat-messages" aria-live="polite">
             {messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text || '') || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text || '')) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text || '')}</p>)}
             <div ref={messagesEndRef} aria-hidden="true" />

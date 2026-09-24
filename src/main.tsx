@@ -1,6 +1,7 @@
 import './main-layout.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { HelmetProvider } from 'react-helmet-async';
 import { MainLayout } from './main-layout';
 import { RealtimeErrorBoundary } from './realtime-error-boundary';
 
@@ -13,8 +14,10 @@ if (!container) {
 const root = createRoot(container);
 root.render(
     <React.StrictMode>
-        <RealtimeErrorBoundary>
-            <MainLayout />
-        </RealtimeErrorBoundary>
+        <HelmetProvider>
+            <RealtimeErrorBoundary>
+                <MainLayout />
+            </RealtimeErrorBoundary>
+        </HelmetProvider>
     </React.StrictMode>
 );
