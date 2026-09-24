@@ -59,8 +59,8 @@ function assertListingImageCount(imageCount: number) {
     }
 }
 
-// Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
-async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes = 1024 * 1024): Promise<Blob> {
+// Downscales and re-encodes an image client-side before it enters listing form state.
+export async function compressImageFile(file: File, maxDimension = 1280, quality = 0.75): Promise<Blob> {
     const bitmap = await createImageBitmap(file);
     let width = bitmap.width;
     let height = bitmap.height;
@@ -77,13 +77,7 @@ async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes =
     if (!context) throw new Error('Unable to process image for upload.');
     context.drawImage(bitmap, 0, 0, width, height);
 
-    const qualitySteps = [0.9, 0.75, 0.6, 0.45, 0.3, 0.15];
-    let compressed: Blob | null = null;
-    for (const quality of qualitySteps) {
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
-        compressed = blob;
-        if (blob && blob.size <= maxSizeBytes) break;
-    }
+    const compressed = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
 
     if (!compressed) throw new Error('Unable to compress image for upload.');
     return compressed;

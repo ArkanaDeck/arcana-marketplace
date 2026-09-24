@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { Seo } from './seo';
-import { confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { compressImageFile, confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -123,6 +123,7 @@ export const MainLayout: React.FC = () => {
     const [listingType, setListingType] = useState<DeckListing['listingType']>('sale');
     const [deckImageFiles, setDeckImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [processingImageCount, setProcessingImageCount] = useState(0);
     const [wantsExternalLink, setWantsExternalLink] = useState<boolean>(false);
     const [externalStoreUrl, setExternalStoreUrl] = useState('');
     const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
@@ -467,7 +468,7 @@ export const MainLayout: React.FC = () => {
         return () => window.clearTimeout(timer);
     }, [flashMessage]);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const newFiles = Array.from(e.target.files || []);
         const existingImageUrls = imagePreviews.filter((url) => !url.startsWith('blob:'));
         const availableSlots = MAX_LISTING_IMAGES - existingImageUrls.length - deckImageFiles.length;
@@ -477,10 +478,23 @@ export const MainLayout: React.FC = () => {
             e.target.value = '';
             return;
         }
-        const mergedFiles = [...deckImageFiles, ...newFiles];
-        setDeckImageFiles(mergedFiles);
-        setImagePreviews([...existingImageUrls, ...mergedFiles.map((file) => URL.createObjectURL(file))]);
-        e.target.value = '';
+        setProcessingImageCount(newFiles.length);
+        try {
+            const compressedFiles = await Promise.all(newFiles.map(async (file) => {
+                if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+                const compressed = await compressImageFile(file);
+                const filename = file.name.replace(/\.[^.]+$/, '') || 'listing-image';
+                return new File([compressed], `${filename}.jpg`, { type: 'image/jpeg', lastModified: file.lastModified });
+            }));
+            const mergedFiles = [...deckImageFiles, ...compressedFiles];
+            setDeckImageFiles(mergedFiles);
+            setImagePreviews([...existingImageUrls, ...mergedFiles.map((file) => URL.createObjectURL(file))]);
+        } catch (error) {
+            setFlashMessage(error instanceof Error ? error.message : 'Unable to process the selected images.');
+        } finally {
+            setProcessingImageCount(0);
+            e.target.value = '';
+        }
     };
 
     const handleRemoveImage = (index: number) => {
@@ -1721,14 +1735,7 @@ export const MainLayout: React.FC = () => {
                                         onChange={handleImageChange}
                                     />
                                     {imagePreviews.length > 0 && <div className="image-status">{imagePreviews.length} image{imagePreviews.length === 1 ? '' : 's'} selected and ready to publish</div>}
-                                    {imagePreviews.length > 0 && <div className="image-preview-list">
-                                        {imagePreviews.map((previewUrl, index) => (
-                                            <div key={previewUrl} className="image-preview-wrapper">
-                                                <img src={previewUrl} alt={`Selected deck preview ${index + 1}`} className="image-preview-thumbnail" />
-                                                <button type="button" className="image-delete-badge-btn" onClick={() => handleRemoveImage(index)} aria-label={`Remove image ${index + 1}`}>✕</button>
-                                            </div>
-                                        ))}
-                                    </div>}
+                                    <ImagePreviewGrid previews={imagePreviews} processingCount={processingImageCount} onRemove={handleRemoveImage} />
                                 </div>
                                 <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink || isUploading}>
                                     {isUploading ? <><span className="upload-progress-indicator" aria-hidden="true" /><span>Publishing...</span></> : isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}
@@ -2158,6 +2165,25 @@ const KeyboardDoneAccessory: React.FC = () => {
             Done
         </button>,
         document.body,
+    );
+};
+
+const ImagePreviewGrid: React.FC<{ previews: string[]; processingCount: number; onRemove: (index: number) => void }> = ({ previews, processingCount, onRemove }) => {
+    if (previews.length === 0 && processingCount === 0) return null;
+    return (
+        <div className="image-preview-grid">
+            {previews.map((previewUrl, index) => (
+                <div key={previewUrl} className="image-preview-tile">
+                    <img src={previewUrl} alt={`Selected deck preview ${index + 1}`} className="image-preview-tile__image" />
+                    <button type="button" className="image-preview-tile__remove" onClick={() => onRemove(index)} aria-label={`Remove image ${index + 1}`}>✕</button>
+                </div>
+            ))}
+            {Array.from({ length: processingCount }, (_, index) => (
+                <div key={`processing-${index}`} className="image-preview-tile image-preview-tile--processing" role="status" aria-label="Processing image">
+                    <span className="image-preview-tile__spinner" aria-hidden="true" />
+                </div>
+            ))}
+        </div>
     );
 };
 
