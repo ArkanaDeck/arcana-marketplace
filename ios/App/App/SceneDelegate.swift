@@ -1,11 +1,16 @@
 import UIKit
 import Capacitor
 import WebKit
+import Security
 
 final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private let sessionMessageName = "arkCardsSession"
     private let formMessageName = "arkCardsForm"
+    private let sessionTokenMessageName = "cacheSessionToken"
+    private let keychainService = "arkcards-session"
+    private let keychainAccount = "arkcards-session"
     private weak var observedWebView: WKWebView?
+    private var hasInstalledSessionBootstrap = false
     private var isAuthenticated = false {
         didSet { updateProfileActions() }
     }
@@ -14,9 +19,11 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         super.capacitorDidLoad()
         bridge?.webView?.configuration.userContentController.add(self, name: sessionMessageName)
         bridge?.webView?.configuration.userContentController.add(self, name: formMessageName)
+        bridge?.webView?.configuration.userContentController.add(self, name: sessionTokenMessageName)
         if let webView = bridge?.webView {
             observedWebView = webView
             webView.addObserver(self, forKeyPath: #keyPath(WKWebView.isLoading), options: [.new], context: nil)
+            restoreSessionToken(in: webView)
         }
         updateProfileActions()
     }
@@ -25,6 +32,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         observedWebView?.removeObserver(self, forKeyPath: #keyPath(WKWebView.isLoading))
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: formMessageName)
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionTokenMessageName)
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
@@ -38,6 +46,16 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == sessionTokenMessageName {
+            if let token = message.body as? String {
+                cacheSessionToken(token)
+            } else if let payload = message.body as? [String: Any],
+                      payload["action"] as? String == "clearSessionToken" {
+                clearCachedSessionToken()
+            }
+            return
+        }
+
         guard let payload = message.body as? [String: Any] else {
             return
         }
@@ -51,6 +69,104 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
                 self?.presentDiscardListingAlert()
             }
         }
+    }
+
+    private func cacheSessionToken(_ token: String) {
+        guard isTokenValid(token) else {
+            deleteSessionToken()
+            return
+        }
+        saveSessionToken(token)
+        if let webView = bridge?.webView {
+            installSessionBootstrap(token, in: webView)
+            injectSessionToken(token, into: webView)
+        }
+    }
+
+    private func restoreSessionToken(in webView: WKWebView) {
+        guard let token = loadSessionToken(), isTokenValid(token) else {
+            deleteSessionToken()
+            return
+        }
+        installSessionBootstrap(token, in: webView)
+        injectSessionToken(token, into: webView)
+    }
+
+    private func saveSessionToken(_ token: String) {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: keychainService,
+            kSecAttrAccount: keychainAccount,
+        ]
+        SecItemDelete(query as CFDictionary)
+        var newItem = query
+        newItem[kSecValueData] = Data(token.utf8)
+        newItem[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(newItem as CFDictionary, nil)
+    }
+
+    private func loadSessionToken() -> String? {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: keychainService,
+            kSecAttrAccount: keychainAccount,
+            kSecReturnData: true,
+            kSecMatchLimit: kSecMatchLimitOne,
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private func deleteSessionToken() {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: keychainService,
+            kSecAttrAccount: keychainAccount,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
+    private func clearCachedSessionToken() {
+        deleteSessionToken()
+        bridge?.webView?.evaluateJavaScript("window.sessionStorage.removeItem('arkcards-session-token');")
+        isAuthenticated = false
+    }
+
+    private func isTokenValid(_ token: String) -> Bool {
+        let components = token.split(separator: ".")
+        guard components.count == 3 else { return false }
+        var payload = String(components[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        payload.append(String(repeating: "=", count: (4 - payload.count % 4) % 4))
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let expiresAt = claims["exp"] as? TimeInterval else {
+            return false
+        }
+        return Date().timeIntervalSince1970 < expiresAt - 30
+    }
+
+    private func installSessionBootstrap(_ token: String, in webView: WKWebView) {
+        guard !hasInstalledSessionBootstrap, let tokenLiteral = jsonStringLiteral(for: token) else { return }
+        let source = "window.sessionStorage.setItem('arkcards-session-token', \(tokenLiteral));"
+        let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        webView.configuration.userContentController.addUserScript(script)
+        hasInstalledSessionBootstrap = true
+    }
+
+    private func injectSessionToken(_ token: String, into webView: WKWebView) {
+        guard let tokenLiteral = jsonStringLiteral(for: token) else { return }
+        webView.evaluateJavaScript("window.sessionStorage.setItem('arkcards-session-token', \(tokenLiteral));")
+    }
+
+    private func jsonStringLiteral(for value: String) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     private func presentDiscardListingAlert() {

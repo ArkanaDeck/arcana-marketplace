@@ -85,6 +85,7 @@ export const MainLayout: React.FC = () => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const nativeSearchRef = useRef<HTMLInputElement>(null);
     const profileFormRef = useRef<HTMLFormElement>(null);
+    const isUnauthorizedHandlingRef = useRef(false);
     const hasSecureBackend = runtimeConfig.supabaseEnabled;
     const isSecureCheckoutEnabled = runtimeConfig.isSecureMode;
     const productionChecklist = getProductionChecklist({
@@ -260,6 +261,60 @@ export const MainLayout: React.FC = () => {
         }).webkit?.messageHandlers?.arkCardsSession;
         nativeSessionHandler?.postMessage({ authenticated: isAuthenticated });
     }, [isAuthenticated]);
+
+    useEffect(() => {
+        if (!isNativeApp || !isAuthenticated || !session?.access_token) return;
+        const tokenHandler = (window as Window & {
+            webkit?: { messageHandlers?: { cacheSessionToken?: { postMessage: (token: string) => void } } };
+        }).webkit?.messageHandlers?.cacheSessionToken;
+        tokenHandler?.postMessage(session.access_token);
+    }, [isAuthenticated, session?.access_token]);
+
+    useEffect(() => {
+        if (isAuthenticated) isUnauthorizedHandlingRef.current = false;
+    }, [isAuthenticated]);
+
+    useEffect(() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            const requestUrl = typeof args[0] === 'string'
+                ? args[0]
+                : args[0] instanceof URL
+                    ? args[0].toString()
+                    : args[0].url;
+            const url = new URL(requestUrl, window.location.origin);
+
+            if (response.status === 401 && isNativeApp && url.origin === window.location.origin && url.pathname.startsWith('/api/') && !isUnauthorizedHandlingRef.current) {
+                isUnauthorizedHandlingRef.current = true;
+                const nativeHandlers = (window as Window & {
+                    webkit?: {
+                        messageHandlers?: {
+                            cordova?: { postMessage: (payload: { action: string }) => void };
+                            cacheSessionToken?: { postMessage: (payload: { action: string }) => void };
+                        };
+                    };
+                }).webkit?.messageHandlers;
+                nativeHandlers?.cordova?.postMessage({ action: 'clearSessionToken' });
+                nativeHandlers?.cacheSessionToken?.postMessage({ action: 'clearSessionToken' });
+                void supabase?.auth.signOut({ scope: 'local' });
+                setSession(null);
+                setIsAuthenticated(false);
+                setRedirectPath(null);
+                setAccountMode('signin');
+                setAccountStatus('Your session has expired. Sign in again to continue.');
+                setIsEmailSent(false);
+                setIsResetView(false);
+                setActiveView('Account');
+            }
+
+            return response;
+        };
+
+        return () => {
+            window.fetch = originalFetch;
+        };
+    }, []);
 
     useEffect(() => {
         if (!session?.user) {
