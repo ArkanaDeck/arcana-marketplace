@@ -82,7 +82,7 @@ export const MainLayout: React.FC = () => {
     const [redirectPath, setRedirectPath] = useState<string | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
     const nativeSearchRef = useRef<HTMLInputElement>(null);
     const profileFormRef = useRef<HTMLFormElement>(null);
     const isUnauthorizedHandlingRef = useRef(false);
@@ -856,7 +856,7 @@ export const MainLayout: React.FC = () => {
             setAccountStatus(error instanceof Error ? error.message : 'Unable to delete your account.');
         } finally {
             setIsDeletingAccount(false);
-            setIsDeleteDialogOpen(false);
+            setShowDeleteConfirmation(false);
         }
     };
 
@@ -1298,40 +1298,39 @@ export const MainLayout: React.FC = () => {
                                                 <button type="button" className="settings-action-row is-logout" onClick={() => void handleSignOut()}>Log Out</button>
                                             )}
                                         </div>
-
-                                        {isAuthenticated && (
-                                            <section className="danger-zone-section" aria-labelledby="danger-zone-title">
-                                                <h3 className="danger-zone-title" id="danger-zone-title">Danger Zone</h3>
-                                                <p className="danger-zone-warning">
-                                                    Deleting your account is permanent and cannot be undone. Every card marketplace listing you have published, along with your seller profile and message history, will be wiped out immediately.
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    className="account-delete-submit-btn"
-                                                    disabled={isDeletingAccount}
-                                                    onClick={() => setIsDeleteDialogOpen(true)}
-                                                >
-                                                    {isDeletingAccount ? 'Deleting...' : 'Delete My Account Permanently'}
-                                                </button>
-
-                                                {isDeleteDialogOpen && createPortal(
-                                                    <div className="confirm-dialog-backdrop" onClick={() => { if (!isDeletingAccount) setIsDeleteDialogOpen(false); }}>
-                                                        <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-text" onClick={(event) => event.stopPropagation()}>
-                                                            <h2 className="confirm-dialog-title" id="delete-dialog-title">Delete your account?</h2>
-                                                            <p className="confirm-dialog-text" id="delete-dialog-text">
-                                                                Are you absolutely sure you want to permanently delete your Arkana account? All of your listings and profile data will be erased. This action cannot be undone.
-                                                            </p>
-                                                            <div className="confirm-dialog-actions">
-                                                                <button type="button" className="confirm-dialog-btn is-cancel" disabled={isDeletingAccount} onClick={() => setIsDeleteDialogOpen(false)}>Cancel</button>
-                                                                <button type="button" className="confirm-dialog-btn is-destructive" disabled={isDeletingAccount} onClick={() => void handleDeleteAccount()}>{isDeletingAccount ? 'Deleting...' : 'Delete'}</button>
-                                                            </div>
-                                                        </div>
-                                                    </div>,
-                                                    document.body,
-                                                )}
-                                            </section>
-                                        )}
                                     </div>
+                                )}
+                                {isAuthenticated && (
+                                    <section className="danger-zone-section" aria-labelledby="danger-zone-title">
+                                        <h3 className="danger-zone-title" id="danger-zone-title">Danger Zone</h3>
+                                        <p className="danger-zone-warning">
+                                            Deleting your account is permanent and cannot be undone. Every card marketplace listing you have published, along with your seller profile and message history, will be wiped out immediately.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            className="account-delete-submit-btn"
+                                            disabled={isDeletingAccount}
+                                            onClick={() => setShowDeleteConfirmation(true)}
+                                        >
+                                            {isDeletingAccount ? 'Deleting...' : 'Delete My Account Permanently'}
+                                        </button>
+
+                                        {showDeleteConfirmation && createPortal(
+                                            <div className="confirm-dialog-backdrop" onClick={() => { if (!isDeletingAccount) setShowDeleteConfirmation(false); }}>
+                                                <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-text" onClick={(event) => event.stopPropagation()}>
+                                                    <h2 className="confirm-dialog-title" id="delete-dialog-title">Delete your account?</h2>
+                                                    <p className="confirm-dialog-text" id="delete-dialog-text">
+                                                        Are you absolutely sure? This action is permanent and cannot be undone.
+                                                    </p>
+                                                    <div className="confirm-dialog-actions">
+                                                        <button type="button" className="confirm-dialog-btn is-cancel" disabled={isDeletingAccount} onClick={() => setShowDeleteConfirmation(false)}>Cancel</button>
+                                                        <button type="button" className="confirm-dialog-btn is-destructive" disabled={isDeletingAccount} onClick={() => void handleDeleteAccount()}>{isDeletingAccount ? 'Deleting...' : 'Permanently Delete'}</button>
+                                                    </div>
+                                                </div>
+                                            </div>,
+                                            document.body,
+                                        )}
+                                    </section>
                                 )}
                                 {isAuthenticated ? (
                                     <div className="account-signed-in">
