@@ -5,6 +5,7 @@ import WebKit
 final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private let sessionMessageName = "arkCardsSession"
     private let formMessageName = "arkCardsForm"
+    private weak var observedWebView: WKWebView?
     private var isAuthenticated = false {
         didSet { updateProfileActions() }
     }
@@ -13,12 +14,27 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         super.capacitorDidLoad()
         bridge?.webView?.configuration.userContentController.add(self, name: sessionMessageName)
         bridge?.webView?.configuration.userContentController.add(self, name: formMessageName)
+        if let webView = bridge?.webView {
+            observedWebView = webView
+            webView.addObserver(self, forKeyPath: #keyPath(WKWebView.isLoading), options: [.new], context: nil)
+        }
         updateProfileActions()
     }
 
     deinit {
+        observedWebView?.removeObserver(self, forKeyPath: #keyPath(WKWebView.isLoading))
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: formMessageName)
+    }
+
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        guard keyPath == #keyPath(WKWebView.isLoading),
+              let webView = object as? WKWebView,
+              webView === observedWebView,
+              !webView.isLoading else {
+            return
+        }
+        refreshAuthenticationFromHeader(in: webView)
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -54,7 +70,13 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
 
     private func updateProfileActions() {
         guard isAuthenticated else {
-            navigationItem.rightBarButtonItem = nil
+            let signInAction = UIAction { [weak self] _ in
+                self?.triggerWebAction("sign-in")
+            }
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                image: UIImage(systemName: "person.crop.circle.badge.plus"),
+                primaryAction: signInAction
+            )
             return
         }
 
@@ -65,9 +87,28 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
             self?.triggerWebAction("sign-out")
         }
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "person.crop.circle"),
+            image: UIImage(systemName: "person.circle.fill"),
             menu: UIMenu(children: [profileAction, signOutAction])
         )
+    }
+
+    private func refreshAuthenticationFromHeader(in webView: WKWebView) {
+        let script = """
+        (() => {
+          const headerText = Array.from(document.querySelectorAll('a, button, [role="button"]'))
+            .map((element) => element.textContent?.trim() || '')
+            .join(' ');
+          if (headerText.includes('Your Profile')) return 'authenticated';
+          if (headerText.includes('Sign In') || headerText.includes('Log In')) return 'unauthenticated';
+          return 'unknown';
+        })();
+        """
+        webView.evaluateJavaScript(script) { [weak self] result, error in
+            guard error == nil, let state = result as? String, state != "unknown" else { return }
+            DispatchQueue.main.async {
+                self?.isAuthenticated = state == "authenticated"
+            }
+        }
     }
 
     private func triggerWebAction(_ action: String) {

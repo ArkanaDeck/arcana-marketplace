@@ -1024,10 +1024,14 @@ export const MainLayout: React.FC = () => {
     return (
         <div className={`container${isNativeApp ? ' app-container' : ''}`}>
             <Seo title={noticeTitle} description={noticeDescription} />
-            {isNativeApp && isAuthenticated && session?.user && (
+            {isNativeApp && (
                 <div hidden aria-hidden="true">
-                    <button type="button" data-native-bridge-action="profile" onClick={() => { window.location.href = `/app/profile/${encodeURIComponent(session.user.id)}`; }}>Your Profile</button>
-                    <button type="button" data-native-bridge-action="sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
+                    {isAuthenticated && session?.user ? <>
+                        <button type="button" data-native-bridge-action="profile" onClick={() => { window.location.href = `/app/profile/${encodeURIComponent(session.user.id)}`; }}>Your Profile</button>
+                        <button type="button" data-native-bridge-action="sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
+                    </> : (
+                        <button type="button" data-native-bridge-action="sign-in" onClick={() => handleRequireSignIn('Sign in to access your profile.')}>Sign In</button>
+                    )}
                 </div>
             )}
             {isNativeApp && <button type="button" hidden data-native-bridge-action="discard-listing" onClick={discardListingChanges}>Discard Listing Changes</button>}
