@@ -4,6 +4,7 @@ import WebKit
 
 final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private let sessionMessageName = "arkCardsSession"
+    private let formMessageName = "arkCardsForm"
     private var isAuthenticated = false {
         didSet { updateProfileActions() }
     }
@@ -11,23 +12,44 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.webView?.configuration.userContentController.add(self, name: sessionMessageName)
+        bridge?.webView?.configuration.userContentController.add(self, name: formMessageName)
         updateProfileActions()
     }
 
     deinit {
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: formMessageName)
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == sessionMessageName,
-              let payload = message.body as? [String: Any],
-              let authenticated = payload["authenticated"] as? Bool else {
+        guard let payload = message.body as? [String: Any] else {
             return
         }
 
         DispatchQueue.main.async { [weak self] in
-            self?.isAuthenticated = authenticated
+            if message.name == self?.sessionMessageName,
+               let authenticated = payload["authenticated"] as? Bool {
+                self?.isAuthenticated = authenticated
+            } else if message.name == self?.formMessageName,
+                      payload["action"] as? String == "confirm-discard-listing" {
+                self?.presentDiscardListingAlert()
+            }
         }
+    }
+
+    private func presentDiscardListingAlert() {
+        guard presentedViewController == nil else { return }
+
+        let alert = UIAlertController(
+            title: "Discard changes?",
+            message: "Your listing edits will be lost.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Keep Editing", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Discard", style: .destructive) { [weak self] _ in
+            self?.triggerWebAction("discard-listing")
+        })
+        present(alert, animated: true)
     }
 
     private func updateProfileActions() {

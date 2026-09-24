@@ -22,6 +22,13 @@ import { SellerProfilePage } from './seller-profile-page';
 import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
+type PendingListingDraft = {
+    deckName: string;
+    deckPrice: string;
+    deckDescription: string;
+    condition: DeckCondition;
+    imageFiles: File[];
+};
 const SHIPPING_FEE = 2.99;
 const DELIVERY_FEE = 2.99;
 type BasketItem = DeckListing & { courierFee: number };
@@ -120,11 +127,14 @@ export const MainLayout: React.FC = () => {
     const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
     const [wantsAuthentication, setWantsAuthentication] = useState<boolean>(false);
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [discoveryCategory, setDiscoveryCategory] = useState<DiscoveryCategory>('all');
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const publishFormRef = useRef<HTMLFormElement | null>(null);
+    const pendingPublishDraftRef = useRef<PendingListingDraft | null>(null);
 
     // Checkout Flow States
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
@@ -228,6 +238,20 @@ export const MainLayout: React.FC = () => {
         });
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        const pendingDraft = pendingPublishDraftRef.current;
+        if (!pendingDraft || !session?.user) return;
+
+        pendingPublishDraftRef.current = null;
+        setDeckName(pendingDraft.deckName);
+        setDeckPrice(pendingDraft.deckPrice);
+        setDeckDescription(pendingDraft.deckDescription);
+        setCondition(pendingDraft.condition);
+        setDeckImageFiles(pendingDraft.imageFiles);
+        setActiveView('Sell');
+        window.setTimeout(() => publishFormRef.current?.requestSubmit(), 0);
+    }, [session?.user]);
 
     useEffect(() => {
         if (!isNativeApp) return;
@@ -463,6 +487,13 @@ export const MainLayout: React.FC = () => {
             return;
         }
         if (!session?.user) {
+            pendingPublishDraftRef.current = {
+                deckName,
+                deckPrice,
+                deckDescription,
+                condition,
+                imageFiles: deckImageFiles,
+            };
             setRedirectPath('Sell');
             handleRequireSignIn('Sign in before publishing a listing.');
             return;
@@ -483,6 +514,7 @@ export const MainLayout: React.FC = () => {
             accountCreatedAt: session.user.created_at,
             recentListingCount: listings.filter((listing) => listing.sellerId === session.user!.id).length,
         });
+        setIsUploading(true);
         try {
             const existingListing = editModeData;
             const isEditing = existingListing !== null;
@@ -570,6 +602,8 @@ export const MainLayout: React.FC = () => {
             }
             setFlashMessage(`Card verification failed: ${message}`);
             alert(message);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -915,9 +949,67 @@ export const MainLayout: React.FC = () => {
     const noticeDescription = viewingListing?.description?.trim().slice(0, 150)
         || 'ArkCards is a public notice board for local notices, community events, and community listings.';
 
-    const handleNativeBack = () => {
+    const discardListingChanges = () => {
+        setDeckName('');
+        setDeckPrice('');
+        setDeckDescription('');
+        setCondition('good');
+        setFreeDelivery(false);
+        setListingType('sale');
+        setDeckImageFiles([]);
+        setImagePreviews([]);
+        setWantsExternalLink(false);
+        setExternalStoreUrl('');
+        setExternalLinkUrlError(null);
+        setWantsAuthentication(false);
+        setEditModeData(null);
         setIsMobileMenuOpen(false);
         setActiveView('Listings');
+    };
+
+    const hasListingChanges = () => {
+        if (!editModeData) {
+            return Boolean(
+                deckName.trim()
+                || deckPrice.trim()
+                || deckDescription.trim()
+                || deckImageFiles.length
+                || wantsExternalLink
+                || externalStoreUrl.trim()
+                || wantsAuthentication
+                || freeDelivery
+                || listingType !== 'sale'
+                || condition !== 'good'
+            );
+        }
+
+        const originalPrice = editModeData.listingType === 'sale' ? editModeData.price.toFixed(2) : '';
+        return deckName !== editModeData.name
+            || deckPrice !== originalPrice
+            || deckDescription !== (editModeData.description || '')
+            || condition !== editModeData.condition
+            || freeDelivery !== editModeData.freeDelivery
+            || listingType !== editModeData.listingType
+            || deckImageFiles.length > 0
+            || imagePreviews.join('|') !== editModeData.images.join('|')
+            || wantsExternalLink
+            || externalStoreUrl.trim()
+            || wantsAuthentication;
+    };
+
+    const handleNativeBack = () => {
+        if (activeView === 'Sell' && hasListingChanges()) {
+            const nativeFormHandler = (window as Window & {
+                webkit?: { messageHandlers?: { arkCardsForm?: { postMessage: (payload: { action: string }) => void } } };
+            }).webkit?.messageHandlers?.arkCardsForm;
+            if (nativeFormHandler) {
+                nativeFormHandler.postMessage({ action: 'confirm-discard-listing' });
+            } else if (window.confirm('Discard changes?')) {
+                discardListingChanges();
+            }
+            return;
+        }
+        discardListingChanges();
     };
 
     const handleRequireSignIn = (message: string = SIGN_IN_REQUIRED_MESSAGE) => {
@@ -938,6 +1030,8 @@ export const MainLayout: React.FC = () => {
                     <button type="button" data-native-bridge-action="sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
                 </div>
             )}
+            {isNativeApp && <button type="button" hidden data-native-bridge-action="discard-listing" onClick={discardListingChanges}>Discard Listing Changes</button>}
+            {isNativeApp && <KeyboardDoneAccessory />}
             <div className="frame">
                 {!isNativeApp && runtimeConfig.warnings.length > 0 && (
                     <div className="runtime-warning-banner" role="alert">
@@ -1440,7 +1534,7 @@ export const MainLayout: React.FC = () => {
                     {activeView === 'Sell' && (
                         <section className="sell-section">
                             <h2>Create New Listing</h2>
-                            <form onSubmit={handlePublish} className="sell-form create-listing-scroll-container">
+                            <form ref={publishFormRef} onSubmit={handlePublish} className="sell-form create-listing-scroll-container">
                                 <div className="form-group">
                                     <label>Listing type</label>
                                     <div className="listing-type-controls">
@@ -1577,7 +1671,9 @@ export const MainLayout: React.FC = () => {
                                         ))}
                                     </div>}
                                 </div>
-                                <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink}>{isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}</button>
+                                <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink || isUploading}>
+                                    {isUploading ? <><span className="upload-progress-indicator" aria-hidden="true" /><span>Publishing...</span></> : isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}
+                                </button>
                             </form>
                         </section>
                     )}
@@ -1955,6 +2051,55 @@ const SupportChatModal: React.FC<{ onClose: () => void; onRequireSignIn: (messag
                 : <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>}
         </section>
     </div>;
+};
+
+const KeyboardDoneAccessory: React.FC = () => {
+    const [focused, setFocused] = useState(false);
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+    useEffect(() => {
+        const viewport = window.visualViewport;
+        const isTextField = (target: EventTarget | null) => target instanceof HTMLInputElement
+            ? !['checkbox', 'file', 'radio', 'range'].includes(target.type)
+            : target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
+        const updateKeyboardOffset = () => {
+            if (!viewport) return;
+            setKeyboardOffset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop));
+        };
+        const handleFocusIn = (event: FocusEvent) => {
+            if (isTextField(event.target)) {
+                setFocused(true);
+                updateKeyboardOffset();
+            }
+        };
+        const handleFocusOut = () => window.setTimeout(() => {
+            if (!isTextField(document.activeElement)) setFocused(false);
+        }, 0);
+
+        document.addEventListener('focusin', handleFocusIn);
+        document.addEventListener('focusout', handleFocusOut);
+        viewport?.addEventListener('resize', updateKeyboardOffset);
+        viewport?.addEventListener('scroll', updateKeyboardOffset);
+        return () => {
+            document.removeEventListener('focusin', handleFocusIn);
+            document.removeEventListener('focusout', handleFocusOut);
+            viewport?.removeEventListener('resize', updateKeyboardOffset);
+            viewport?.removeEventListener('scroll', updateKeyboardOffset);
+        };
+    }, []);
+
+    if (!focused) return null;
+    return createPortal(
+        <button
+            type="button"
+            className="keyboard-done-accessory"
+            style={{ bottom: `${keyboardOffset + 8}px` }}
+            onClick={() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined)}
+        >
+            Done
+        </button>,
+        document.body,
+    );
 };
 
 const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => createPortal(
