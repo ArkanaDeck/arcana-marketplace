@@ -1,5 +1,69 @@
 import UIKit
 import Capacitor
+import WebKit
+
+final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
+    private let sessionMessageName = "arkCardsSession"
+    private var isAuthenticated = false {
+        didSet { updateProfileActions() }
+    }
+
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        bridge?.webView?.configuration.userContentController.add(self, name: sessionMessageName)
+        updateProfileActions()
+    }
+
+    deinit {
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == sessionMessageName,
+              let payload = message.body as? [String: Any],
+              let authenticated = payload["authenticated"] as? Bool else {
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.isAuthenticated = authenticated
+        }
+    }
+
+    private func updateProfileActions() {
+        guard isAuthenticated else {
+            navigationItem.rightBarButtonItem = nil
+            return
+        }
+
+        let profileAction = UIAction(title: "Your Profile", image: UIImage(systemName: "person.circle")) { [weak self] _ in
+            self?.triggerWebAction("profile")
+        }
+        let signOutAction = UIAction(title: "Sign Out", image: UIImage(systemName: "rectangle.portrait.and.arrow.right"), attributes: .destructive) { [weak self] _ in
+            self?.triggerWebAction("sign-out")
+        }
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "person.crop.circle"),
+            menu: UIMenu(children: [profileAction, signOutAction])
+        )
+    }
+
+    private func triggerWebAction(_ action: String) {
+        let script = """
+        (() => {
+          const target = document.querySelector('[data-native-bridge-action="\(action)"]');
+          if (!target) return false;
+          target.click();
+          return true;
+        })();
+        """
+        bridge?.webView?.evaluateJavaScript(script) { _, error in
+            if let error {
+                NSLog("ArkCards native bridge action failed: %@", error.localizedDescription)
+            }
+        }
+    }
+}
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -8,7 +72,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        let bridgeController = ArkCardsBridgeViewController()
+        let navigationController = UINavigationController(rootViewController: bridgeController)
+        navigationController.navigationBar.prefersLargeTitles = false
+        window?.rootViewController = navigationController
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)

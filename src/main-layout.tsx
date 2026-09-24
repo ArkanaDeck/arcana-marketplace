@@ -230,6 +230,14 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!isNativeApp) return;
+        const nativeSessionHandler = (window as Window & {
+            webkit?: { messageHandlers?: { arkCardsSession?: { postMessage: (payload: { authenticated: boolean }) => void } } };
+        }).webkit?.messageHandlers?.arkCardsSession;
+        nativeSessionHandler?.postMessage({ authenticated: isAuthenticated });
+    }, [isAuthenticated]);
+
+    useEffect(() => {
         if (!session?.user) {
             setBuyerSoldListingIds(new Set());
             return;
@@ -924,6 +932,12 @@ export const MainLayout: React.FC = () => {
     return (
         <div className={`container${isNativeApp ? ' app-container' : ''}`}>
             <Seo title={noticeTitle} description={noticeDescription} />
+            {isNativeApp && isAuthenticated && session?.user && (
+                <div hidden aria-hidden="true">
+                    <button type="button" data-native-bridge-action="profile" onClick={() => { window.location.href = `/app/profile/${encodeURIComponent(session.user.id)}`; }}>Your Profile</button>
+                    <button type="button" data-native-bridge-action="sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
+                </div>
+            )}
             <div className="frame">
                 {!isNativeApp && runtimeConfig.warnings.length > 0 && (
                     <div className="runtime-warning-banner" role="alert">
