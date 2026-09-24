@@ -1500,7 +1500,7 @@ label.field-error .field-error-text {
 }
 
 .card-free-tier .product-image-box--carousel {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 3 / 4;
 }
 
 .card-free-tier .product-details {
@@ -1537,7 +1537,8 @@ label.field-error .field-error-text {
 .product-image-box--carousel {
     position: relative;
     height: auto;
-    aspect-ratio: 1;
+    aspect-ratio: 3 / 4;
+    max-height: 320px;
     overflow: hidden;
     background-color: #f8fafc;
     border-radius: 12px;
@@ -1571,6 +1572,14 @@ label.field-error .field-error-text {
 
 .listing-carousel__image .object-contain {
     object-fit: contain;
+}
+
+.listing-carousel__image .object-cover {
+    object-fit: cover;
+}
+
+.listing-carousel__image .object-top {
+    object-position: top;
 }
 
 .listing-carousel__nav {
