@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
-import { confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -382,10 +382,10 @@ export const MainLayout: React.FC = () => {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newFiles = Array.from(e.target.files || []);
         const existingImageUrls = imagePreviews.filter((url) => !url.startsWith('blob:'));
-        const availableSlots = 3 - existingImageUrls.length - deckImageFiles.length;
+        const availableSlots = MAX_LISTING_IMAGES - existingImageUrls.length - deckImageFiles.length;
         if (newFiles.length === 0) return;
         if (newFiles.length > availableSlots) {
-            setFlashMessage(availableSlots > 0 ? `Select up to ${availableSlots} more image${availableSlots === 1 ? '' : 's'} (3 total including existing photos).` : 'You already have 3 images. Remove one before adding another.');
+            setFlashMessage(availableSlots > 0 ? `Select up to ${availableSlots} more image${availableSlots === 1 ? '' : 's'} (${MAX_LISTING_IMAGES} total including existing photos).` : `You already have ${MAX_LISTING_IMAGES} images. Remove one before adding another.`);
             e.target.value = '';
             return;
         }
@@ -460,6 +460,11 @@ export const MainLayout: React.FC = () => {
         }
         if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
             setExternalLinkUrlError('Enter a valid web store link starting with http:// or https://.');
+            return;
+        }
+        const imageCount = (editModeData?.images?.length || 0) + deckImageFiles.length;
+        if (imageCount < MIN_LISTING_IMAGES || imageCount > MAX_LISTING_IMAGES) {
+            alert(`Add between ${MIN_LISTING_IMAGES} and ${MAX_LISTING_IMAGES} images before publishing.`);
             return;
         }
         setExternalLinkUrlError(null);

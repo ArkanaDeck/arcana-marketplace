@@ -50,6 +50,14 @@ export async function loadPublishedListings() {
 
 export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
+export const MIN_LISTING_IMAGES = 3;
+export const MAX_LISTING_IMAGES = 6;
+
+function assertListingImageCount(imageCount: number) {
+    if (imageCount < MIN_LISTING_IMAGES || imageCount > MAX_LISTING_IMAGES) {
+        throw new Error(`Provide between ${MIN_LISTING_IMAGES} and ${MAX_LISTING_IMAGES} images for each listing.`);
+    }
+}
 
 // Downscales and re-encodes an image client-side via canvas so uploads stay under the size cap.
 async function compressImageFile(file: File, maxDimension = 1280, maxSizeBytes = 1024 * 1024): Promise<Blob> {
@@ -100,12 +108,12 @@ export async function createListing(input: CreateListingInput) {
     if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
     if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
     if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');
-    if ((input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
+    assertListingImageCount(input.imageFiles?.length || 0);
 
     const imagePaths: string[] = [];
     const imageUrls: string[] = [];
     try {
-        for (const file of (input.imageFiles || []).slice(0, 3)) {
+        for (const file of (input.imageFiles || []).slice(0, MAX_LISTING_IMAGES)) {
             if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
             const compressed = await compressImageFile(file);
             const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
@@ -139,7 +147,7 @@ export async function updateListing(listingId: string, input: UpdateListingInput
     if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
     if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
     if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');
-    if (input.existingImages.length + (input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
+    assertListingImageCount(input.existingImages.length + (input.imageFiles?.length || 0));
 
     const imagePaths: string[] = [];
     const newImageUrls: string[] = [];
@@ -218,13 +226,13 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
     if (input.listingType === 'sale' && input.price <= 0) throw new Error('Sale listings must have a price greater than zero.');
     if (input.listingType !== 'sale' && input.price !== 0) throw new Error('Swap and free listings must have a price of 0.00.');
     if (!['new', 'like new', 'good', 'fair', 'poor'].includes(input.condition)) throw new Error('Choose a valid deck condition.');
-    if ((input.imageFiles?.length || 0) > 3) throw new Error('You can upload up to three images.');
+    assertListingImageCount(input.imageFiles?.length || 0);
 
     const imagePaths: string[] = [];
     const imageUrls: string[] = input.uploadedImageUrl ? [input.uploadedImageUrl] : [];
     const imageBase64: string[] = [];
     try {
-        const imageFiles = (input.imageFiles || []).slice(0, 3);
+        const imageFiles = (input.imageFiles || []).slice(0, MAX_LISTING_IMAGES);
         for (const file of imageFiles) {
             imageBase64.push(await fileToDataUrl(file));
         }

@@ -7,6 +7,9 @@ import { assessListingRisk } from '../server/lib/listing-risk-check.js';
 import { verifyCardListingImages } from '../server/lib/card-listing-vision.js';
 import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
 
+const MIN_LISTING_IMAGES = 3;
+const MAX_LISTING_IMAGES = 6;
+
 // Consolidated tarot authentication hub (submit-batch / status / vision-check / submit-listing-batch), routed via ?action=.
 // Merged from three separate files to stay under Vercel's serverless function count limit.
 export default async function handler(req, res) {
@@ -80,8 +83,8 @@ async function submitListingBatch(req, res) {
             if (!deck?.name?.trim() || !Number.isFinite(Number(deck.price)) || Number(deck.price) < 0) {
                 return res.status(400).json({ error: 'Every deck needs a name and a valid price.' });
             }
-            if (!Array.isArray(deck.images) || deck.images.length === 0) {
-                return res.status(400).json({ error: 'Every deck needs at least one artwork image already uploaded to storage.' });
+            if (!Array.isArray(deck.images) || deck.images.length < MIN_LISTING_IMAGES || deck.images.length > MAX_LISTING_IMAGES) {
+                return res.status(400).json({ error: `Every deck needs between ${MIN_LISTING_IMAGES} and ${MAX_LISTING_IMAGES} artwork images already uploaded to storage.` });
             }
         }
 
@@ -285,7 +288,7 @@ async function submitUnifiedListingBatch(req, res) {
             const price = Number(deck.price) || 0;
             if (deck.listingType === 'sale' && price <= 0) return res.status(400).json({ error: 'Sale listings must have a price greater than zero.' });
             if (deck.listingType !== 'sale' && price !== 0) return res.status(400).json({ error: 'Swap and free listings must have a price of 0.00.' });
-            if (!Array.isArray(deck.images) || deck.images.length === 0) return res.status(400).json({ error: 'Every deck needs at least one image already uploaded to storage.' });
+            if (!Array.isArray(deck.images) || deck.images.length < MIN_LISTING_IMAGES || deck.images.length > MAX_LISTING_IMAGES) return res.status(400).json({ error: `Every deck needs between ${MIN_LISTING_IMAGES} and ${MAX_LISTING_IMAGES} images already uploaded to storage.` });
         }
 
         // AI authenticity checks are opt-in per deck (`wantsAuthentication`); skip the OpenAI call entirely otherwise.
