@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.nrawles.arkcards',
-  appName: 'arkana',
+  appId: 'com.arkcards.app',
+  appName: 'Arkcards',
   webDir: 'dist'
 };
 
