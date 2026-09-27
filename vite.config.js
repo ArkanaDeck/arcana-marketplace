@@ -16,6 +16,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  // Strips in-source test blocks from production bundles.
+  define: {
+    'import.meta.vitest': 'undefined',
+  },
+  test: {
+    includeSource: ['src/main-layout.tsx'],
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

@@ -30,14 +30,15 @@ const structuredData = {
 type SeoProps = {
     title?: string;
     description?: string;
+    path?: string;
 };
 
-export function Seo({ title = DEFAULT_TITLE, description = DEFAULT_DESCRIPTION }: SeoProps) {
+export function Seo({ title = DEFAULT_TITLE, description = DEFAULT_DESCRIPTION, path = '' }: SeoProps) {
     return (
         <Helmet>
             <title>{title}</title>
             <meta name="description" content={description} />
-            <link rel="canonical" href={SITE_URL} />
+            <link rel="canonical" href={`${SITE_URL}${path}`} />
             <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
         </Helmet>
     );

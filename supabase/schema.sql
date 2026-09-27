@@ -79,6 +79,46 @@ alter table public.listings add column if not exists premium_stripe_session_id t
 alter table public.listings add column if not exists authentication_fee_pence integer not null default 0 check (authentication_fee_pence >= 0);
 alter table public.listings add column if not exists insertion_fee_pence integer not null default 0 check (insertion_fee_pence >= 0);
 alter table public.listings add column if not exists grand_total_fee_pence integer not null default 0 check (grand_total_fee_pence >= 0);
+alter table public.listings add column if not exists category text not null default 'other';
+alter table public.listings drop constraint if exists listings_category_check;
+alter table public.listings add constraint listings_category_check check (category in ('tarot', 'oracle', 'lenormand', 'other'));
+
+create or replace function public.infer_listing_category(listing_name text, listing_description text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when concat_ws(' ', listing_name, listing_description) ilike '%lenormand%' then 'lenormand'
+    when concat_ws(' ', listing_name, listing_description) ilike '%oracle%' then 'oracle'
+    when concat_ws(' ', listing_name, listing_description) ilike '%tarot%' then 'tarot'
+    else 'other'
+  end;
+$$;
+
+create or replace function public.handle_listing_category()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.category is null or new.category = 'other' then
+    new.category := public.infer_listing_category(new.name, new.description);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists listings_infer_category on public.listings;
+create trigger listings_infer_category
+before insert or update of name, description, category on public.listings
+for each row execute function public.handle_listing_category();
+
+update public.listings
+set category = public.infer_listing_category(name, description)
+where category = 'other';
+
+create index if not exists listings_category_status_idx on public.listings (category, status, created_at desc);
 
 create or replace function public.handle_listing_url_changes()
 returns trigger

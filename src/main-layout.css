@@ -3856,6 +3856,118 @@ label.field-error .field-error-text {
     gap: 20px;
 }
 
+.deck-completed-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 22px 0 0;
+    padding: 18px 22px;
+    border: 1px solid rgba(8, 127, 140, 0.35);
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e6f6f4 0%, #fffaf7 60%, #fde3e6 100%);
+    box-shadow: 0 8px 24px rgba(17, 78, 96, 0.1);
+    color: #114e60;
+}
+
+.deck-completed-banner p {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.deck-completed-banner__icon {
+    flex: 0 0 auto;
+    font-size: 1.8rem;
+}
+
+.deck-detail-header {
+    align-items: flex-start;
+}
+
+.deck-detail-images {
+    flex: 0 0 45%;
+    max-width: 45%;
+}
+
+.deck-detail-rehomed-badge {
+    background: #e6f6f4;
+    color: #087f8c;
+}
+
+.similar-decks__track {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding: 4px 2px 16px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.similar-deck-card {
+    flex: 0 0 260px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(17, 78, 96, 0.14);
+    border-radius: 12px;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+    scroll-snap-align: start;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.similar-deck-card:hover,
+.similar-deck-card:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(17, 78, 96, 0.14);
+}
+
+.similar-deck-card__image {
+    display: grid;
+    place-items: center;
+    height: 200px;
+    background: #f4eee8;
+}
+
+.similar-deck-card__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.similar-deck-card__body {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px 18px;
+}
+
+.similar-deck-card__body h3 {
+    margin: 0;
+    color: #114e60;
+    font-size: 1rem;
+}
+
+.similar-deck-card__body p {
+    margin: 0;
+    color: #6d7375;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+    .deck-detail-header {
+        flex-direction: column;
+    }
+
+    .deck-detail-images {
+        max-width: 100%;
+    }
+
+    .similar-deck-card {
+        flex-basis: 78%;
+    }
+}
+
 .seller-chat-panel {
     margin: 0 0 38px;
     padding: 22px;

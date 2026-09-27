@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { Seo } from './seo';
-import { compressImageFile, confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type MarketplaceListing } from './lib/listings';
+import { compressImageFile, confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, mapListing, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type ListingRow, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -19,6 +19,7 @@ import { openDashboardChat } from './lib/dashboard-chat';
 import { MessagesDashboard } from './messages-dashboard';
 import { AdminSupportDashboard } from './admin-support-dashboard';
 import { SellerProfilePage } from './seller-profile-page';
+import { DeckDetailPage, generateMetadata, type DeckMetadata } from './deck-detail-page';
 import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
@@ -990,6 +991,11 @@ export const MainLayout: React.FC = () => {
         setSelectedItem(null);
         setCheckoutStep(null);
     };
+
+    const deckRouteMatch = window.location.pathname.match(/^\/decks\/([^/]+)\/?$/);
+    if (deckRouteMatch) {
+        return <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} />;
+    }
 
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
@@ -2800,3 +2806,37 @@ const SellerDashboardIntegrated: React.FC = () => {
         </div>
     );
 };
+
+if (import.meta.vitest) {
+    const { describe, expect, it } = import.meta.vitest;
+
+    describe('listing row -> generateMetadata', () => {
+        it('maps an active row title and description into deck metadata', () => {
+            const row = {
+                id: 'listing-123',
+                seller_id: 'seller-1',
+                name: 'Rider-Waite Tarot',
+                price: '24.50',
+                description: 'Classic 78-card deck, lightly used.',
+                listing_type: 'sale',
+                image: null,
+                images: ['https://example.com/deck.jpg'],
+                is_free_delivery: false,
+                condition: 'good',
+                review_status: 'approved',
+                status: 'active',
+                category: 'tarot',
+            } satisfies ListingRow;
+
+            const listing: MarketplaceListing = mapListing(row);
+            const metadata: DeckMetadata = generateMetadata(listing);
+
+            expect(listing.status).toBe('active');
+            expect(metadata).toEqual({
+                title: 'Rider-Waite Tarot | ArkCards',
+                description: 'Classic 78-card deck, lightly used.',
+                path: '/decks/listing-123',
+            });
+        });
+    });
+}

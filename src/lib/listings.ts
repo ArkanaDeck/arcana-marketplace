@@ -1,6 +1,7 @@
 import { getSupabaseSession, supabase } from './supabase';
 
 export type DeckCondition = 'new' | 'like new' | 'good' | 'fair' | 'poor';
+export type DeckCategory = 'tarot' | 'oracle' | 'lenormand' | 'other';
 
 export type MarketplaceListing = {
     id: string;
@@ -15,11 +16,46 @@ export type MarketplaceListing = {
     condition: DeckCondition;
     reviewStatus: 'approved' | 'pending_review' | 'rejected';
     status: 'active' | 'sold' | 'completed';
+    category?: DeckCategory;
 };
 
-function mapListing(listing: { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed' }): MarketplaceListing {
+export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory };
+
+export function mapListing(listing: ListingRow): MarketplaceListing {
     const images = listing.images || (listing.image ? [listing.image] : []);
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active' };
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category };
+}
+
+const DECK_DETAIL_COLUMNS = 'id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, category';
+
+// Completed listings stay publicly reachable (is_active is cleared on completion) so search traffic can be redirected.
+export async function loadDeckListing(listingId: string): Promise<MarketplaceListing | null> {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase
+        .from('listings')
+        .select(DECK_DETAIL_COLUMNS)
+        .eq('id', listingId)
+        .eq('review_status', 'approved')
+        .or('is_active.eq.true,status.eq.completed')
+        .maybeSingle();
+    if (error) throw new Error(error.message || 'Unable to load this deck.');
+    return data ? mapListing(data) : null;
+}
+
+export async function loadSimilarActiveListings(category: DeckCategory, excludeListingId: string, limit = 4): Promise<MarketplaceListing[]> {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase
+        .from('listings')
+        .select(DECK_DETAIL_COLUMNS)
+        .eq('category', category)
+        .eq('status', 'active')
+        .eq('is_active', true)
+        .eq('review_status', 'approved')
+        .neq('id', excludeListingId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) throw new Error(error.message || 'Unable to load similar decks.');
+    return data.map(mapListing);
 }
 
 export async function loadListings() {
