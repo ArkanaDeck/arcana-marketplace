@@ -752,18 +752,28 @@ export const MainLayout: React.FC = () => {
     const handleAccountSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setAccountStatus(null);
+        const form = event.currentTarget;
+        const emailInput = form.elements.namedItem('username') as HTMLInputElement | null;
+        const passwordInput = form.elements.namedItem(accountMode === 'signin' ? 'password' : 'new-password') as HTMLInputElement | null;
+        const confirmPasswordInput = form.elements.namedItem('new-password-confirmation') as HTMLInputElement | null;
+        const submittedEmail = (emailInput?.value ?? accountEmail).trim();
+        const submittedPassword = (passwordInput?.value ?? accountPassword).trim();
+        const submittedConfirmPassword = (confirmPasswordInput?.value ?? accountConfirmPassword).trim();
+        setAccountEmail(submittedEmail);
+        setAccountPassword(submittedPassword);
+        setAccountConfirmPassword(submittedConfirmPassword);
         if (!hasSecureBackend) {
             setAccountStatus('Sign in is unavailable because Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
             return;
         }
-        if (accountMode === 'signup' && accountPassword.trim() !== accountConfirmPassword.trim()) {
+        if (accountMode === 'signup' && submittedPassword !== submittedConfirmPassword) {
             setAccountStatus('Passwords do not match.');
             return;
         }
         setIsAccountSubmitting(true);
         try {
             if (accountMode === 'signup') {
-                const result = await signUpWithEmail(accountEmail.trim(), accountPassword);
+                const result = await signUpWithEmail(submittedEmail, submittedPassword);
                 if (result.session) {
                     setIsAuthenticated(true);
                     setAccountStatus('Account created. You are ready to sell.');
@@ -778,9 +788,9 @@ export const MainLayout: React.FC = () => {
                     setAccountStatus(null);
                 }
             } else {
-                await signInWithEmail(accountEmail.trim(), accountPassword);
+                await signInWithEmail(submittedEmail, submittedPassword);
                 setIsAuthenticated(true);
-                setAccountEmail(accountEmail.trim());
+                setAccountEmail(submittedEmail);
                 setAccountStatus('Signed in successfully.');
                 if (redirectPath) {
                     setActiveView(redirectPath);

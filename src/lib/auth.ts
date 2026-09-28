@@ -1,12 +1,14 @@
 import { assertSupabaseConfigured, supabase } from './supabase';
 
 export async function signInWithEmail(email: string, password: string) {
-    if (!email || !password) {
+    const normalizedEmail = email.trim();
+    const normalizedPassword = password.trim();
+    if (!normalizedEmail || !normalizedPassword) {
         throw new Error('Email and password are required.');
     }
 
     assertSupabaseConfigured();
-    const { data, error } = await supabase!.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase!.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword });
 
     if (error) {
         throw new Error(error.message || 'Unable to sign in.');
@@ -16,14 +18,16 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-    if (!email || !password) {
+    const normalizedEmail = email.trim();
+    const normalizedPassword = password.trim();
+    if (!normalizedEmail || !normalizedPassword) {
         throw new Error('Email and password are required.');
     }
 
     assertSupabaseConfigured();
     const { data, error } = await supabase!.auth.signUp({
-        email,
-        password,
+        email: normalizedEmail,
+        password: normalizedPassword,
         options: {
             data: { terms_accepted_at: new Date().toISOString() },
             emailRedirectTo: `${window.location.origin}/?auth=confirmed`,
