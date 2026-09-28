@@ -11,7 +11,9 @@
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "test": "node --test server/checkout.test.js server/lib/tarot-webhook-handler.test.js server/lib/listing-fee-engine.test.js server/lib/listing-status.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts src/main-layout.tsx",
-    "preview": "node ./node_modules/vite/bin/vite.js preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "cap": "node ./node_modules/@capacitor/cli/bin/capacitor",
+    "cap:sync:ios": "node ./node_modules/@capacitor/cli/bin/capacitor sync ios"
   },
   "dependencies": {
     "@capacitor/cli": "^8.5.2",

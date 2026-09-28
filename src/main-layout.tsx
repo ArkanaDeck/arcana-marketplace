@@ -756,7 +756,7 @@ export const MainLayout: React.FC = () => {
             setAccountStatus('Sign in is unavailable because Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
             return;
         }
-        if (accountMode === 'signup' && accountPassword !== accountConfirmPassword) {
+        if (accountMode === 'signup' && accountPassword.trim() !== accountConfirmPassword.trim()) {
             setAccountStatus('Passwords do not match.');
             return;
         }
@@ -1440,10 +1440,10 @@ export const MainLayout: React.FC = () => {
                                                 )
                                             ) : (
                                                 <form className="account-form" onSubmit={handleAccountSubmit} autoComplete="on">
-                                                    <label htmlFor="account-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="account-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
+                                                    <label htmlFor="account-email">Email address <span className="text-red-500 font-bold ml-0.5">*</span><input id="account-email" name="username" type="email" inputMode="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={(event) => { setAccountEmail(event.currentTarget.value); handleRequiredFieldInput(event); }} autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" maxLength={254} placeholder="you@example.com" /><span className="field-error-text">This space must be filled in.</span></label>
                                                     <label htmlFor="account-password">Password <span className="text-red-500 font-bold ml-0.5">*</span>
                                                         <span className="password-field-wrap">
-                                                            <input id="account-password" name={accountMode === 'signin' ? 'password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
+                                                            <input id="account-password" name={accountMode === 'signin' ? 'password' : 'new-password'} type={showPassword ? 'text' : 'password'} value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={(event) => { setAccountPassword(event.currentTarget.value); handleRequiredFieldInput(event); }} autoComplete={accountMode === 'signin' ? 'current-password' : 'new-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" minLength={6} maxLength={128} placeholder="At least 6 characters" />
                                                             <button type="button" className="password-toggle-btn" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
                                                                 {showPassword ? (
                                                                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
@@ -1457,7 +1457,7 @@ export const MainLayout: React.FC = () => {
                                                     {accountMode === 'signup' && (
                                                         <label htmlFor="account-confirm-password">Confirm Password <span className="text-red-500 font-bold ml-0.5">*</span>
                                                             <span className="password-field-wrap">
-                                                                <input id="account-confirm-password" name="new-password-confirmation" type={showPassword ? 'text' : 'password'} value={accountConfirmPassword} onChange={(event) => setAccountConfirmPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={handleRequiredFieldInput} autoComplete="new-password" required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your password" />
+                                                                <input id="account-confirm-password" name="new-password-confirmation" type={showPassword ? 'text' : 'password'} value={accountConfirmPassword} onChange={(event) => setAccountConfirmPassword(event.target.value)} onInvalid={handleRequiredFieldInvalid} onInput={(event) => { setAccountConfirmPassword(event.currentTarget.value); handleRequiredFieldInput(event); }} autoComplete="new-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} required aria-required="true" minLength={6} maxLength={128} placeholder="Re-enter your password" />
                                                             </span>
                                                             <span className="field-error-text">This space must be filled in.</span>
                                                         </label>

@@ -15,6 +15,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-helmet-async'],
+          supabase: ['@supabase/supabase-js'],
+          capacitor: ['@capacitor/core'],
+          qrcode: ['qrcode.react'],
+        },
+      },
+    },
   },
   // Strips in-source test blocks from production bundles.
   define: {
