@@ -1,11 +1,15 @@
 #!/bin/sh
-# Xcode Cloud: regenerate the gitignored Capacitor files (public/, capacitor.config.json, config.xml).
-set -e
+set -eu
 
-brew install node@22
-export PATH="$(brew --prefix node@22)/bin:$PATH"
+REPOSITORY_PATH="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "$0")/../../.." && pwd)}"
+cd "$REPOSITORY_PATH"
 
-cd "$CI_PRIMARY_REPOSITORY_PATH"
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+if [ "$NODE_MAJOR" != "22" ]; then
+	brew install node@22
+	export PATH="$(brew --prefix node@22)/bin:$PATH"
+fi
+
 npm ci
 npm run build
-npx cap sync ios
+npm run cap:sync:ios
