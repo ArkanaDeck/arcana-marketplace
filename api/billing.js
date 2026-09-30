@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);
-    if (product === 'premium-listing') return createPremiumListingCheckout(res, stripe, user, body);
+    if (product === 'premium-listing') return createPremiumListingCheckout(res, stripe, user, body, supabaseUrl);
     if (product === 'website-link') return createWebsiteLinkCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-external-link') return createListingExternalLinkCheckout(res, stripe, supabase, user, body);
     return res.status(400).json({ error: 'Unknown billing product.' });
@@ -37,11 +37,30 @@ export default async function handler(req, res) {
 
 const APP_URL = process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:5173';
 
-async function createPremiumListingCheckout(res, stripe, user, body) {
+// Stripe caps each metadata value at 500 chars, so longer values are split across numbered keys.
+function toChunkedMetadata(prefix, value) {
+    const chunks = {};
+    for (let index = 0; index * 500 < value.length; index += 1) {
+        chunks[`${prefix}_${index}`] = value.slice(index * 500, (index + 1) * 500);
+    }
+    return chunks;
+}
+
+async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl) {
     try {
-        const title = String(body.title || '').trim();
+        const title = String(body.title || '').trim().slice(0, 120);
         const directPaymentLink = String(body.direct_payment_link || '').trim();
         if (!title || !directPaymentLink) return res.status(400).json({ error: 'Listing title and direct payment link are required.' });
+        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid web store link starting with http:// or https://.' });
+
+        const ownImagePrefix = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing-images/${user.id}/`;
+        const rawImageUrls = Array.isArray(body.image_urls) ? body.image_urls : [body.image_url];
+        const imageUrls = rawImageUrls
+            .map((url) => String(url || '').trim())
+            .filter((url) => url.startsWith(ownImagePrefix) && url.length <= 500)
+            .slice(0, 6);
+        if (imageUrls.length === 0) return res.status(400).json({ error: 'Upload at least one listing image before continuing.' });
+        const description = String(body.description || '').slice(0, 2000);
 
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
@@ -54,18 +73,19 @@ async function createPremiumListingCheckout(res, stripe, user, body) {
                 },
                 quantity: 1,
             }],
-            success_url: body.successUrl || `${APP_URL}/?premium-listing=success&session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: body.cancelUrl || `${APP_URL}/?premium-listing=cancelled`,
+            success_url: `${APP_URL}/?premium-listing=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${APP_URL}/?premium-listing=cancelled`,
             metadata: {
                 product: 'premium_listing',
                 title,
-                price: String(body.price ?? 0),
-                description: String(body.description || ''),
-                condition: String(body.condition || 'good'),
+                price: String(Number(body.price) || 0),
+                ...toChunkedMetadata('description', description),
+                condition: String(body.condition || 'good').slice(0, 20),
                 direct_payment_link: directPaymentLink,
                 seller_id: user.id,
-                image_url: String(body.image_url || ''),
-                listing_type: String(body.listing_type || 'sale'),
+                image_url: imageUrls[0],
+                ...Object.fromEntries(imageUrls.map((url, index) => [`image_url_${index}`, url])),
+                listing_type: String(body.listing_type || 'sale').slice(0, 20),
                 free_delivery: body.free_delivery ? 'true' : 'false',
             },
         });

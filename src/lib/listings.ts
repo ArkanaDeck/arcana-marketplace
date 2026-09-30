@@ -303,6 +303,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
                     direct_payment_link: input.externalStoreUrl.trim(),
                     seller_id: session.user.id,
                     image_url: imageUrls[0] || '',
+                    image_urls: imageUrls,
                     listing_type: input.listingType,
                     free_delivery: input.freeDelivery,
                 }),

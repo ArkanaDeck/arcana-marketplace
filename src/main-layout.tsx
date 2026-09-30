@@ -12,7 +12,7 @@ import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail, deleteOwnAccount } from './lib/auth';
-import { getSupabaseSession, supabase, uploadDeckImage } from './lib/supabase';
+import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
 import { openDashboardChat } from './lib/dashboard-chat';
@@ -414,6 +414,20 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        const premiumStatus = new URLSearchParams(window.location.search).get('premium-listing');
+        if (!premiumStatus) return;
+        setActiveView('Listings');
+        setFlashMessage(premiumStatus === 'success'
+            ? 'Payment received. Your listing with its web store link will appear shortly.'
+            : 'Payment cancelled. Your listing was not published.');
+        window.history.replaceState({}, '', window.location.pathname);
+        // The webhook creates the listing asynchronously, so refresh once it has had time to land.
+        if (premiumStatus === 'success' && hasSecureBackend) {
+            window.setTimeout(() => { loadListings().then(setListings).catch(() => undefined); }, 4000);
+        }
+    }, []);
+
+    useEffect(() => {
         if (new URLSearchParams(window.location.search).get('connect') !== 'complete') return;
         getSupabaseSession()
             .then(async (session) => {
@@ -597,9 +611,7 @@ export const MainLayout: React.FC = () => {
             // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
             // the server there computes the same stacked fee and creates the listing hidden until paid.
             if (!isEditing) {
-                const uploadedImageUrl = deckImageFiles[0] ? await uploadDeckImage(deckImageFiles[0]) : null;
-                if (deckImageFiles[0] && !uploadedImageUrl) throw new Error('Unable to upload the deck image. Please try again.');
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, uploadedImageUrl: uploadedImageUrl || undefined, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;
@@ -671,7 +683,7 @@ export const MainLayout: React.FC = () => {
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to publish your listing.';
             setIsRentingExternalLink(false);
-            if (message === 'Sign in before creating a listing.') {
+            if (/sign in before|sign in again|session has expired/i.test(message)) {
                 handleRequireSignIn(message);
                 return;
             }
@@ -1104,6 +1116,7 @@ export const MainLayout: React.FC = () => {
     };
 
     const handleRequireSignIn = (message: string = SIGN_IN_REQUIRED_MESSAGE) => {
+        if (!/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.pushState({}, '', '/login');
         setViewingListing(null);
         setAccountMode('signin');
         setAccountStatus(message);

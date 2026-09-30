@@ -65,7 +65,14 @@ export default async function handler(req, res) {
                     .maybeSingle();
                 if (existingError) throw existingError;
                 if (!existingPremium) {
-                    const { title, price, description, condition, direct_payment_link, seller_id, image_url } = session.metadata;
+                    const { title, price, condition, direct_payment_link, seller_id, image_url } = session.metadata;
+                    const readNumbered = (prefix) => Object.keys(session.metadata)
+                        .filter((key) => new RegExp(`^${prefix}_\\d+$`).test(key))
+                        .sort((a, b) => Number(a.split('_').pop()) - Number(b.split('_').pop()))
+                        .map((key) => session.metadata[key]);
+                    const description = session.metadata.description ?? readNumbered('description').join('');
+                    const numberedImages = readNumbered('image_url');
+                    const images = numberedImages.length ? numberedImages : (image_url ? [image_url] : []);
                     try {
                         const { data, error } = await supabase
                             .from('listings')
@@ -73,15 +80,16 @@ export default async function handler(req, res) {
                                 seller_id,
                                 name: title,
                                 price: parseFloat(price || '0'),
-                                description,
+                                description: description || null,
                                 condition: condition || 'good',
                                 external_store_url: direct_payment_link,
-                                image: image_url || null,
-                                images: image_url ? [image_url] : [],
+                                image: images[0] || null,
+                                images,
                                 listing_type: session.metadata.listing_type || 'sale',
                                 is_free_delivery: session.metadata.free_delivery === 'true',
                                 is_premium: true,
-                                authenticated: true,
+                                // The premium path skips the AI card check, so it must not carry the verified badge.
+                                authenticated: false,
                                 review_status: 'approved',
                                 premium_stripe_session_id: session.id,
                             }])
