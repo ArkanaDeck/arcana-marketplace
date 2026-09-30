@@ -1,0 +1,36 @@
+{
+    "files.exclude": {
+        "legacy/**": true,
+        "src/legacy-checkout-view.tsx": true,
+        "src/lib/order-checkout.ts": true,
+        "api/create-order-checkout.js": true,
+        "api/create-paypal-order.js": true,
+        "api/capture-paypal-order.js": true,
+        "api/order-actions.js": true,
+        "api/create-connect-onboarding.js": true,
+        "api/release-expired-payouts.js": true,
+        "server/checkout.js": true,
+        "server/checkout.test.js": true,
+        "deploy.sh": true,
+        "run.js": true,
+        "patch.js": true,
+        "fix-form.cjs": true
+    },
+    "search.exclude": {
+        "legacy/**": true,
+        "src/legacy-checkout-view.tsx": true,
+        "src/lib/order-checkout.ts": true,
+        "api/create-order-checkout.js": true,
+        "api/create-paypal-order.js": true,
+        "api/capture-paypal-order.js": true,
+        "api/order-actions.js": true,
+        "api/create-connect-onboarding.js": true,
+        "api/release-expired-payouts.js": true,
+        "server/checkout.js": true,
+        "server/checkout.test.js": true,
+        "deploy.sh": true,
+        "run.js": true,
+        "patch.js": true,
+        "fix-form.cjs": true
+    }
+}

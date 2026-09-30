@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getProductionChecklist } from './production-checklist.js';
+import { getProductionChecklist } from './production-checklist.ts';
 
 test('production checklist includes the required launch gates', () => {
     const items = getProductionChecklist({
@@ -20,7 +20,9 @@ test('production checklist includes the required launch gates', () => {
     assert.ok(titles.includes('Monitoring and incident response'));
     assert.ok(titles.includes('Order lifecycle and seller payouts'));
     assert.ok(titles.includes('Final launch sign-off'));
-    assert.equal(items.find(item => item.title === 'HTTPS and security headers')?.status, 'complete');
+    assert.equal(items.find(item => item.title === 'HTTPS and security headers')?.status, 'warning');
+    assert.equal(items.find(item => item.title === 'Secure auth and session handling')?.status, 'warning');
+    assert.equal(items.find(item => item.title === 'Server-side payment confirmation')?.status, 'warning');
 });
 
 test('production checklist shows pending tasks when env values are missing', () => {
@@ -28,7 +30,8 @@ test('production checklist shows pending tasks when env values are missing', () 
     const hasPending = items.some(item => item.status === 'pending');
 
     assert.equal(hasPending, true);
-    assert.equal(items.find(item => item.title === 'Order lifecycle and seller payouts')?.status, 'complete');
+    assert.equal(items.find(item => item.title === 'Order lifecycle and seller payouts')?.status, 'warning');
+    assert.match(items.find(item => item.title === 'Order lifecycle and seller payouts')?.detail ?? '', /direct payment links/);
 });
 
 test('production checklist requires Stripe as the configured premium payment provider', () => {

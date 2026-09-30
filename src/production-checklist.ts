@@ -22,43 +22,43 @@ export function getProductionChecklist(env: ProductionChecklistInput): Productio
     return [
         {
             title: 'Secure auth and session handling',
-            status: hasSupabase ? 'complete' : 'pending',
-            detail: 'Connect Supabase Auth, protect routes, and persist user sessions securely across pages.'
+            status: hasSupabase ? 'warning' : 'pending',
+            detail: 'Verify Supabase Auth redirects, route access, and session persistence in the production deployment.'
         },
         {
             title: 'Production database + RLS',
-            status: hasSupabase ? 'complete' : 'pending',
-            detail: 'Create tables for profiles, listings, orders, and payments with row-level security and ownership policies.'
+            status: hasSupabase ? 'warning' : 'pending',
+            detail: 'Verify production migrations, row-level security, ownership policies, and storage access with real user roles.'
         },
         {
             title: 'Server-side payment confirmation',
-            status: hasPaymentProvider ? 'complete' : 'pending',
-            detail: 'Use Stripe server endpoints to confirm premium payments before activating paid features.'
+            status: hasPaymentProvider ? 'warning' : 'pending',
+            detail: 'Verify server credentials, webhook signatures, and a complete payment/refund flow in the production configuration.'
         },
         {
             title: 'Environment variables and deployment',
-            status: hasAppUrl ? 'complete' : 'pending',
-            detail: 'Set Vercel env vars for Supabase, Stripe, and the public app URL, then verify production builds and redeploys.'
+            status: hasAppUrl ? 'warning' : 'pending',
+            detail: 'Confirm all required Vercel Production variables, canonical HTTPS URL, and a successful production deployment.'
         },
         {
             title: 'HTTPS and security headers',
-            status: 'complete',
-            detail: 'Vercel is configured with HTTPS, HSTS, CSP, clickjacking protection, MIME sniffing protection, and a strict referrer policy.'
+            status: 'warning',
+            detail: 'Security headers are configured in vercel.json; verify the deployed response headers and that CSP permits required services.'
         },
         {
             title: 'Monitoring and incident response',
-            status: 'complete',
-            detail: 'Payment-critical API endpoints emit structured error logs, and the launch playbook covers checkout, stock, and auth failures.'
+            status: 'warning',
+            detail: 'Structured server logs exist; verify production log access, alert ownership, and incident procedures.'
         },
         {
             title: 'Order lifecycle and seller payouts',
-            status: 'complete',
-            detail: 'Orders progress from payment through dispatch and delivery, with buyer confirmation and a scheduled payout release.'
+            status: 'warning',
+            detail: 'The active app uses direct payment links; the legacy escrow/order/payout workflow is disabled. Verify the intended fulfillment and payout model.'
         },
         {
             title: 'Final launch sign-off',
-            status: 'complete',
-            detail: 'Automated tests, production build validation, input bounds, security headers, and realtime error recovery are in place.'
+            status: 'pending',
+            detail: 'Complete the production checklist, review test and smoke-test results, and record an explicit launch approval.'
         }
     ];
 }
