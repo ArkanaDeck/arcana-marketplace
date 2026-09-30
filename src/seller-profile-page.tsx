@@ -187,6 +187,7 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing 
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {listing.description && <p>{listing.description}</p>}
+            {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
         </div>
     </article>;
 };
