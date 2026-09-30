@@ -79,7 +79,7 @@ const NATIVE_VIEW_TITLES: Record<string, string> = {
 
 export const MainLayout: React.FC = () => {
     const runtimeConfig = getRuntimeConfig();
-    const [activeView, setActiveView] = useState('Home');
+    const [activeView, setActiveView] = useState(() => (/^\/(login|signin)\/?$/.test(window.location.pathname) ? 'Account' : 'Home'));
     const [redirectPath, setRedirectPath] = useState<string | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -234,7 +234,12 @@ export const MainLayout: React.FC = () => {
                 setSession(activeSession);
             })
             .catch(() => setIsAuthenticated(false));
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
+            // Recovery links can land on "/" if Supabase falls back to the Site URL; send them to the reset form.
+            if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+                window.location.replace('/reset-password');
+                return;
+            }
             setIsAuthenticated(Boolean(activeSession));
             setAccountEmail(activeSession?.user.email || '');
             setSession(activeSession);
@@ -789,6 +794,7 @@ export const MainLayout: React.FC = () => {
                 }
             } else {
                 await signInWithEmail(submittedEmail, submittedPassword);
+                if (/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
                 setIsAuthenticated(true);
                 setAccountEmail(submittedEmail);
                 setAccountStatus('Signed in successfully.');
@@ -1023,7 +1029,7 @@ export const MainLayout: React.FC = () => {
     }
 
     if (window.location.pathname === '/reset-password') {
-        return <ResetPasswordPage onDone={() => { window.location.href = '/?passwordReset=success'; }} />;
+        return <ResetPasswordPage onDone={(passwordChanged) => { window.location.replace(passwordChanged ? '/login?passwordReset=success' : '/login'); }} />;
     }
 
     const isNestedNativeView = isNativeApp && !NATIVE_ROOT_VIEWS.includes(activeView);

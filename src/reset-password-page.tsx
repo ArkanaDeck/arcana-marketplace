@@ -2,7 +2,7 @@ import React from 'react';
 import { updatePassword } from './lib/auth';
 import { supabase } from './lib/supabase';
 
-type ResetPasswordPageProps = { onDone: () => void };
+type ResetPasswordPageProps = { onDone: (passwordChanged: boolean) => void };
 
 export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) => {
     const [hasRecoverySession, setHasRecoverySession] = React.useState<boolean | null>(null);
@@ -10,7 +10,6 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
     const [confirmPassword, setConfirmPassword] = React.useState('');
     const [status, setStatus] = React.useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [isComplete, setIsComplete] = React.useState(false);
     const [showPassword, setShowPassword] = React.useState(false);
 
     React.useEffect(() => {
@@ -44,30 +43,18 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
         setStatus(null);
         try {
             await updatePassword(password);
-            setIsComplete(true);
-            window.history.replaceState({}, '', '/login');
         } catch (error) {
             setStatus(error instanceof Error ? error.message : 'Unable to update your password.');
-        } finally {
             setIsSubmitting(false);
+            return;
         }
+        // End the recovery session so the user must sign in with the new password.
+        await supabase?.auth.signOut();
+        onDone(true);
     };
 
     if (hasRecoverySession === null) {
         return <section className="seller-profile-page"><p>Verifying your reset link...</p></section>;
-    }
-
-    if (isComplete) {
-        return (
-            <section className="seller-profile-page">
-                <div className="email-verification-panel" role="status">
-                    <div className="email-verification-icon" aria-hidden="true">✓</div>
-                    <h3>Password updated</h3>
-                    <p>Your password has been changed. You can now sign in with your new password.</p>
-                    <button type="button" className="primary-btn" onClick={onDone}>Go to sign in</button>
-                </div>
-            </section>
-        );
     }
 
     if (!hasRecoverySession) {
@@ -76,7 +63,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onDone }) 
                 <div className="email-verification-panel" role="alert">
                     <h3>Reset link expired</h3>
                     <p>This password reset link is invalid or has expired. Request a new one from the sign in page.</p>
-                    <button type="button" className="primary-btn" onClick={onDone}>Back to sign in</button>
+                    <button type="button" className="primary-btn" onClick={() => onDone(false)}>Back to sign in</button>
                 </div>
             </section>
         );
