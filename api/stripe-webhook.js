@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { createListingStatusUpdater } from '../server/lib/listing-status.js';
+import { createPremiumListingFromSession } from '../server/lib/premium-listing.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -58,49 +59,12 @@ export default async function handler(req, res) {
             }
             if (session.metadata?.product === 'premium_listing' && session.payment_status === 'paid') {
                 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-                const { data: existingPremium, error: existingError } = await supabase
-                    .from('listings')
-                    .select('id')
-                    .eq('premium_stripe_session_id', session.id)
-                    .maybeSingle();
-                if (existingError) throw existingError;
-                if (!existingPremium) {
-                    const { title, price, condition, direct_payment_link, seller_id, image_url } = session.metadata;
-                    const readNumbered = (prefix) => Object.keys(session.metadata)
-                        .filter((key) => new RegExp(`^${prefix}_\\d+$`).test(key))
-                        .sort((a, b) => Number(a.split('_').pop()) - Number(b.split('_').pop()))
-                        .map((key) => session.metadata[key]);
-                    const description = session.metadata.description ?? readNumbered('description').join('');
-                    const numberedImages = readNumbered('image_url');
-                    const images = numberedImages.length ? numberedImages : (image_url ? [image_url] : []);
-                    try {
-                        const { data, error } = await supabase
-                            .from('listings')
-                            .insert([{
-                                seller_id,
-                                name: title,
-                                price: parseFloat(price || '0'),
-                                description: description || null,
-                                condition: condition || 'good',
-                                external_store_url: direct_payment_link,
-                                image: images[0] || null,
-                                images,
-                                listing_type: session.metadata.listing_type || 'sale',
-                                is_free_delivery: session.metadata.free_delivery === 'true',
-                                is_premium: true,
-                                // The premium path skips the AI card check, so it must not carry the verified badge.
-                                authenticated: false,
-                                review_status: 'approved',
-                                premium_stripe_session_id: session.id,
-                            }])
-                            .select('id')
-                            .single();
-                        if (error) throw error;
-                        console.log('[arkana:stripe-webhook] premium listing created:', data?.id);
-                    } catch (insertError) {
-                        console.error('[arkana:stripe-webhook] premium listing insert failed:', insertError);
-                        throw insertError;
-                    }
+                try {
+                    const listing = await createPremiumListingFromSession(supabase, session);
+                    console.log('[arkana:stripe-webhook] premium listing ready:', listing?.id);
+                } catch (insertError) {
+                    console.error('[arkana:stripe-webhook] premium listing insert failed:', insertError);
+                    throw insertError;
                 }
             }
             if (session.metadata?.product === 'listing_credits' && session.payment_status === 'paid') {

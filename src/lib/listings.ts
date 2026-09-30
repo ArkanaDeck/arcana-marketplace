@@ -17,16 +17,25 @@ export type MarketplaceListing = {
     reviewStatus: 'approved' | 'pending_review' | 'rejected';
     status: 'active' | 'sold' | 'completed';
     category?: DeckCategory;
+    externalStoreUrl?: string;
 };
 
-export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory };
+export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory; external_store_url?: string | null; external_link_active?: boolean | null; external_link_expires_at?: string | null };
+
+function activeExternalStoreUrl(listing: ListingRow) {
+    const url = listing.external_store_url;
+    if (!url || !listing.external_link_active || !/^https?:\/\//i.test(url)) return undefined;
+    if (listing.external_link_expires_at && new Date(listing.external_link_expires_at).getTime() < Date.now()) return undefined;
+    return url;
+}
 
 export function mapListing(listing: ListingRow): MarketplaceListing {
     const images = listing.images || (listing.image ? [listing.image] : []);
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category };
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category, externalStoreUrl: activeExternalStoreUrl(listing) };
 }
 
-const DECK_DETAIL_COLUMNS = 'id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, category';
+const LINK_COLUMNS = 'external_store_url, external_link_active, external_link_expires_at';
+const DECK_DETAIL_COLUMNS = `id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, category, ${LINK_COLUMNS}`;
 
 // Completed listings stay publicly reachable (is_active is cleared on completion) so search traffic can be redirected.
 export async function loadDeckListing(listingId: string): Promise<MarketplaceListing | null> {
@@ -60,7 +69,7 @@ export async function loadSimilarActiveListings(category: DeckCategory, excludeL
 
 export async function loadListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status').neq('status', 'completed').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('listings').select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, ${LINK_COLUMNS}`).neq('status', 'completed').order('created_at', { ascending: false });
     if (error) throw new Error(error.message || 'Unable to load listings.');
     return data.map(mapListing);
 }
@@ -71,7 +80,7 @@ export async function loadPublishedListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase
         .from('listings')
-        .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status')
+        .select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, ${LINK_COLUMNS}`)
         .eq('is_active', true)
         .eq('review_status', 'approved')
         .neq('status', 'completed')
@@ -243,6 +252,57 @@ export type PublishListingBundleResult =
     | { requiresPayment: true; checkoutUrl: string }
     | { requiresPayment: false; listing: MarketplaceListing };
 
+export type PremiumListingDraft = {
+    name: string;
+    price: number;
+    description: string;
+    listingType: MarketplaceListing['listingType'];
+    condition: DeckCondition;
+    freeDelivery: boolean;
+    externalStoreUrl: string;
+    imageUrls: string[];
+};
+
+const PREMIUM_DRAFT_KEY = 'arkana_premium_listing_draft';
+
+function savePremiumDraft(draft: PremiumListingDraft) {
+    try {
+        localStorage.setItem(PREMIUM_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+        // Draft restore is a convenience; the paid listing is still created from Stripe metadata.
+    }
+}
+
+export function readPremiumDraft(): PremiumListingDraft | null {
+    try {
+        const raw = localStorage.getItem(PREMIUM_DRAFT_KEY);
+        return raw ? JSON.parse(raw) as PremiumListingDraft : null;
+    } catch {
+        return null;
+    }
+}
+
+export function clearPremiumDraft() {
+    try {
+        localStorage.removeItem(PREMIUM_DRAFT_KEY);
+    } catch {
+        // Ignore storage failures in private browsing.
+    }
+}
+
+export async function confirmPremiumListing(sessionId: string): Promise<MarketplaceListing> {
+    const session = await getSupabaseSession();
+    if (!session?.access_token) throw new Error('Sign in before creating a listing.');
+    const response = await fetch('/api/billing?product=premium-listing-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ sessionId }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.listing) throw new Error(payload?.error || 'Unable to publish your paid listing.');
+    return mapListing(payload.listing);
+}
+
 // Unified batch pipeline (new submissions only): uploads images, submits a batch of exactly one
 // deck to the same pipeline the multi-deck tarot authentication flow uses, then either returns
 // the already-approved listing (fee = 0) or a Stripe Checkout URL for the stacked fee.
@@ -310,6 +370,16 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             });
             const premiumPayload = await premiumResponse.json();
             if (!premiumResponse.ok || !premiumPayload?.url) throw new Error(premiumPayload?.error || 'Unable to start premium listing checkout.');
+            savePremiumDraft({
+                name: input.name.trim(),
+                price: input.price,
+                description: input.description || '',
+                listingType: input.listingType,
+                condition: input.condition,
+                freeDelivery: input.freeDelivery,
+                externalStoreUrl: input.externalStoreUrl.trim(),
+                imageUrls,
+            });
             return { requiresPayment: true, checkoutUrl: premiumPayload.url };
         }
 

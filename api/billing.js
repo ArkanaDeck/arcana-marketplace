@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { isValidHttpUrl } from '../server/lib/url-validation.js';
 import { computeListingFeeForBundle } from '../server/lib/listing-fee-engine.js';
+import { createPremiumListingFromSession } from '../server/lib/premium-listing.js';
 
 // Consolidated Stripe Checkout hub (seller subscription / listing fee / website link / listing external link),
 // routed via ?product=. Merged from four separate files to stay under Vercel's serverless function count limit.
@@ -30,6 +31,7 @@ export default async function handler(req, res) {
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'premium-listing') return createPremiumListingCheckout(res, stripe, user, body, supabaseUrl);
+    if (product === 'premium-listing-confirm') return confirmPremiumListing(res, stripe, supabase, user, body);
     if (product === 'website-link') return createWebsiteLinkCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-external-link') return createListingExternalLinkCheckout(res, stripe, supabase, user, body);
     return res.status(400).json({ error: 'Unknown billing product.' });
@@ -44,6 +46,24 @@ function toChunkedMetadata(prefix, value) {
         chunks[`${prefix}_${index}`] = value.slice(index * 500, (index + 1) * 500);
     }
     return chunks;
+}
+
+// Called when the seller returns from Stripe and presses Publish; doesn't depend on the webhook having arrived.
+async function confirmPremiumListing(res, stripe, supabase, user, body) {
+    try {
+        const sessionId = String(body.sessionId || '').trim();
+        if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return res.status(400).json({ error: 'Missing or invalid checkout session.' });
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.metadata?.product !== 'premium_listing' || session.metadata?.seller_id !== user.id) {
+            return res.status(403).json({ error: 'This payment does not belong to your account.' });
+        }
+        if (session.payment_status !== 'paid') return res.status(402).json({ error: 'Payment has not completed yet. Please try again in a moment.' });
+        const listing = await createPremiumListingFromSession(supabase, session);
+        return res.status(200).json({ listing });
+    } catch (error) {
+        logServerError('billing:premium-listing-confirm', error);
+        return res.status(500).json({ error: 'Unable to publish your paid listing.' });
+    }
 }
 
 async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl) {

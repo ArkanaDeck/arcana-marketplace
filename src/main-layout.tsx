@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { Seo } from './seo';
-import { compressImageFile, confirmOrderAccepted, deleteListing, loadBuyerSoldListingIds, loadListings, mapListing, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, updateListing, publishListingBundle, type DeckCondition, type ListingRow, type MarketplaceListing } from './lib/listings';
+import { clearPremiumDraft, compressImageFile, confirmOrderAccepted, confirmPremiumListing, deleteListing, loadBuyerSoldListingIds, loadListings, mapListing, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, readPremiumDraft, updateListing, publishListingBundle, type DeckCondition, type ListingRow, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
 import { assessListingRisk } from './lib/risk-check';
@@ -131,6 +131,7 @@ export const MainLayout: React.FC = () => {
     const [wantsAuthentication, setWantsAuthentication] = useState<boolean>(false);
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [paidPremiumSessionId, setPaidPremiumSessionId] = useState<string | null>(null);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -414,16 +415,31 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const premiumStatus = new URLSearchParams(window.location.search).get('premium-listing');
+        const params = new URLSearchParams(window.location.search);
+        const premiumStatus = params.get('premium-listing');
         if (!premiumStatus) return;
-        setActiveView('Listings');
-        setFlashMessage(premiumStatus === 'success'
-            ? 'Payment received. Your listing with its web store link will appear shortly.'
-            : 'Payment cancelled. Your listing was not published.');
+        const draft = readPremiumDraft();
+        const checkoutSessionId = params.get('session_id');
         window.history.replaceState({}, '', window.location.pathname);
-        // The webhook creates the listing asynchronously, so refresh once it has had time to land.
-        if (premiumStatus === 'success' && hasSecureBackend) {
-            window.setTimeout(() => { loadListings().then(setListings).catch(() => undefined); }, 4000);
+        setActiveView('Sell');
+        if (draft) {
+            setDeckName(draft.name);
+            setDeckPrice(draft.listingType === 'sale' ? Number(draft.price).toFixed(2) : '0.00');
+            setDeckDescription(draft.description);
+            setListingType(draft.listingType);
+            setCondition(draft.condition);
+            setFreeDelivery(draft.freeDelivery);
+            setWantsExternalLink(true);
+            setExternalStoreUrl(draft.externalStoreUrl);
+        }
+        if (premiumStatus === 'success' && checkoutSessionId) {
+            if (draft) setImagePreviews(draft.imageUrls);
+            setPaidPremiumSessionId(checkoutSessionId);
+            setFlashMessage('Payment confirmed. Press Publish Listing to put your listing live with your web store link.');
+        } else {
+            // Uploaded images can't be turned back into File objects, so the seller re-adds them.
+            clearPremiumDraft();
+            setFlashMessage('Payment cancelled. Re-add your images and press Publish Listing when you are ready.');
         }
     }, []);
 
@@ -562,6 +578,34 @@ export const MainLayout: React.FC = () => {
 
     const handlePublish = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (paidPremiumSessionId) {
+            setIsUploading(true);
+            try {
+                const paidListing = await confirmPremiumListing(paidPremiumSessionId);
+                setListings((currentListings) => [paidListing, ...currentListings.filter((listing) => listing.id !== paidListing.id)]);
+                clearPremiumDraft();
+                setPaidPremiumSessionId(null);
+                setDeckName('');
+                setDeckPrice('');
+                setDeckDescription('');
+                setCondition('good');
+                setFreeDelivery(false);
+                setListingType('sale');
+                setDeckImageFiles([]);
+                setImagePreviews([]);
+                setWantsExternalLink(false);
+                setExternalStoreUrl('');
+                setFlashMessage(`Published with your web store link: ${paidListing.name}`);
+                setActiveView('Listings');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to publish your paid listing.';
+                if (/sign in before|sign in again|session has expired/i.test(message)) handleRequireSignIn(message);
+                else alert(message);
+            } finally {
+                setIsUploading(false);
+            }
+            return;
+        }
         if (!deckName.trim() || (listingType === 'sale' && !deckPrice.trim())) {
             alert('Add a deck name and a price for sale listings before publishing.');
             return;
@@ -1615,6 +1659,7 @@ export const MainLayout: React.FC = () => {
                                     : <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
+                                {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 {viewingListing.status === 'sold' && buyerSoldListingIds.has(viewingListing.id) && (
                                     <div className="buyer-order-acceptance">
@@ -1771,6 +1816,7 @@ export const MainLayout: React.FC = () => {
                                     {imagePreviews.length > 0 && <div className="image-status">{imagePreviews.length} image{imagePreviews.length === 1 ? '' : 's'} selected and ready to publish</div>}
                                     <ImagePreviewGrid previews={imagePreviews} processingCount={processingImageCount} onRemove={handleRemoveImage} />
                                 </div>
+                                {paidPremiumSessionId && <p className="image-status" role="status">£2.00 web store link paid. Press Publish Listing to go live with the details you paid for.</p>}
                                 <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink || isUploading}>
                                     {isUploading ? <><span className="upload-progress-indicator" aria-hidden="true" /><span>Publishing...</span></> : isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}
                                 </button>

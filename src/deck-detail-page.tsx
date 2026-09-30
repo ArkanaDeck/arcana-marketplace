@@ -81,6 +81,7 @@ export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBac
                         : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listingPriceLabel(listing)}</span>}
                 <p>Condition: {listing.condition}{listing.freeDelivery ? ' · Free delivery' : ''}</p>
                 {listing.description && <p className="listing-description">{listing.description}</p>}
+                {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(listing.sellerId)}`}>View seller profile</a>
             </div>
         </article>
