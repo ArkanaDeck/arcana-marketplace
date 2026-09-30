@@ -57,4 +57,4 @@ Vercel deployment, production variables, domain/HTTPS, and logs/monitoring check
 - [ ] Identify the last known-good Vercel deployment and confirm the release owner can promote it.
 - [ ] Document how to disable affected payment methods or listing flows without deleting transaction records.
 - [ ] For payment incidents, inspect the provider dashboard and corresponding database records before retrying a capture or refund.
-- [ ] After rollback, verify the production deployment, auth, and payment state; communicate status to affected users.pls wipe the 5
+- [ ] After rollback, verify the production deployment, auth, and payment state; communicate status to affected users.
