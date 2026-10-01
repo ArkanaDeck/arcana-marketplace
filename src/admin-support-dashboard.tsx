@@ -121,10 +121,31 @@ export const AdminSupportDashboard: React.FC = () => {
         }
     };
 
+    const closeSelectedTicket = async (removeListingId?: string) => {
+        if (!supabase || !selectedTicketId) return;
+        setStatus(null);
+        try {
+            if (removeListingId) {
+                const { error: removalError } = await supabase.rpc('admin_remove_reported_listing', { p_listing_id: removeListingId });
+                if (removalError) throw new Error(removalError.message || 'Unable to remove the reported listing.');
+            }
+            const { error } = await supabase.from('support_tickets').update({ status: 'closed' }).eq('id', selectedTicketId);
+            if (error) throw new Error(error.message || 'Unable to close this report.');
+            setTickets((current) => current.filter((ticket) => ticket.id !== selectedTicketId));
+            setSelectedTicketId(null);
+            setStatus(removeListingId ? 'Listing removed and report closed.' : 'Report marked reviewed.');
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : 'Unable to update this report.');
+        }
+    };
+
     if (accessState === 'checking') return <p role="status">Checking access…</p>;
     if (accessState === 'denied') return <p role="alert">You do not have access to this page.</p>;
 
     const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
+    const reportedListingId = messages
+        .map((message) => (message.text || message.content).match(/^Community report\nType: listing\nTarget ID: ([0-9a-f-]+)/m)?.[1])
+        .find((listingId): listingId is string => Boolean(listingId));
 
     return (
         <section className="admin-support-dashboard" aria-label="Arkana support dashboard" style={{ display: 'flex', height: '100vh' }}>
@@ -157,11 +178,14 @@ export const AdminSupportDashboard: React.FC = () => {
             </aside>
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {status && <p role="status" style={{ padding: '8px 16px' }}>{status}</p>}
                 {!selectedTicket && <p style={{ padding: '16px' }}>Select a user from the list to view their chat.</p>}
                 {selectedTicket && (
                     <>
                         <header style={{ padding: '12px 16px', borderBottom: '1px solid #ddd' }}>
                             <h3>{labelForUser(selectedTicket.user_id ? usersById[selectedTicket.user_id] : undefined, selectedTicket)}</h3>
+                            {reportedListingId && <button type="button" onClick={() => void closeSelectedTicket(reportedListingId)}>Remove reported listing</button>}
+                            <button type="button" onClick={() => void closeSelectedTicket()}>Mark reviewed</button>
                         </header>
                         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }} aria-live="polite">
                             {messages.map((message) => (
@@ -169,7 +193,6 @@ export const AdminSupportDashboard: React.FC = () => {
                             ))}
                             <div ref={messagesEndRef} aria-hidden="true" />
                         </div>
-                        {status && <p role="alert">{status}</p>}
                         <form onSubmit={sendReply} style={{ display: 'flex', gap: '8px', padding: '12px 16px', borderTop: '1px solid #ddd' }}>
                             <input
                                 type="text"

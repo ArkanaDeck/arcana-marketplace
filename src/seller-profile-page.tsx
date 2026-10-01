@@ -3,14 +3,15 @@ import { loadSellerProfile } from './lib/seller-profile';
 import { formatChatMessage, isListingOpeningMessage, openDashboardChat } from './lib/dashboard-chat';
 import { saveDirectPaymentLink } from './lib/direct-payment';
 import type { MarketplaceListing } from './lib/listings';
+import { CommunitySafetyActions } from './community-safety-actions';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { DirectPaymentAction } from './direct-payment-action';
 
-type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void; onSignIn: () => void };
+type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void; onSignIn: () => void; isNativeApp: boolean };
 
 type Message = { id: string; sender_id: string; chat_id: string; text: string; created_at: string };
 
-export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile, onSignIn }) => {
+export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile, onSignIn, isNativeApp }) => {
     const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
     const [listings, setListings] = React.useState<MarketplaceListing[]>([]);
     const [roomId, setRoomId] = React.useState<string | null>(null);
@@ -130,10 +131,11 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         <header className="seller-profile-header">
             {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="seller-profile-avatar" /> : <div className="seller-profile-avatar seller-profile-avatar--fallback">ARK</div>}
             <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1>{(profile.bio || viewerId !== sellerId) && <p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>}
-                {profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
+                {!isNativeApp && profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
             {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
             {viewerId !== sellerId && activeListing && <div className="seller-profile-action"><DirectPaymentAction listingTitle={activeListing.name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
+            {viewerId !== sellerId && <CommunitySafetyActions targetType="seller" targetId={sellerId} targetLabel={profile.full_name || 'this seller'} blockedUserId={sellerId} reportContext={`Seller ID: ${sellerId}\nName: ${profile.full_name || 'Arkana seller'}`} onBlocked={() => { setRoomId(null); setMessages([]); setMessageText(''); }} />}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
         {viewerId === sellerId && (
@@ -156,11 +158,11 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         )}
         {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text) || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text)) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text)}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
-        <div className="seller-profile-grid">{listings.map((listing) => <SellerListingCard key={listing.id} listing={listing} />)}</div>
+        <div className="seller-profile-grid">{listings.map((listing) => <SellerListingCard key={listing.id} listing={listing} isNativeApp={isNativeApp} />)}</div>
     </section>;
 };
 
-const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing }) => {
+const SellerListingCard: React.FC<{ listing: MarketplaceListing; isNativeApp: boolean }> = ({ listing, isNativeApp }) => {
     const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
     const images = listing.images;
 
@@ -188,7 +190,8 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing 
                 : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {listing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
             {listing.description && <p>{listing.description}</p>}
-            {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {!isNativeApp && listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
         </div>
+        <CommunitySafetyActions targetType="listing" targetId={listing.id} targetLabel="this seller" blockedUserId={listing.sellerId} reportContext={`Listing: ${listing.name}\nSeller ID: ${listing.sellerId}`} />
     </article>;
 };

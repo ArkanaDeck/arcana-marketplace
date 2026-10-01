@@ -17,6 +17,7 @@ import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
 import { openDashboardChat } from './lib/dashboard-chat';
 import { MessagesDashboard } from './messages-dashboard';
+import { CommunitySafetyActions } from './community-safety-actions';
 import { AdminSupportDashboard } from './admin-support-dashboard';
 import { SellerProfilePage } from './seller-profile-page';
 import { DeckDetailPage, generateMetadata, type DeckMetadata } from './deck-detail-page';
@@ -418,6 +419,12 @@ export const MainLayout: React.FC = () => {
         const params = new URLSearchParams(window.location.search);
         const premiumStatus = params.get('premium-listing');
         if (!premiumStatus) return;
+        if (isNativeApp) {
+            clearPremiumDraft();
+            window.history.replaceState({}, '', window.location.pathname);
+            setFlashMessage('Paid storefront promotion is unavailable in this iOS version.');
+            return;
+        }
         const draft = readPremiumDraft();
         const checkoutSessionId = params.get('session_id');
         window.history.replaceState({}, '', window.location.pathname);
@@ -739,6 +746,10 @@ export const MainLayout: React.FC = () => {
     };
 
     const handleStartWebsiteLink = async () => {
+        if (isNativeApp) {
+            setAccountStatus('Paid website promotion is unavailable in this iOS version.');
+            return;
+        }
         if (!isValidExternalUrl(websiteUrlInput)) {
             alert('Enter a valid website URL starting with http:// or https://.');
             return;
@@ -921,6 +932,9 @@ export const MainLayout: React.FC = () => {
         setIsDeletingAccount(true);
         try {
             await deleteOwnAccount();
+            clearPremiumDraft();
+            setSession(null);
+            setListings((current) => current.filter((listing) => listing.sellerId !== session?.user?.id));
             setIsAuthenticated(false);
             setAccountStatus('Your account has been permanently deleted.');
             window.history.pushState({}, '', '/');
@@ -1066,12 +1080,12 @@ export const MainLayout: React.FC = () => {
 
     const deckRouteMatch = window.location.pathname.match(/^\/decks\/([^/]+)\/?$/);
     if (deckRouteMatch) {
-        return <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} />;
+        return <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} isNativeApp={isNativeApp} />;
     }
 
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
-        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} />;
+        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />;
     }
 
     const messagesRouteMatch = window.location.pathname.match(/^\/app\/messages\/?$/);
@@ -1383,7 +1397,7 @@ export const MainLayout: React.FC = () => {
                                     <section className="danger-zone-section" aria-labelledby="danger-zone-title">
                                         <h3 className="danger-zone-title" id="danger-zone-title">Danger Zone</h3>
                                         <p className="danger-zone-warning">
-                                            Deleting your account is permanent and cannot be undone. Every card marketplace listing you have published, along with your seller profile and message history, will be wiped out immediately.
+                                            Deleting your account permanently removes your profile, listings, chats, and uploaded images. Limited transaction records may be retained for legal, accounting, or dispute-resolution requirements; delivery details are erased.
                                         </p>
                                         <button
                                             type="button"
@@ -1426,7 +1440,7 @@ export const MainLayout: React.FC = () => {
                                             <label style={{ display: 'grid', gap: '6px', color: '#114e60', fontSize: '0.82rem', fontWeight: 700 }}>Avatar<input style={{ width: '100%', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '8px', background: '#ffffff', color: '#114e60', font: 'inherit', padding: '10px 12px' }} type="file" accept="image/*" onChange={(event) => setAvatarFile(event.target.files?.[0] || null)} /></label>
                                             <button type="submit" disabled={isSavingProfile} style={{ border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isSavingProfile ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</button>
                                         </form>
-                                        <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
+                                        {!isNativeApp && <details style={{ overflow: 'hidden', border: '1px solid rgba(17, 78, 96, 0.16)', borderRadius: '12px', background: '#fffaf7' }}>
                                             <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#114e60', cursor: 'pointer' }}>
                                                 <span><strong>Link Your Website</strong><small>£2.00 for 30 days on your public seller profile.</small></span>
                                                 <span style={{ flex: '0 0 auto', borderRadius: '999px', background: websiteLinkStatus.isActive ? '#edf8ef' : '#fff1d9', color: websiteLinkStatus.isActive ? '#26733f' : '#8a4c09', fontSize: '0.7rem', fontWeight: 800, padding: '6px 9px' }}>{websiteLinkStatus.isActive ? `Active until ${new Date(websiteLinkStatus.expiresAt as string).toLocaleDateString()}` : 'Not linked'}</span>
@@ -1437,7 +1451,7 @@ export const MainLayout: React.FC = () => {
                                                 </label>
                                                 <button type="button" onClick={handleStartWebsiteLink} disabled={isStartingWebsiteLink} style={{ width: '100%', border: 'none', borderRadius: '10px', background: '#114e60', color: '#ffffff', cursor: isStartingWebsiteLink ? 'wait' : 'pointer', fontWeight: 800, padding: '11px 16px' }}>{isStartingWebsiteLink ? 'Opening checkout...' : websiteLinkStatus.isActive ? 'Renew for another 30 days - £2.00' : 'Link your website - £2.00 for 30 days'}</button>
                                             </div>
-                                        </details>
+                                        </details>}
                                         <details open style={{ overflow: 'hidden', border: '1px solid rgba(88, 28, 135, 0.18)', borderRadius: '12px', background: '#faf5ff' }}>
                                             <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', padding: '18px 20px', color: '#581c87', cursor: 'pointer' }}>
                                                 <span><strong>Direct Payment Link</strong><small>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly \u2014 Arkana never touches the money.</small></span>
@@ -1664,7 +1678,8 @@ export const MainLayout: React.FC = () => {
                                 {viewingListing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
-                                {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                                {!isNativeApp && viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                                <CommunitySafetyActions targetType="listing" targetId={viewingListing.id} targetLabel="this seller" blockedUserId={viewingListing.sellerId} reportContext={`Listing: ${viewingListing.name}\nSeller ID: ${viewingListing.sellerId}`} />
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 {viewingListing.status === 'sold' && buyerSoldListingIds.has(viewingListing.id) && (
                                     <div className="buyer-order-acceptance">
@@ -1769,8 +1784,9 @@ export const MainLayout: React.FC = () => {
                                         />
                                         <span>Verify Item Authenticity (Request an AI analysis badge to increase buyer trust)</span>
                                     </label>
+                                    <small>When selected, Arkcards sends the first listing image to OpenAI for an authenticity assessment.</small>
                                 </div>
-                                <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
+                                {!isNativeApp && <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
                                     <label className="checkbox-label" htmlFor="external-store-link">
                                         <input
                                             id="external-store-link"
@@ -1780,8 +1796,8 @@ export const MainLayout: React.FC = () => {
                                         />
                                         <span>Drive traffic directly to your own web store? (+£2.00 for 30 Days)</span>
                                     </label>
-                                </div>
-                                {wantsExternalLink && (
+                                </div>}
+                                {!isNativeApp && wantsExternalLink && (
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
                                         <label>Your web store link <span className="text-red-500 font-bold ml-0.5">*</span></label>
                                         <input
@@ -2079,9 +2095,10 @@ export const MainLayout: React.FC = () => {
 
                                 {activeLegalPage === 'privacy' && (
                                     <>
-                                        <p>We collect your name, email address, order details, and delivery information to process purchases and maintain a secure marketplace account.</p>
-                                        <p>Information is stored securely and used only for order fulfilment, customer support, and platform administration.</p>
-                                        <p>We do not sell personal data to third parties. Payment processing is handled through our trusted gateway services.</p>
+                                        <p>We process your email address, profile details, listing text and images, messages, support requests, and any order or delivery details you provide to operate the marketplace.</p>
+                                        <p>If you explicitly request an AI authenticity check, we send the first image for that listing to OpenAI to generate the assessment. We do not send listing images for this check unless you opt in. OpenAI processes that image under its service terms; do not include people or unrelated personal information in verification images.</p>
+                                        <p>Payment providers process payment details for checkout. We do not sell personal data or share it with advertising companies. We retain information only as needed for the service, safety, disputes, and legal obligations.</p>
+                                        <p>You can delete your account in Account settings. Deletion removes your profile, listings, chats, and uploaded images. Limited transaction or moderation records may be retained where required for accounting, safety, or dispute resolution; delivery details are erased.</p>
                                     </>
                                 )}
 
@@ -2320,7 +2337,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-details flex flex-col min-h-[180px]">
             <h4 className="deck-title">{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
-            {item.externalStoreUrl && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {!isNativeApp && item.externalStoreUrl && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
             {item.status === 'sold'
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}

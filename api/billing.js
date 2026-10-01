@@ -28,6 +28,9 @@ export default async function handler(req, res) {
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' });
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const product = req.query?.product;
+    if (req.headers['x-arkana-native-app'] === 'true' && ['listing-fee', 'listing-batch-fee', 'premium-listing', 'premium-listing-confirm', 'website-link', 'listing-external-link'].includes(product)) {
+        return res.status(403).json({ error: 'Paid promotional features are unavailable in the iOS app.' });
+    }
 
     if (product === 'listing-fee') return createListingFeeCheckout(res, stripe, supabase, user, body);
     if (product === 'listing-batch-fee') return createListingBatchFeeCheckout(res, stripe, supabase, user, body);

@@ -1,4 +1,4 @@
-import { assertSupabaseConfigured, supabase } from './supabase';
+import { assertSupabaseConfigured, getSupabaseSession, supabase } from './supabase';
 
 export async function signInWithEmail(email: string, password: string) {
     const normalizedEmail = email.trim();
@@ -91,12 +91,37 @@ export async function signOut() {
     }
 }
 
-// Apple requires in-app account deletion. The RPC deletes only the caller's own auth row.
+// Apple requires in-app account deletion. The RPC deletes only the caller's account data.
 export async function deleteOwnAccount() {
     assertSupabaseConfigured();
+    const session = await getSupabaseSession();
+    if (!session?.user || !supabase) throw new Error('Sign in before deleting your account.');
+
+    for (const bucketName of ['avatars', 'listing-images']) {
+        const bucket = supabase.storage.from(bucketName);
+        const paths: string[] = [];
+        let offset = 0;
+        while (true) {
+            const { data, error } = await bucket.list(session.user.id, { limit: 1000, offset });
+            if (error) throw new Error(error.message || 'Unable to remove uploaded account images.');
+            const files = data || [];
+            paths.push(...files.filter((file) => file.id).map((file) => `${session.user.id}/${file.name}`));
+            if (files.length < 1000) break;
+            offset += files.length;
+        }
+        for (let index = 0; index < paths.length; index += 100) {
+            const { error } = await bucket.remove(paths.slice(index, index + 100));
+            if (error) throw new Error(error.message || 'Unable to remove uploaded account images.');
+        }
+    }
+
     const { error } = await supabase!.rpc('delete_own_account');
     if (error) {
         throw new Error(error.message || 'Unable to delete your account.');
     }
-    await supabase!.auth.signOut();
+    localStorage.removeItem('arkana_listings');
+    await supabase!.auth.signOut({ scope: 'local' });
+    (window as Window & {
+        webkit?: { messageHandlers?: { cacheSessionToken?: { postMessage: (payload: { action: string }) => void } } };
+    }).webkit?.messageHandlers?.cacheSessionToken?.postMessage({ action: 'clearSessionToken' });
 }

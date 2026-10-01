@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { getSupabaseSession, supabase } from './supabase';
 
 export type DeckCondition = 'new' | 'like new' | 'good' | 'fair' | 'poor';
@@ -296,7 +297,7 @@ export async function confirmPremiumListing(sessionId: string): Promise<Marketpl
     if (!session?.access_token) throw new Error('Sign in before creating a listing.');
     const response = await fetch('/api/billing?product=premium-listing-confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Arkana-Native-App': String(Capacitor.isNativePlatform()) },
         body: JSON.stringify({ sessionId }),
     });
     const payload = await response.json();
@@ -308,6 +309,9 @@ export async function confirmPremiumListing(sessionId: string): Promise<Marketpl
 // deck to the same pipeline the multi-deck tarot authentication flow uses, then either returns
 // the already-approved listing (fee = 0) or a Stripe Checkout URL for the stacked fee.
 export async function publishListingBundle(input: CreateListingInput): Promise<PublishListingBundleResult> {
+    if (Capacitor.isNativePlatform() && input.externalStoreUrl) {
+        throw new Error('Paid store promotion is unavailable in this iOS version.');
+    }
     const session = await getSupabaseSession();
     if (!session?.user || !session.access_token) throw new Error('Sign in before creating a listing.');
     if (!supabase) throw new Error('Supabase is not configured.');
@@ -339,7 +343,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
         if (input.externalStoreUrl) {
             const premiumResponse = await fetch('/api/listings/create-premium-session', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Arkana-Native-App': String(Capacitor.isNativePlatform()) },
                 body: JSON.stringify({
                     title: input.name.trim(),
                     price: input.price,
@@ -396,7 +400,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
 
         const checkoutResponse = await fetch('/api/billing?product=listing-batch-fee', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Arkana-Native-App': String(Capacitor.isNativePlatform()) },
             body: JSON.stringify({ batchId: submitPayload.batchId }),
         });
         const checkoutPayload = await checkoutResponse.json();

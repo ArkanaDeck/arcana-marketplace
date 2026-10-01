@@ -4125,6 +4125,38 @@ label.field-error .field-error-text {
     flex: 1;
 }
 
+.community-safety-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.community-safety-actions form {
+    display: grid;
+    flex-basis: 100%;
+    gap: 8px;
+    max-width: 560px;
+}
+
+.community-safety-actions label {
+    display: grid;
+    gap: 6px;
+    color: #114e60;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.community-safety-actions textarea {
+    width: 100%;
+    min-height: 80px;
+    border: 1px solid rgba(17, 78, 96, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    resize: vertical;
+}
+
 .messages-dashboard {
     width: min(720px, 100%);
     margin: 0 auto;

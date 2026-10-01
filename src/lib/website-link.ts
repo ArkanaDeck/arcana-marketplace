@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { getSupabaseSession, supabase } from './supabase';
 
 export type WebsiteLinkStatus = { websiteUrl: string | null; isActive: boolean; expiresAt: string | null };
@@ -11,12 +12,13 @@ export async function getWebsiteLinkStatus(): Promise<WebsiteLinkStatus> {
 }
 
 export async function startWebsiteLinkCheckout(websiteUrl: string) {
+    if (Capacitor.isNativePlatform()) throw new Error('Paid website promotion is unavailable in this iOS version.');
     const session = await getSupabaseSession();
     if (!session?.access_token) throw new Error('Sign in before linking your website.');
 
     const response = await fetch('/api/rent-website-link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Arkana-Native-App': String(Capacitor.isNativePlatform()) },
         body: JSON.stringify({
             websiteUrl,
             successUrl: `${window.location.origin}/?website-link=success`,

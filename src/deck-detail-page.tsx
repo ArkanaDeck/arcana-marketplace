@@ -1,8 +1,9 @@
 import React from 'react';
 import { loadDeckListing, loadSimilarActiveListings, type MarketplaceListing } from './lib/listings';
+import { CommunitySafetyActions } from './community-safety-actions';
 import { Seo } from './seo';
 
-type DeckDetailPageProps = { listingId: string; onBack: () => void };
+type DeckDetailPageProps = { listingId: string; onBack: () => void; isNativeApp: boolean };
 
 const deckPath = (listingId: string) => `/decks/${encodeURIComponent(listingId)}`;
 
@@ -19,7 +20,7 @@ export function generateMetadata(listing: MarketplaceListing): DeckMetadata {
     };
 }
 
-export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBack }) => {
+export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBack, isNativeApp }) => {
     const [listing, setListing] = React.useState<MarketplaceListing | null>(null);
     const [similarListings, setSimilarListings] = React.useState<MarketplaceListing[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -82,8 +83,15 @@ export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBac
                 {listing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                 <p>Condition: {listing.condition}{listing.freeDelivery ? ' · Free delivery' : ''}</p>
                 {listing.description && <p className="listing-description">{listing.description}</p>}
-                {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                {!isNativeApp && listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(listing.sellerId)}`}>View seller profile</a>
+                <CommunitySafetyActions
+                    targetType="listing"
+                    targetId={listing.id}
+                    targetLabel="this seller"
+                    blockedUserId={listing.sellerId}
+                    reportContext={`Listing: ${listing.name}\nSeller ID: ${listing.sellerId}`}
+                />
             </div>
         </article>
 

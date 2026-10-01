@@ -1,6 +1,7 @@
 import React from 'react';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { formatChatMessage, isListingOpeningMessage } from './lib/dashboard-chat';
+import { CommunitySafetyActions } from './community-safety-actions';
 
 type DashboardMessage = { id: string; chat_id: string; sender_id: string; text: string | null; created_at: string };
 
@@ -9,11 +10,19 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
     const [messageText, setMessageText] = React.useState('');
     const [isSending, setIsSending] = React.useState(false);
     const [status, setStatus] = React.useState<string | null>(null);
+    const [otherUserId, setOtherUserId] = React.useState<string | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
 
     React.useEffect(() => {
         if (!supabase || !chatId) return;
         let mounted = true;
+        void (async () => {
+            const session = await getSupabaseSession().catch(() => null);
+            if (!session?.user) return;
+            const { data } = await supabase!.from('chats').select('buyer_id, seller_id').eq('id', chatId).maybeSingle();
+            if (!mounted || !data) return;
+            setOtherUserId(data.buyer_id === session.user.id ? data.seller_id : data.buyer_id);
+        })();
         const channel = supabase.channel(`public:messages:${chatId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, (payload) => {
                 if (!mounted) return;
@@ -63,6 +72,7 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
             <h1>Messages</h1>
             <span aria-hidden="true" />
         </header>
+        <CommunitySafetyActions targetType="chat" targetId={chatId} targetLabel="this user" blockedUserId={otherUserId || undefined} reportContext={`Conversation ID: ${chatId}`} onBlocked={() => setMessages([])} />
         <div className="seller-chat-messages" aria-live="polite">
             {messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text || '') || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text || '')) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text || '')}</p>)}
             <div ref={messagesEndRef} aria-hidden="true" />

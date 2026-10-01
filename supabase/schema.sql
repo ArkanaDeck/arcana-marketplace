@@ -438,6 +438,7 @@ drop policy if exists "Allow owners to update their listings" on public.listings
 drop policy if exists "sellers_can_delete_their_listings" on public.listings;
 drop policy if exists "Users can view their own chat rooms" on public.chat_rooms;
 drop policy if exists "Authenticated users can create rooms" on public.chat_rooms;
+drop policy if exists "allow public access" on public.chat_rooms;
 drop policy if exists "Participants can view messages" on public.messages;
 drop policy if exists "Participants can post messages" on public.messages;
 drop policy if exists "Authenticated users can view support messages" on public.support_messages;
