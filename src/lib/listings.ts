@@ -18,9 +18,10 @@ export type MarketplaceListing = {
     status: 'active' | 'sold' | 'completed';
     category?: DeckCategory;
     externalStoreUrl?: string;
+    aiVerified: boolean;
 };
 
-export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory; external_store_url?: string | null; external_link_active?: boolean | null; external_link_expires_at?: string | null };
+export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory; external_store_url?: string | null; external_link_active?: boolean | null; external_link_expires_at?: string | null; is_ai_authenticated?: boolean | null };
 
 function activeExternalStoreUrl(listing: ListingRow) {
     const url = listing.external_store_url;
@@ -31,11 +32,11 @@ function activeExternalStoreUrl(listing: ListingRow) {
 
 export function mapListing(listing: ListingRow): MarketplaceListing {
     const images = listing.images || (listing.image ? [listing.image] : []);
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category, externalStoreUrl: activeExternalStoreUrl(listing) };
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category, externalStoreUrl: activeExternalStoreUrl(listing), aiVerified: Boolean(listing.is_ai_authenticated) };
 }
 
 const LINK_COLUMNS = 'external_store_url, external_link_active, external_link_expires_at';
-const DECK_DETAIL_COLUMNS = `id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, category, ${LINK_COLUMNS}`;
+const DECK_DETAIL_COLUMNS = `id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, category, is_ai_authenticated, ${LINK_COLUMNS}`;
 
 // Completed listings stay publicly reachable (is_active is cleared on completion) so search traffic can be redirected.
 export async function loadDeckListing(listingId: string): Promise<MarketplaceListing | null> {
@@ -69,7 +70,7 @@ export async function loadSimilarActiveListings(category: DeckCategory, excludeL
 
 export async function loadListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.from('listings').select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, ${LINK_COLUMNS}`).neq('status', 'completed').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('listings').select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, is_ai_authenticated, ${LINK_COLUMNS}`).neq('status', 'completed').order('created_at', { ascending: false });
     if (error) throw new Error(error.message || 'Unable to load listings.');
     return data.map(mapListing);
 }
@@ -80,7 +81,7 @@ export async function loadPublishedListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase
         .from('listings')
-        .select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, ${LINK_COLUMNS}`)
+        .select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, is_ai_authenticated, ${LINK_COLUMNS}`)
         .eq('is_active', true)
         .eq('review_status', 'approved')
         .neq('status', 'completed')
@@ -93,7 +94,7 @@ export async function loadPublishedListings() {
     return prioritized.map(mapListing);
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status' | 'aiVerified'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 export const MIN_LISTING_IMAGES = 3;
 export const MAX_LISTING_IMAGES = 6;
@@ -166,7 +167,7 @@ export async function createListing(input: CreateListingInput) {
         const { data, error } = await supabase
             .from('listings')
             .insert({ seller_id: session.user.id, name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: imageUrls[0] || null, images: imageUrls, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition, review_status: input.reviewStatus || 'approved', external_store_url: input.externalStoreUrl || null })
-            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status')
+            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, is_ai_authenticated')
             .single();
         if (error || !data) throw new Error(error?.message || 'Unable to create listing.');
         return mapListing(data);
@@ -208,7 +209,7 @@ export async function updateListing(listingId: string, input: UpdateListingInput
             .update({ name: input.name, price: input.price, description: input.description || null, listing_type: input.listingType, image: images[0] || null, images, is_free_delivery: input.listingType !== 'free' && input.freeDelivery, condition: input.condition, review_status: input.reviewStatus || 'approved' })
             .eq('id', listingId)
             .eq('seller_id', session.user.id)
-            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status')
+            .select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, is_ai_authenticated')
             .single();
         if (error || !data) throw new Error(error?.message || 'Unable to update listing.');
         return mapListing(data);
@@ -323,9 +324,7 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
     const imageBase64: string[] = [];
     try {
         const imageFiles = (input.imageFiles || []).slice(0, MAX_LISTING_IMAGES);
-        for (const file of imageFiles) {
-            imageBase64.push(await fileToDataUrl(file));
-        }
+        if (input.wantsAuthentication && imageFiles[0]) imageBase64.push(await fileToDataUrl(imageFiles[0]));
         for (const file of imageFiles.slice(input.uploadedImageUrl ? 1 : 0)) {
             if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
             const compressed = await compressImageFile(file);
@@ -335,20 +334,6 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             imagePaths.push(path);
             const { data: publicUrl } = supabase.storage.from('listing-images').getPublicUrl(path);
             imageUrls.push(publicUrl.publicUrl);
-        }
-
-        // AI authenticity verification is opt-in: skip the OpenAI call entirely (and any credit usage) unless requested.
-        // The server independently re-runs this check for the actual listing insert, since a client flag can't be trusted for it.
-        if (input.wantsAuthentication) {
-            const verificationResponse = await fetch('/api/check-card', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                body: JSON.stringify({ imageBase64: imageBase64[0] }),
-            });
-            const verification = await verificationResponse.json();
-            if (!verificationResponse.ok || !verification.authenticated) {
-                throw new Error(verification.reasoning || verification.error || 'Card authentication failed.');
-            }
         }
 
         if (input.externalStoreUrl) {
@@ -366,6 +351,8 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
                     image_urls: imageUrls,
                     listing_type: input.listingType,
                     free_delivery: input.freeDelivery,
+                    wants_authentication: Boolean(input.wantsAuthentication),
+                    image_base64: imageBase64[0],
                 }),
             });
             const premiumPayload = await premiumResponse.json();

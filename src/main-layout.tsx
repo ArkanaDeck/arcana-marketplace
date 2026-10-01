@@ -1638,6 +1638,10 @@ export const MainLayout: React.FC = () => {
                     )}
                     {viewingListing && (
                         <div className="modal-backdrop" onClick={() => setViewingListing(null)}>
+                            {createPortal(
+                                <button type="button" className="overlay-close-btn" aria-label="Close listing" onClick={(event) => { event.stopPropagation(); setViewingListing(null); }}>✕</button>,
+                                document.body,
+                            )}
                             <div className="checkout-modal-card listing-detail-modal-card" onClick={(event) => event.stopPropagation()}>
                                 <div className="modal-header">
                                     <h3>{viewingListing.name}</h3>
@@ -1657,6 +1661,7 @@ export const MainLayout: React.FC = () => {
                                 {viewingListing.status === 'sold'
                                     ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                                     : <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
+                                {viewingListing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
                                 {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
@@ -2320,6 +2325,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
+            {item.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
             {item.status === 'sold' && canConfirmOrderAccepted && (
                 <div className="buyer-order-acceptance" onClick={(event) => event.stopPropagation()}>

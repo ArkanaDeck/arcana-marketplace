@@ -141,6 +141,36 @@ create trigger listings_external_url_moderation
 before update on public.listings
 for each row execute function public.handle_listing_url_changes();
 
+alter table public.listings add column if not exists is_ai_authenticated boolean not null default false;
+
+-- Only the server (service role) may grant the AI Verified badge; changing photos clears it.
+create or replace function public.guard_listing_ai_badge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      new.authenticated := false;
+      new.is_ai_authenticated := false;
+    elsif new.images is distinct from old.images or new.image is distinct from old.image then
+      new.authenticated := false;
+      new.is_ai_authenticated := false;
+    else
+      new.authenticated := old.authenticated;
+      new.is_ai_authenticated := old.is_ai_authenticated;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists listings_guard_ai_badge on public.listings;
+create trigger listings_guard_ai_badge
+before insert or update on public.listings
+for each row execute function public.guard_listing_ai_badge();
+
 alter table public.listing_credit_purchases add column if not exists activated_listing_id uuid;
 alter table public.listing_credit_purchases drop constraint if exists listing_credit_purchases_activated_listing_id_fkey;
 alter table public.listing_credit_purchases add constraint listing_credit_purchases_activated_listing_id_fkey
