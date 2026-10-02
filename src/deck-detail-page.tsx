@@ -54,7 +54,7 @@ export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBac
 
     return <section className="seller-profile-page deck-detail-page">
         <Seo {...generateMetadata(listing)} />
-        <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>
+        {!isNativeApp && <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>}
 
         {isCompleted && (
             <div className="deck-completed-banner" role="status">

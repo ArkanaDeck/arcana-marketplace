@@ -5,13 +5,25 @@ import { CommunitySafetyActions } from './community-safety-actions';
 
 type DashboardMessage = { id: string; chat_id: string; sender_id: string; text: string | null; created_at: string };
 
-export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }> = ({ chatId, onBack }) => {
+export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void; isNativeApp: boolean }> = ({ chatId, onBack, isNativeApp }) => {
     const [messages, setMessages] = React.useState<DashboardMessage[]>([]);
-    const [messageText, setMessageText] = React.useState('');
+    const draftStorageKey = `arkana-message-draft:${chatId}`;
+    const [messageText, setMessageText] = React.useState(() => {
+        try { return window.sessionStorage.getItem(draftStorageKey) || ''; } catch { return ''; }
+    });
     const [isSending, setIsSending] = React.useState(false);
     const [status, setStatus] = React.useState<string | null>(null);
     const [otherUserId, setOtherUserId] = React.useState<string | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
+
+    React.useEffect(() => {
+        try {
+            if (messageText) window.sessionStorage.setItem(draftStorageKey, messageText);
+            else window.sessionStorage.removeItem(draftStorageKey);
+        } catch {
+            // Keep the in-memory draft when browser storage is unavailable.
+        }
+    }, [draftStorageKey, messageText]);
 
     React.useEffect(() => {
         if (!supabase || !chatId) return;
@@ -34,7 +46,14 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
             const { data, error } = await supabase.from('messages').select('*').eq('chat_id', chatId).order('created_at', { ascending: true });
             if (!mounted) return;
             if (error) setStatus(error.message || 'Unable to load messages.');
-            else setMessages((data || []) as DashboardMessage[]);
+            else {
+                const loadedMessages = (data || []) as DashboardMessage[];
+                setMessages((current) => {
+                    const byId = new Map(loadedMessages.map((message) => [message.id, message]));
+                    current.forEach((message) => { if (!byId.has(message.id)) byId.set(message.id, message); });
+                    return [...byId.values()].sort((left, right) => left.created_at.localeCompare(right.created_at));
+                });
+            }
         })();
 
         return () => { mounted = false; void channel.unsubscribe(); };
@@ -53,8 +72,11 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
         try {
             const session = await getSupabaseSession();
             if (!session?.user) throw new Error('Sign in to send a message.');
-            const { error } = await supabase.from('messages').insert({ chat_id: chatId, sender_id: session.user.id, text });
-            if (error) throw new Error(error.message || 'Unable to send message.');
+            const { data, error } = await supabase.from('messages').insert({ chat_id: chatId, sender_id: session.user.id, text }).select('id, chat_id, sender_id, text, created_at').single();
+            if (error || !data) throw new Error(error?.message || 'Unable to send message.');
+            setMessages((current) => current.some((message) => message.id === data.id)
+                ? current
+                : [...current, data as DashboardMessage].sort((left, right) => left.created_at.localeCompare(right.created_at)));
             setMessageText('');
         } catch (error) {
             setStatus(error instanceof Error ? error.message : 'Unable to send message.');
@@ -64,14 +86,14 @@ export const MessagesDashboard: React.FC<{ chatId: string; onBack: () => void }>
     };
 
     return <section className="messages-dashboard" aria-label="Chat messages">
-        <header className="messages-dashboard__toolbar">
+        {!isNativeApp && <header className="messages-dashboard__toolbar">
             <button type="button" className="messages-dashboard__back-button" onClick={onBack} aria-label="Back to Marketplace">
                 <span aria-hidden="true">&lt;</span>
                 <span>Back</span>
             </button>
             <h1>Messages</h1>
             <span aria-hidden="true" />
-        </header>
+        </header>}
         <CommunitySafetyActions targetType="chat" targetId={chatId} targetLabel="this user" blockedUserId={otherUserId || undefined} reportContext={`Conversation ID: ${chatId}`} onBlocked={() => setMessages([])} />
         <div className="seller-chat-messages" aria-live="polite">
             {messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text || '') || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text || '')) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text || '')}</p>)}

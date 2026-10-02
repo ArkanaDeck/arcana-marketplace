@@ -21,6 +21,7 @@ import { CommunitySafetyActions } from './community-safety-actions';
 import { AdminSupportDashboard } from './admin-support-dashboard';
 import { SellerProfilePage } from './seller-profile-page';
 import { DeckDetailPage, generateMetadata, type DeckMetadata } from './deck-detail-page';
+import { NativeScreenShell } from './native-screen-shell';
 import { ResetPasswordPage } from './reset-password-page';
 
 type DeckListing = MarketplaceListing;
@@ -1080,26 +1081,41 @@ export const MainLayout: React.FC = () => {
 
     const deckRouteMatch = window.location.pathname.match(/^\/decks\/([^/]+)\/?$/);
     if (deckRouteMatch) {
-        return <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} isNativeApp={isNativeApp} />;
+        const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Deck Details" onBack={backToMarketplace} onCancel={backToMarketplace}>
+            <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={backToMarketplace} isNativeApp={isNativeApp} />
+        </NativeScreenShell>;
     }
 
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
-        return <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />;
+        const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Seller Profile" onBack={backToMarketplace} onCancel={backToMarketplace}>
+            <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={backToMarketplace} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />
+        </NativeScreenShell>;
     }
 
     const messagesRouteMatch = window.location.pathname.match(/^\/app\/messages\/?$/);
     if (messagesRouteMatch) {
         const chatId = new URLSearchParams(window.location.search).get('chatId');
-        return chatId ? <MessagesDashboard chatId={chatId} onBack={() => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); }} /> : <section className="seller-profile-page"><p>Select a conversation to view messages.</p></section>;
+        const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Messages" onBack={backToMarketplace} onCancel={backToMarketplace}>
+            {chatId ? <MessagesDashboard key={chatId} chatId={chatId} onBack={backToMarketplace} isNativeApp={isNativeApp} /> : <section className="seller-profile-page"><p>Select a conversation to view messages.</p></section>}
+        </NativeScreenShell>;
     }
 
     if (window.location.pathname === '/app/admin/support') {
-        return <AdminSupportDashboard />;
+        const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Support" onBack={backToMarketplace} onCancel={backToMarketplace}>
+            <AdminSupportDashboard />
+        </NativeScreenShell>;
     }
 
     if (window.location.pathname === '/reset-password') {
-        return <ResetPasswordPage onDone={(passwordChanged) => { window.location.replace(passwordChanged ? '/login?passwordReset=success' : '/login'); }} />;
+        const returnToSignIn = () => window.location.replace('/login');
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Reset Password" onBack={returnToSignIn} onCancel={returnToSignIn}>
+            <ResetPasswordPage onDone={(passwordChanged) => { window.location.replace(passwordChanged ? '/login?passwordReset=success' : '/login'); }} />
+        </NativeScreenShell>;
     }
 
     const isNestedNativeView = isNativeApp && !NATIVE_ROOT_VIEWS.includes(activeView);
@@ -1173,6 +1189,11 @@ export const MainLayout: React.FC = () => {
         discardListingChanges();
     };
 
+    const handleNativeRootCancel = () => {
+        setIsMobileMenuOpen(false);
+        setActiveView(activeView === 'Home' ? 'Listings' : 'Home');
+    };
+
     const handleRequireSignIn = (message: string = SIGN_IN_REQUIRED_MESSAGE) => {
         if (!/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.pushState({}, '', '/login');
         setViewingListing(null);
@@ -1231,9 +1252,14 @@ export const MainLayout: React.FC = () => {
                                     <span className="native-header-title">Arkana</span>
                                 </button>
                             )}
-                            {isNestedNativeView
-                                ? <button type="button" className="header-back-button is-cancel" onClick={handleNativeBack}>Cancel</button>
-                                : <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>}
+                            {isNestedNativeView ? (
+                                <button type="button" className="header-back-button is-cancel" onClick={handleNativeBack}>Cancel</button>
+                            ) : (
+                                <div className="native-header-actions">
+                                    <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>
+                                    <button type="button" className="header-back-button is-cancel" onClick={handleNativeRootCancel}>Cancel</button>
+                                </div>
+                            )}
                         </div>
                         {activeView === 'Listings' && (
                             <div className="native-header-search">

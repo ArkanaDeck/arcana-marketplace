@@ -4554,6 +4554,13 @@ label.field-error .field-error-text {
     padding: 0 16px;
 }
 
+.native-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: -10px;
+}
+
 /* --- Sub-page back / cancel navigation --- */
 
 .header-back-button {
