@@ -70,6 +70,9 @@ web_modules/
 .env.*
 !.env.example
 
+# Apple Sign in private keys
+*.p8
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

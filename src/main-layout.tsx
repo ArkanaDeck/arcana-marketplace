@@ -247,6 +247,11 @@ export const MainLayout: React.FC = () => {
             setIsAuthenticated(Boolean(activeSession));
             setAccountEmail(activeSession?.user.email || '');
             setSession(activeSession);
+            // OAuth providers (e.g. Apple on web) return to /login with the new session.
+            if (event === 'SIGNED_IN' && activeSession && /^\/(login|signin)\/?$/.test(window.location.pathname)) {
+                window.history.replaceState({}, '', '/');
+                setActiveView('Listings');
+            }
         });
         return () => subscription.unsubscribe();
     }, []);
@@ -826,12 +831,21 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const appleSignInInFlightRef = useRef(false);
     const handleAppleSignIn = async () => {
+        // State updates are async, so a ref is what actually blocks a rapid second tap.
+        if (appleSignInInFlightRef.current) return;
+        appleSignInInFlightRef.current = true;
         setAccountStatus(null);
         setIsAccountSubmitting(true);
+        let isRedirecting = false;
         try {
             const completed = await signInWithApple();
-            if (!completed || !isNativeApp) return;
+            if (!completed) return;
+            if (!isNativeApp) {
+                isRedirecting = true;
+                return;
+            }
             if (/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
             setIsAuthenticated(true);
             setAccountStatus('Signed in with Apple.');
@@ -840,7 +854,10 @@ export const MainLayout: React.FC = () => {
         } catch (error) {
             setAccountStatus(error instanceof Error ? error.message : 'Sign in with Apple failed.');
         } finally {
-            setIsAccountSubmitting(false);
+            if (!isRedirecting) {
+                appleSignInInFlightRef.current = false;
+                setIsAccountSubmitting(false);
+            }
         }
     };
 

@@ -31,7 +31,7 @@ function requestNativeAppleCredential(hashedNonce: string): Promise<NativeAppleR
 export async function signInWithApple(): Promise<boolean> {
     assertSupabaseConfigured();
     if (!Capacitor.isNativePlatform()) {
-        const { error } = await supabase!.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } });
+        const { error } = await supabase!.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: `${window.location.origin}/login` } });
         if (error) throw new Error(error.message || 'Unable to start Sign in with Apple.');
         return true;
     }
