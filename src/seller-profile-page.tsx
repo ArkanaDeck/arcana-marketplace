@@ -158,11 +158,11 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         )}
         {roomId && <div className="seller-chat-panel"><h2>Chat with {profile.full_name || 'seller'}</h2><div className="seller-chat-messages">{messages.length === 0 ? <p>No messages yet.</p> : messages.filter((message, index, allMessages) => !isListingOpeningMessage(message.text) || allMessages.findIndex((candidate) => isListingOpeningMessage(candidate.text)) === index).map((message) => <p key={message.id} style={{ whiteSpace: 'pre-line' }}>{formatChatMessage(message.text)}</p>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2000} placeholder="Write a message" required /><button type="submit" className="secondary-btn">Send</button></form></div>}
         <div className="seller-profile-section-heading"><div><p className="eyebrow">Storefront</p><h2>Listings from {profile.full_name || 'this seller'}</h2></div><span>{listings.length} listings</span></div>
-        <div className="seller-profile-grid">{listings.map((listing) => <SellerListingCard key={listing.id} listing={listing} isNativeApp={isNativeApp} />)}</div>
+        <div className="seller-profile-grid">{listings.map((listing) => <SellerListingCard key={listing.id} listing={listing} />)}</div>
     </section>;
 };
 
-const SellerListingCard: React.FC<{ listing: MarketplaceListing; isNativeApp: boolean }> = ({ listing, isNativeApp }) => {
+const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing }) => {
     const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
     const images = listing.images;
 
@@ -190,7 +190,7 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing; isNativeApp: bo
                 : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {listing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
             {listing.description && <p>{listing.description}</p>}
-            {!isNativeApp && listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
         </div>
         <CommunitySafetyActions targetType="listing" targetId={listing.id} targetLabel="this seller" blockedUserId={listing.sellerId} reportContext={`Listing: ${listing.name}\nSeller ID: ${listing.sellerId}`} />
     </article>;

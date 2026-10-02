@@ -1,15 +1,19 @@
 import Stripe from 'stripe';
+import { handleNativeAppCors, NATIVE_APP_ORIGINS } from '../server/lib/native-cors.js';
 import { createClient } from '@supabase/supabase-js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { isValidHttpUrl } from '../server/lib/url-validation.js';
 import { computeListingFeeForBundle } from '../server/lib/listing-fee-engine.js';
 import { createPremiumListingFromSession } from '../server/lib/premium-listing.js';
 import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
+import { DRIVE_TRAFFIC_PRODUCT_ID, verifyAppStoreTransaction } from '../server/lib/app-store-transaction.js';
 
 // Consolidated Stripe Checkout hub (seller subscription / listing fee / website link / listing external link),
 // routed via ?product=. Merged from four separate files to stay under Vercel's serverless function count limit.
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
+    if (req.query?.product === 'premium-listing-iap') return createPremiumListingFromAppStore(req, res);
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
@@ -128,6 +132,83 @@ async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl
     } catch (error) {
         logServerError('billing:premium-listing', error);
         return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to start premium listing checkout.' });
+    }
+}
+
+// Native iOS path: the £2 store link is bought with StoreKit, then verified here before the listing is created.
+// Browsers always attach Origin and scripts cannot forge it, so any web-page origin is rejected outright.
+function isIosAppRequest(req) {
+    if (req.headers['x-arkana-platform'] !== 'ios') return false;
+    const origin = req.headers.origin;
+    return !origin || NATIVE_APP_ORIGINS.has(origin);
+}
+
+async function createPremiumListingFromAppStore(req, res) {
+    if (!isIosAppRequest(req)) {
+        return res.status(403).json({ error: 'App Store purchases can only be redeemed from the Arkcards iOS app.' });
+    }
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    if (!supabaseUrl || !supabaseServiceRoleKey) return res.status(503).json({ error: 'Billing is not configured yet.' });
+    if (!token) return res.status(401).json({ error: 'Sign in before continuing.' });
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+
+    try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        let transaction;
+        try {
+            transaction = verifyAppStoreTransaction(body.signed_transaction, { expectedProductId: DRIVE_TRAFFIC_PRODUCT_ID, expectedAppAccountToken: user.id });
+        } catch (verificationError) {
+            return res.status(402).json({ error: verificationError instanceof Error ? verificationError.message : 'The App Store purchase could not be verified.' });
+        }
+
+        const title = String(body.title || '').trim().slice(0, 120);
+        const directPaymentLink = String(body.direct_payment_link || '').trim();
+        if (!title || !directPaymentLink) return res.status(400).json({ error: 'Listing title and web store link are required.' });
+        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid web store link starting with http:// or https://.' });
+
+        const ownImagePrefix = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing-images/${user.id}/`;
+        const imageUrls = (Array.isArray(body.image_urls) ? body.image_urls : [])
+            .map((url) => String(url || '').trim())
+            .filter((url) => url.startsWith(ownImagePrefix) && url.length <= 500)
+            .slice(0, 6);
+        if (imageUrls.length === 0) return res.status(400).json({ error: 'Upload at least one listing image before continuing.' });
+
+        let aiAuthenticated = false;
+        if (body.wants_authentication === true) {
+            const verification = await verifyCardImageWithOpenAI(body.image_base64);
+            if (!verification.authenticated) {
+                return res.status(422).json({ error: verification.reasoning, reasoning: verification.reasoning, confidence: verification.confidence, verified: verification.verified });
+            }
+            aiAuthenticated = true;
+        }
+
+        // Reuses the Stripe listing builder; the unique session id column makes each App Store transaction single-use.
+        const listing = await createPremiumListingFromSession(supabase, {
+            id: `appstore_${transaction.transactionId}`,
+            metadata: {
+                title,
+                price: String(Number(body.price) || 0),
+                description: String(body.description || '').slice(0, 2000),
+                condition: String(body.condition || 'good').slice(0, 20),
+                direct_payment_link: directPaymentLink,
+                seller_id: user.id,
+                image_url: imageUrls[0],
+                ...Object.fromEntries(imageUrls.map((url, index) => [`image_url_${index}`, url])),
+                listing_type: String(body.listing_type || 'sale').slice(0, 20),
+                free_delivery: body.free_delivery ? 'true' : 'false',
+                ai_authenticated: aiAuthenticated ? 'true' : 'false',
+            },
+        });
+        if (listing.seller_id !== user.id) return res.status(409).json({ error: 'This App Store purchase has already been used.' });
+        return res.status(200).json({ listing });
+    } catch (error) {
+        logServerError('billing:premium-listing-iap', error);
+        return res.status(500).json({ error: 'Unable to publish your promoted listing.' });
     }
 }
 

@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { MainLayout } from './main-layout';
 import { RealtimeErrorBoundary } from './realtime-error-boundary';
+import { installNativeApiRouting } from './lib/native-api-routing';
+
+installNativeApiRouting();
 
 const container = document.getElementById('app');
 

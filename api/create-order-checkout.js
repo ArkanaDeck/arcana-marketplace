@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { createClient } from '@supabase/supabase-js';
 import { calculatePlatformFeeCents } from '../server/lib/server-fees.js';
 import { logServerError } from '../server/lib/server-logger.js';
@@ -7,6 +8,7 @@ const SHIPPING_FEE = 2.99;
 const SHIPPING_LABEL = 'Evri Standard Drop-off (2-3 Days)';
 
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.query?.checkout_success === '1') return handleCheckoutSuccess(req, res);
     if (req.query?.retired === '1') {
         return res.status(410).json({ error: 'This checkout route is retired. Use /api/create-order-checkout.' });

@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { paypalRequest } from '../server/lib/server-paypal.js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { createListingStatusUpdater } from '../server/lib/listing-status.js';
 
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
     let body;
     try {

@@ -23,7 +23,7 @@ I have a question about it and wanted to discuss delivery options.`;
         return (
             <div className="direct-pay-wrap" onClick={(event) => event.stopPropagation()}>
                 {safetyBanner}
-                <button type="button" className="direct-pay-btn" onClick={() => window.open(directPaymentLink, '_blank')}>
+                <button type="button" className="direct-pay-btn" onClick={() => window.open(directPaymentLink, '_blank', 'noopener,noreferrer')}>
                     💳 Pay Direct to Seller
                 </button>
                 <button type="button" className="message-seller-btn" onClick={() => onChat(initialMessage)} disabled={isStartingChat}>

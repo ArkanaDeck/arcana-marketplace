@@ -1,9 +1,11 @@
 import Stripe from 'stripe';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { createClient } from '@supabase/supabase-js';
 import { paypalRequest } from '../server/lib/server-paypal.js';
 import { logServerError } from '../server/lib/server-logger.js';
 
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';

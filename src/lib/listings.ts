@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { isIosApp } from './app-store-purchase';
 import { getSupabaseSession, supabase } from './supabase';
 
 export type DeckCondition = 'new' | 'like new' | 'good' | 'fair' | 'poor';
@@ -19,6 +20,7 @@ export type MarketplaceListing = {
     status: 'active' | 'sold' | 'completed';
     category?: DeckCategory;
     externalStoreUrl?: string;
+    isPremium: boolean;
     aiVerified: boolean;
 };
 
@@ -33,7 +35,9 @@ function activeExternalStoreUrl(listing: ListingRow) {
 
 export function mapListing(listing: ListingRow): MarketplaceListing {
     const images = listing.images || (listing.image ? [listing.image] : []);
-    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category, externalStoreUrl: activeExternalStoreUrl(listing), aiVerified: Boolean(listing.is_ai_authenticated) };
+    const externalStoreUrl = activeExternalStoreUrl(listing);
+    // Premium = a paid store link that is still active and unexpired.
+    return { id: listing.id, sellerId: listing.seller_id, name: listing.name, price: Number(listing.price), description: listing.description || undefined, listingType: listing.listing_type, image: images[0], images, freeDelivery: Boolean(listing.is_free_delivery), condition: listing.condition, reviewStatus: listing.review_status || 'approved', status: listing.status || 'active', category: listing.category, externalStoreUrl, isPremium: Boolean(externalStoreUrl), aiVerified: Boolean(listing.is_ai_authenticated) };
 }
 
 const LINK_COLUMNS = 'external_store_url, external_link_active, external_link_expires_at';
@@ -95,7 +99,7 @@ export async function loadPublishedListings() {
     return prioritized.map(mapListing);
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status' | 'aiVerified'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean };
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status' | 'aiVerified' | 'isPremium'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; wantsAuthentication?: boolean; appStoreTransaction?: string };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 export const MIN_LISTING_IMAGES = 3;
 export const MAX_LISTING_IMAGES = 6;
@@ -309,8 +313,8 @@ export async function confirmPremiumListing(sessionId: string): Promise<Marketpl
 // deck to the same pipeline the multi-deck tarot authentication flow uses, then either returns
 // the already-approved listing (fee = 0) or a Stripe Checkout URL for the stacked fee.
 export async function publishListingBundle(input: CreateListingInput): Promise<PublishListingBundleResult> {
-    if (Capacitor.isNativePlatform() && input.externalStoreUrl) {
-        throw new Error('Paid store promotion is unavailable in this iOS version.');
+    if (isIosApp() && input.externalStoreUrl && !input.appStoreTransaction) {
+        throw new Error('Purchase the store link promotion before publishing.');
     }
     const session = await getSupabaseSession();
     if (!session?.user || !session.access_token) throw new Error('Sign in before creating a listing.');
@@ -338,6 +342,29 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             imagePaths.push(path);
             const { data: publicUrl } = supabase.storage.from('listing-images').getPublicUrl(path);
             imageUrls.push(publicUrl.publicUrl);
+        }
+
+        if (input.externalStoreUrl && isIosApp()) {
+            const iapResponse = await fetch('/api/billing?product=premium-listing-iap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Arkana-Platform': 'ios' },
+                body: JSON.stringify({
+                    signed_transaction: input.appStoreTransaction,
+                    title: input.name.trim(),
+                    price: input.price,
+                    description: input.description || '',
+                    condition: input.condition,
+                    direct_payment_link: input.externalStoreUrl.trim(),
+                    image_urls: imageUrls,
+                    listing_type: input.listingType,
+                    free_delivery: input.freeDelivery,
+                    wants_authentication: Boolean(input.wantsAuthentication),
+                    image_base64: imageBase64[0],
+                }),
+            });
+            const iapPayload = await iapResponse.json();
+            if (!iapResponse.ok || !iapPayload?.listing) throw new Error(iapPayload?.error || 'Unable to publish your promoted listing.');
+            return { requiresPayment: false, listing: mapListing(iapPayload.listing) };
         }
 
         if (input.externalStoreUrl) {

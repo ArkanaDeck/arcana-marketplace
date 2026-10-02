@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
 
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
     const openAiApiKey = process.env.OPENAI_API_KEY || '';

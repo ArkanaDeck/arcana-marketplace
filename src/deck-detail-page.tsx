@@ -83,7 +83,7 @@ export const DeckDetailPage: React.FC<DeckDetailPageProps> = ({ listingId, onBac
                 {listing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                 <p>Condition: {listing.condition}{listing.freeDelivery ? ' · Free delivery' : ''}</p>
                 {listing.description && <p className="listing-description">{listing.description}</p>}
-                {!isNativeApp && listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(listing.sellerId)}`}>View seller profile</a>
                 <CommunitySafetyActions
                     targetType="listing"

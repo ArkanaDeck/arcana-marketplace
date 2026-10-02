@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { logServerError } from '../server/lib/server-logger.js';
 import { calculateBatchAuthenticationFeePence } from '../server/lib/tarot-batch-billing.js';
 import { runVisionAuthenticationCheck } from '../server/lib/tarot-vision-check.js';
@@ -13,6 +14,7 @@ const MAX_LISTING_IMAGES = 6;
 // Consolidated tarot authentication hub (submit-batch / status / vision-check / submit-listing-batch), routed via ?action=.
 // Merged from three separate files to stay under Vercel's serverless function count limit.
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     const action = req.query?.action;
 
     if (req.method === 'GET' && action === 'status') return getBatchStatus(req, res);

@@ -13,6 +13,7 @@ import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail, deleteOwnAccount } from './lib/auth';
 import { signInWithApple } from './lib/apple-auth';
+import { consumeDriveTrafficCredit, getUnusedDriveTrafficCredit, initNativePurchaseBridge, isIosApp, purchaseDriveTraffic } from './lib/app-store-purchase';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
@@ -133,6 +134,8 @@ export const MainLayout: React.FC = () => {
     const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
     const [wantsAuthentication, setWantsAuthentication] = useState<boolean>(false);
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
+    const [appStoreTransaction, setAppStoreTransaction] = useState<string | null>(null);
+    const [isPurchasingStoreLink, setIsPurchasingStoreLink] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [paidPremiumSessionId, setPaidPremiumSessionId] = useState<string | null>(null);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
@@ -672,13 +675,18 @@ export const MainLayout: React.FC = () => {
             // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
             // the server there computes the same stacked fee and creates the listing hidden until paid.
             if (!isEditing) {
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication });
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication, appStoreTransaction: wantsExternalLink && appStoreTransaction ? appStoreTransaction : undefined });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;
                 }
                 setListings((currentListings) => [result.listing, ...currentListings]);
-                if (wantsExternalLink) {
+                if (isIosApp() && wantsExternalLink && appStoreTransaction) {
+                    consumeDriveTrafficCredit(appStoreTransaction);
+                    setAppStoreTransaction(null);
+                    setWantsExternalLink(false);
+                    setExternalStoreUrl('');
+                } else if (wantsExternalLink) {
                     setIsRentingExternalLink(true);
                     const rentSession = await getSupabaseSession();
                     if (!rentSession?.access_token) throw new Error('Sign in again to rent an external store link.');
@@ -752,6 +760,42 @@ export const MainLayout: React.FC = () => {
             alert(message);
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isIosApp()) initNativePurchaseBridge();
+    }, []);
+
+    const handleStoreLinkToggle = async (checked: boolean) => {
+        setExternalLinkUrlError(null);
+        if (!checked || !isIosApp()) {
+            setWantsExternalLink(checked);
+            return;
+        }
+        if (!session?.user) {
+            handleRequireSignIn('Sign in before purchasing a store link promotion.');
+            return;
+        }
+        const existingCredit = appStoreTransaction || getUnusedDriveTrafficCredit();
+        if (existingCredit) {
+            setAppStoreTransaction(existingCredit);
+            setWantsExternalLink(true);
+            return;
+        }
+        setIsPurchasingStoreLink(true);
+        try {
+            const outcome = await purchaseDriveTraffic(session.user.id);
+            if (outcome.status === 'purchased') {
+                setAppStoreTransaction(outcome.signedTransaction);
+                setWantsExternalLink(true);
+            } else if (outcome.status === 'pending') {
+                setFlashMessage('Your purchase is awaiting approval. The promotion will be available once it is approved.');
+            }
+        } catch (error) {
+            setFlashMessage(error instanceof Error ? error.message : 'The App Store purchase did not complete.');
+        } finally {
+            setIsPurchasingStoreLink(false);
         }
     };
 
@@ -1762,7 +1806,7 @@ export const MainLayout: React.FC = () => {
                                 {viewingListing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
-                                {!isNativeApp && viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                                {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                                 <CommunitySafetyActions targetType="listing" targetId={viewingListing.id} targetLabel="this seller" blockedUserId={viewingListing.sellerId} reportContext={`Listing: ${viewingListing.name}\nSeller ID: ${viewingListing.sellerId}`} />
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 {viewingListing.status === 'sold' && buyerSoldListingIds.has(viewingListing.id) && (
@@ -1870,18 +1914,20 @@ export const MainLayout: React.FC = () => {
                                     </label>
                                     <small>When selected, Arkcards sends the first listing image to OpenAI for an authenticity assessment.</small>
                                 </div>
-                                {!isNativeApp && <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
+                                {(!isNativeApp || !editModeData) && <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
                                     <label className="checkbox-label" htmlFor="external-store-link">
                                         <input
                                             id="external-store-link"
                                             type="checkbox"
                                             checked={wantsExternalLink}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setWantsExternalLink(e.target.checked); if (!e.target.checked) setExternalLinkUrlError(null); }}
+                                            disabled={isPurchasingStoreLink}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => { void handleStoreLinkToggle(e.target.checked); }}
                                         />
                                         <span>Drive traffic directly to your own web store? (+£2.00 for 30 Days)</span>
                                     </label>
+                                    {isIosApp() && <small>{isPurchasingStoreLink ? 'Opening the App Store…' : appStoreTransaction ? 'Purchased — applied when you publish this listing.' : 'Charged through your Apple ID via the App Store.'}</small>}
                                 </div>}
-                                {!isNativeApp && wantsExternalLink && (
+                                {wantsExternalLink && (!isNativeApp || !editModeData) && (
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
                                         <label>Your web store link <span className="text-red-500 font-bold ml-0.5">*</span></label>
                                         <input
@@ -2417,11 +2463,25 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-image-box product-image-box--carousel relative w-full aspect-[3/4] max-h-[320px] overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '3 / 4', maxHeight: '320px' }}>
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-cover object-top" style={{ objectFit: 'cover', objectPosition: 'top' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
+            {item.isPremium && item.externalStoreUrl && (
+                <button
+                    type="button"
+                    className="premium-watermark"
+                    aria-label={`Premium listing – visit the seller's web store for ${item.name}`}
+                    onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        window.open(item.externalStoreUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                >
+                    Premium · Visit store ↗
+                </button>
+            )}
         </div>
         <div className="product-details flex flex-col min-h-[180px]">
-            <h4 className="deck-title">{item.name}</h4>
+            <h4 className="deck-title">{item.isPremium && <span className="premium-dot" role="img" aria-label="Premium listing" title="Premium listing" />}{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
-            {!isNativeApp && item.externalStoreUrl && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {item.externalStoreUrl && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
             {item.status === 'sold'
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}

@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { sendTransactionalEmail } from '../server/lib/server-email.js';
 import { createListingStatusUpdater } from '../server/lib/listing-status.js';
 
 // Consolidated hub for buyer/seller order-lifecycle actions (dispatch/mark-delivered/confirm-received/report-problem).
 // Merged from four separate files to stay under Vercel's serverless function count limit — routed via ?action=.
 export default async function handler(req, res) {
+    if (handleNativeAppCors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
