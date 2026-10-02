@@ -12,6 +12,7 @@ import { assessListingRisk } from './lib/risk-check';
 import { createOrderCheckout, createPayPalOrder } from './lib/order-checkout';
 import { connectPayPalAccount } from './lib/paypal';
 import { resendSignupConfirmation, sendPasswordReset, signInWithEmail, signOut, signUpWithEmail, deleteOwnAccount } from './lib/auth';
+import { signInWithApple } from './lib/apple-auth';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { getRuntimeConfig } from './lib/config';
 import { DirectPaymentAction } from './direct-payment-action';
@@ -367,14 +368,17 @@ export const MainLayout: React.FC = () => {
         setIsProfileLoading(true);
         (async () => {
             try {
-                const { data } = await supabase.from('profiles').select('display_name, bio, avatar_url, direct_payment_link').eq('id', currentUserId).maybeSingle();
+                const { data, error } = await supabase.from('profiles').select('display_name, bio, avatar_url, direct_payment_link').eq('id', currentUserId).maybeSingle();
+                if (error) console.error('[arkana:profile] Failed to load profile:', error.message);
+                else if (!data) console.error('[arkana:profile] No profile row found for the signed-in user.');
                 setDisplayName(data?.display_name || '');
                 setProfileBio(data?.bio || '');
                 setAvatarUrl(data?.avatar_url || '');
                 setDirectPaymentLinkInput(data?.direct_payment_link || '');
                 setIsEditingDirectPaymentLink(false);
                 setIsProfileComplete(Boolean(data));
-            } catch {
+            } catch (error) {
+                console.error('[arkana:profile] Profile request failed:', error);
                 setIsProfileComplete(false);
             } finally {
                 setIsProfileLoading(false);
@@ -822,6 +826,24 @@ export const MainLayout: React.FC = () => {
         }
     };
 
+    const handleAppleSignIn = async () => {
+        setAccountStatus(null);
+        setIsAccountSubmitting(true);
+        try {
+            const completed = await signInWithApple();
+            if (!completed || !isNativeApp) return;
+            if (/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
+            setIsAuthenticated(true);
+            setAccountStatus('Signed in with Apple.');
+            setActiveView(redirectPath || 'Listings');
+            setRedirectPath(null);
+        } catch (error) {
+            setAccountStatus(error instanceof Error ? error.message : 'Sign in with Apple failed.');
+        } finally {
+            setIsAccountSubmitting(false);
+        }
+    };
+
     const handleAccountSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setAccountStatus(null);
@@ -1257,6 +1279,17 @@ export const MainLayout: React.FC = () => {
                             ) : (
                                 <div className="native-header-actions">
                                     <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>
+                                    <button
+                                        type="button"
+                                        className="native-header-profile"
+                                        aria-label={isAuthenticated ? 'Your profile' : 'Sign in'}
+                                        onClick={() => {
+                                            if (isAuthenticated && session?.user) window.location.href = `/app/profile/${encodeURIComponent(session.user.id)}`;
+                                            else handleRequireSignIn('Sign in to access your profile.');
+                                        }}
+                                    >
+                                        {isAuthenticated && avatarUrl ? <img src={avatarUrl} alt="" /> : <span aria-hidden="true">👤</span>}
+                                    </button>
                                     <button type="button" className="header-back-button is-cancel" onClick={handleNativeRootCancel}>Cancel</button>
                                 </div>
                             )}
@@ -1520,6 +1553,14 @@ export const MainLayout: React.FC = () => {
                                             <button type="button" role="tab" aria-selected={accountMode === 'signup'} className={accountMode === 'signup' ? 'active' : ''} onClick={() => { setAccountMode('signup'); setAccountStatus(null); }}>Create account</button>
                                         </div>
                                         <div className="auth-primary-module auth-form-scroll-wrapper">
+                                            {!isEmailSent && !isResetView && (
+                                                <>
+                                                    <button type="button" className="apple-signin-btn" onClick={() => void handleAppleSignIn()} disabled={isAccountSubmitting}>
+                                                        <span aria-hidden="true"></span> {accountMode === 'signup' ? 'Sign up with Apple' : 'Sign in with Apple'}
+                                                    </button>
+                                                    <p className="auth-divider"><span>or use email</span></p>
+                                                </>
+                                            )}
                                             {isEmailSent ? (
                                                 <div className="email-verification-panel" role="status">
                                                     <div className="email-verification-icon" aria-hidden="true">✉</div>
@@ -1678,7 +1719,7 @@ export const MainLayout: React.FC = () => {
                     )}
                     {viewingListing && (
                         <div className="modal-backdrop" onClick={() => setViewingListing(null)}>
-                            {createPortal(
+                            {!isNativeApp && createPortal(
                                 <button type="button" className="overlay-close-btn" aria-label="Close listing" onClick={(event) => { event.stopPropagation(); setViewingListing(null); }}>✕</button>,
                                 document.body,
                             )}

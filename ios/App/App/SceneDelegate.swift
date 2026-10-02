@@ -2,11 +2,13 @@ import UIKit
 import Capacitor
 import WebKit
 import Security
+import AuthenticationServices
 
-final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
+final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
     private let sessionMessageName = "arkCardsSession"
     private let formMessageName = "arkCardsForm"
     private let sessionTokenMessageName = "cacheSessionToken"
+    private let appleSignInMessageName = "arkCardsAppleSignIn"
     private let keychainService = "arkcards-session"
     private let keychainAccount = "arkcards-session"
     private weak var observedWebView: WKWebView?
@@ -20,6 +22,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         bridge?.webView?.configuration.userContentController.add(self, name: sessionMessageName)
         bridge?.webView?.configuration.userContentController.add(self, name: formMessageName)
         bridge?.webView?.configuration.userContentController.add(self, name: sessionTokenMessageName)
+        bridge?.webView?.configuration.userContentController.add(self, name: appleSignInMessageName)
         if let webView = bridge?.webView {
             observedWebView = webView
             webView.addObserver(self, forKeyPath: #keyPath(WKWebView.isLoading), options: [.new], context: nil)
@@ -33,6 +36,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: formMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionTokenMessageName)
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: appleSignInMessageName)
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
@@ -46,6 +50,15 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == appleSignInMessageName {
+            guard message.frameInfo.isMainFrame,
+                  let payload = message.body as? [String: Any],
+                  let nonce = payload["nonce"] as? String,
+                  !nonce.isEmpty else { return }
+            DispatchQueue.main.async { [weak self] in self?.startAppleSignIn(hashedNonce: nonce) }
+            return
+        }
+
         if message.name == sessionTokenMessageName {
             if let token = message.body as? String {
                 cacheSessionToken(token)
@@ -169,6 +182,49 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         return String(data: data, encoding: .utf8)
     }
 
+    private func startAppleSignIn(hashedNonce: String) {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = hashedNonce
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        view.window ?? ASPresentationAnchor()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let token = String(data: tokenData, encoding: .utf8) else {
+            sendAppleSignInResult(["error": "Apple did not return an identity token."])
+            return
+        }
+        var result: [String: Any] = ["identityToken": token]
+        if let name = credential.fullName {
+            let formatted = PersonNameComponentsFormatter().string(from: name)
+            if !formatted.isEmpty { result["fullName"] = formatted }
+        }
+        sendAppleSignInResult(result)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        if (error as? ASAuthorizationError)?.code == .canceled {
+            sendAppleSignInResult(["cancelled": true])
+        } else {
+            sendAppleSignInResult(["error": error.localizedDescription])
+        }
+    }
+
+    private func sendAppleSignInResult(_ result: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: result),
+              let json = String(data: data, encoding: .utf8) else { return }
+        bridge?.webView?.evaluateJavaScript("window.__arkcardsAppleSignInResult && window.__arkcardsAppleSignInResult(\(json));")
+    }
+
     private func presentDiscardListingAlert() {
         guard presentedViewController == nil else { return }
 
@@ -254,6 +310,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let bridgeController = ArkCardsBridgeViewController()
         let navigationController = UINavigationController(rootViewController: bridgeController)
         navigationController.navigationBar.prefersLargeTitles = false
+        // The web header renders the profile action, so the native bar would only add a second, misaligned row.
+        navigationController.setNavigationBarHidden(true, animated: false)
         window?.rootViewController = navigationController
         window?.makeKeyAndVisible()
 
