@@ -26,10 +26,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow Arkcards to use the camera so you can capture a profile photo or a card image for optional authenticity verification.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow Arkcards to access photos you select for your profile or card listings, including images submitted for authenticity verification.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Allow Arkcards to save an image to your photo library when you choose to save it to your device.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow Arkcards to access photos you select for your profile or card listings, including images submitted for authenticity verification.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
