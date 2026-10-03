@@ -17,7 +17,7 @@ function isCurrentlyValid(certificate, now) {
 }
 
 // Verifies a StoreKit 2 signed transaction (JWS) and returns its decoded payload.
-export function verifyAppStoreTransaction(signedTransaction, { expectedProductId, expectedAppAccountToken }) {
+export function verifyAppStoreTransaction(signedTransaction, { expectedProductId, expectedAppAccountToken, trustedRootFingerprint = APPLE_ROOT_CA_G3_SHA256 }) {
     const parts = String(signedTransaction || '').split('.');
     if (parts.length !== 3) throw new Error('Invalid App Store transaction.');
     const [headerSegment, payloadSegment, signatureSegment] = parts;
@@ -29,7 +29,7 @@ export function verifyAppStoreTransaction(signedTransaction, { expectedProductId
 
     const [leaf, intermediate, root] = header.x5c.map((der) => new crypto.X509Certificate(Buffer.from(der, 'base64')));
     const now = new Date();
-    if (root.fingerprint256 !== APPLE_ROOT_CA_G3_SHA256) throw new Error('App Store transaction is not signed by Apple.');
+    if (root.fingerprint256 !== trustedRootFingerprint) throw new Error('App Store transaction is not signed by Apple.');
     if (!intermediate.checkIssued(root) || !intermediate.verify(root.publicKey)) throw new Error('Invalid App Store certificate chain.');
     if (!leaf.checkIssued(intermediate) || !leaf.verify(intermediate.publicKey)) throw new Error('Invalid App Store certificate chain.');
     if (![leaf, intermediate, root].every((certificate) => isCurrentlyValid(certificate, now))) throw new Error('Expired App Store certificate.');
