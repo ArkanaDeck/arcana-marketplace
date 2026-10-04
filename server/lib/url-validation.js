@@ -2,7 +2,7 @@
 export function isValidHttpUrl(value) {
     try {
         const parsed = new URL(String(value || '').trim());
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
     } catch {
         return false;
     }

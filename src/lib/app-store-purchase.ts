@@ -46,6 +46,12 @@ export function consumeDriveTrafficCredit(signedTransaction: string) {
     writeCredits(readCredits().filter((credit) => credit !== signedTransaction));
 }
 
+export function acknowledgeDriveTrafficFulfillment(transactionId: string) {
+    if (!isIosApp()) return;
+    const handler = (window as PurchaseWindow).webkit?.messageHandlers?.arkCardsPurchase;
+    handler?.postMessage({ action: 'fulfilled', transactionId });
+}
+
 export function initNativePurchaseBridge() {
     const purchaseWindow = window as PurchaseWindow;
     const handler = purchaseWindow.webkit?.messageHandlers?.arkCardsPurchase;

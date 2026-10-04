@@ -62,7 +62,7 @@ const ESCROW_LEGACY_ENABLED = false;
 function isValidExternalUrl(value: string): boolean {
     try {
         const parsed = new URL(value.trim());
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
     } catch {
         return false;
     }
@@ -136,6 +136,7 @@ export const MainLayout: React.FC = () => {
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
     const [appStoreTransaction, setAppStoreTransaction] = useState<string | null>(null);
     const [isPurchasingStoreLink, setIsPurchasingStoreLink] = useState(false);
+    const [storeLinkPurchaseStatus, setStoreLinkPurchaseStatus] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [paidPremiumSessionId, setPaidPremiumSessionId] = useState<string | null>(null);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
@@ -652,7 +653,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
         if (wantsExternalLink && !isValidExternalUrl(externalStoreUrl)) {
-            setExternalLinkUrlError('Enter a valid web store link starting with http:// or https://.');
+            setExternalLinkUrlError('Enter a valid HTTPS web store link without embedded credentials.');
             return;
         }
         const imageCount = (editModeData?.images?.length || 0) + deckImageFiles.length;
@@ -768,6 +769,8 @@ export const MainLayout: React.FC = () => {
     }, []);
 
     const handleStoreLinkToggle = async (checked: boolean) => {
+        if (isPurchasingStoreLink) return;
+        setStoreLinkPurchaseStatus(null);
         setExternalLinkUrlError(null);
         if (!checked || !isIosApp()) {
             setWantsExternalLink(checked);
@@ -790,10 +793,13 @@ export const MainLayout: React.FC = () => {
                 setAppStoreTransaction(outcome.signedTransaction);
                 setWantsExternalLink(true);
             } else if (outcome.status === 'pending') {
+                setStoreLinkPurchaseStatus('Your purchase is awaiting approval. Try again once it is approved.');
                 setFlashMessage('Your purchase is awaiting approval. The promotion will be available once it is approved.');
             }
         } catch (error) {
-            setFlashMessage(error instanceof Error ? error.message : 'The App Store purchase did not complete.');
+            const message = error instanceof Error ? error.message : 'The App Store purchase did not complete.';
+            setStoreLinkPurchaseStatus(message);
+            setFlashMessage(message);
         } finally {
             setIsPurchasingStoreLink(false);
         }
@@ -805,7 +811,7 @@ export const MainLayout: React.FC = () => {
             return;
         }
         if (!isValidExternalUrl(websiteUrlInput)) {
-            alert('Enter a valid website URL starting with http:// or https://.');
+            alert('Enter a valid HTTPS website URL without embedded credentials.');
             return;
         }
         setIsStartingWebsiteLink(true);
@@ -1914,18 +1920,19 @@ export const MainLayout: React.FC = () => {
                                     </label>
                                     <small>When selected, Arkcards sends the first listing image to OpenAI for an authenticity assessment.</small>
                                 </div>
-                                {(!isNativeApp || !editModeData) && <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
+                                {(!isNativeApp || !editModeData) && <div className="checkbox-group external-link-toggle store-link-toggle" aria-busy={isPurchasingStoreLink}>
                                     <label className="checkbox-label" htmlFor="external-store-link">
                                         <input
                                             id="external-store-link"
                                             type="checkbox"
                                             checked={wantsExternalLink}
                                             disabled={isPurchasingStoreLink}
+                                            aria-describedby="store-link-purchase-status"
                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => { void handleStoreLinkToggle(e.target.checked); }}
                                         />
                                         <span>Drive traffic directly to your own web store? (+£2.00 for 30 Days)</span>
                                     </label>
-                                    {isIosApp() && <small>{isPurchasingStoreLink ? 'Opening the App Store…' : appStoreTransaction ? 'Purchased — applied when you publish this listing.' : 'Charged through your Apple ID via the App Store.'}</small>}
+                                    <small id="store-link-purchase-status" role="status">{storeLinkPurchaseStatus || (isIosApp() ? isPurchasingStoreLink ? 'Opening the App Store…' : appStoreTransaction ? 'Purchased — applied when you publish this listing.' : 'Charged through your Apple ID via the App Store.' : 'Promotion is applied after checkout.')}</small>
                                 </div>}
                                 {wantsExternalLink && (!isNativeApp || !editModeData) && (
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
@@ -1940,7 +1947,7 @@ export const MainLayout: React.FC = () => {
                                             spellCheck={false}
                                             value={externalStoreUrl}
                                             onChange={(e) => { setExternalStoreUrl(e.target.value); if (externalLinkUrlError) setExternalLinkUrlError(null); }}
-                                            onBlur={(e) => setExternalLinkUrlError(e.target.value.trim() && !isValidExternalUrl(e.target.value) ? 'Enter a valid URL starting with http:// or https://.' : null)}
+                                            onBlur={(e) => setExternalLinkUrlError(e.target.value.trim() && !isValidExternalUrl(e.target.value) ? 'Enter a valid HTTPS URL without embedded credentials.' : null)}
                                             onInvalid={handleRequiredFieldInvalid}
                                             onInput={handleRequiredFieldInput}
                                             required={wantsExternalLink}
@@ -1968,6 +1975,7 @@ export const MainLayout: React.FC = () => {
                                     <ImagePreviewGrid previews={imagePreviews} processingCount={processingImageCount} onRemove={handleRemoveImage} />
                                 </div>
                                 {paidPremiumSessionId && <p className="image-status" role="status">£2.00 web store link paid. Press Publish Listing to go live with the details you paid for.</p>}
+                                <p className="signup-consent">By selecting Publish Listing, you agree to send this listing's title, description, and images to OpenAI for content-safety moderation before publication. This is separate from optional authenticity review.</p>
                                 <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink || isUploading}>
                                     {isUploading ? <><span className="upload-progress-indicator" aria-hidden="true" /><span>Publishing...</span></> : isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}
                                 </button>
@@ -2227,6 +2235,7 @@ export const MainLayout: React.FC = () => {
                                     <>
                                         <p>We process your email address, profile details, listing text and images, messages, support requests, and any order or delivery details you provide to operate the marketplace.</p>
                                         <p>If you explicitly request an AI authenticity check, we send the first image for that listing to OpenAI to generate the assessment. We do not send listing images for this check unless you opt in. OpenAI processes that image under its service terms; do not include people or unrelated personal information in verification images.</p>
+                                        <p>New standard listings also undergo mandatory content-safety moderation: the title, description, and uploaded images are sent to OpenAI before publication, independently of optional authenticity review. Flagged content is blocked, and publication pauses if moderation is unavailable.</p>
                                         <p>Payment providers process payment details for checkout. We do not sell personal data or share it with advertising companies. We retain information only as needed for the service, safety, disputes, and legal obligations.</p>
                                         <p>You can delete your account in Account settings. Deletion removes your profile, listings, chats, and uploaded images. Limited transaction or moderation records may be retained where required for accounting, safety, or dispute resolution; delivery details are erased.</p>
                                     </>

@@ -2482,6 +2482,30 @@ label.field-error .field-error-text {
     color: #114e60;
 }
 
+.store-link-toggle {
+    flex-direction: column;
+}
+
+.store-link-toggle .checkbox-label {
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+}
+
+.store-link-toggle input[type="checkbox"] {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: #3b1d5a;
+    cursor: pointer;
+}
+
+.store-link-toggle small {
+    width: 100%;
+    padding-left: 30px;
+}
+
 .external-link-field {
     padding: 12px;
     border: 1px solid rgba(17, 78, 96, 0.14);

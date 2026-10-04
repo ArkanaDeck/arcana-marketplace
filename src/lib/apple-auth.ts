@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { assertSupabaseConfigured, supabase } from './supabase';
 
-type NativeAppleResult = { identityToken?: string; fullName?: string; error?: string; cancelled?: boolean };
+type NativeAppleResult = { identityToken?: string; authorizationCode?: string; fullName?: string; error?: string; cancelled?: boolean };
 type AppleWindow = Window & {
     __arkcardsAppleSignInResult?: (result: NativeAppleResult) => void;
     webkit?: { messageHandlers?: { arkCardsAppleSignIn?: { postMessage: (payload: { nonce: string }) => void } } };
@@ -25,6 +25,14 @@ function requestNativeAppleCredential(hashedNonce: string): Promise<NativeAppleR
         };
         handler.postMessage({ nonce: hashedNonce });
     });
+}
+
+export async function requestAppleRevocationCode(): Promise<string> {
+    const nonce = toHex(crypto.getRandomValues(new Uint8Array(32)));
+    const result = await requestNativeAppleCredential(await sha256Hex(nonce));
+    if (result.cancelled) throw new Error('Account deletion cancelled. Your account has not been deleted.');
+    if (!result.authorizationCode) throw new Error(result.error || 'Apple did not authorize account deletion. Please try again.');
+    return result.authorizationCode;
 }
 
 // Resolves false when the user dismisses the Apple sheet.

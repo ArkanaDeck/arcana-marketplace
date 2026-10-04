@@ -8,8 +8,13 @@ export async function saveDirectPaymentLink(link: string): Promise<void> {
     if (!supabase) throw new Error('Supabase is not configured.');
 
     const trimmed = link.trim();
-    if (trimmed && !/^https?:\/\/.+/i.test(trimmed)) {
-        throw new Error('Enter a valid link starting with http:// or https://.');
+    if (trimmed) {
+        try {
+            const url = new URL(trimmed);
+            if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid payment link.');
+        } catch {
+            throw new Error('Enter a valid HTTPS payment link without embedded credentials.');
+        }
     }
 
     const { error } = await supabase.from('profiles').update({ direct_payment_link: trimmed || null }).eq('id', session.user.id);

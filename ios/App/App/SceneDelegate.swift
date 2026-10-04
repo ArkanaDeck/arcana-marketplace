@@ -13,7 +13,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     private let purchaseMessageName = "arkCardsPurchase"
     private var transactionUpdatesTask: Task<Void, Never>?
     private var isPurchaseBridgeReady = false
-    private var queuedTransactions: [(jws: String, transaction: Transaction)] = []
+    private var pendingTransactions: [String: (jws: String, transaction: Transaction)] = [:]
     private let keychainService = "arkcards-session"
     private let keychainAccount = "arkcards-session"
     private weak var observedWebView: WKWebView?
@@ -59,7 +59,22 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame,
+              let appURL = bridge?.webView?.url,
+              let frameURL = message.frameInfo.request.url,
+              let appScheme = appURL.scheme,
+              ["capacitor", "ionic"].contains(appScheme),
+              frameURL.scheme == appScheme,
+              frameURL.host == appURL.host,
+              frameURL.port == appURL.port else { return }
+
         if message.name == purchaseMessageName {
+            if let payload = message.body as? [String: Any],
+               payload["action"] as? String == "fulfilled",
+               let transactionId = payload["transactionId"] as? String {
+                Task { await self.finishFulfilledTransaction(transactionId: transactionId) }
+                return
+            }
             if let payload = message.body as? [String: Any], payload["action"] as? String == "ready", message.frameInfo.isMainFrame {
                 isPurchaseBridgeReady = true
                 Task { await self.flushQueuedTransactions() }
@@ -68,6 +83,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
             guard message.frameInfo.isMainFrame,
                   let payload = message.body as? [String: Any],
                   let productId = payload["productId"] as? String,
+                  productId == "com.arkcards.app.drivetraffic",
                   let tokenString = payload["appAccountToken"] as? String,
                   let appAccountToken = UUID(uuidString: tokenString) else {
                 sendPurchaseResult(["error": "Invalid purchase request."])
@@ -231,6 +247,10 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
             return
         }
         var result: [String: Any] = ["identityToken": token]
+        if let codeData = credential.authorizationCode,
+           let code = String(data: codeData, encoding: .utf8) {
+            result["authorizationCode"] = code
+        }
         if let name = credential.fullName {
             let formatted = PersonNameComponentsFormatter().string(from: name)
             if !formatted.isEmpty { result["fullName"] = formatted }
@@ -266,8 +286,8 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
                     sendPurchaseResult(["error": "The App Store could not verify this purchase."])
                     return
                 }
+                pendingTransactions[String(transaction.id)] = (verification.jwsRepresentation, transaction)
                 sendPurchaseResult(["signedTransaction": verification.jwsRepresentation])
-                await transaction.finish()
             case .pending:
                 sendPurchaseResult(["pending": true])
             case .userCancelled:
@@ -283,6 +303,10 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     // Delivers purchases that complete outside the purchase call, e.g. Ask to Buy approvals or interrupted purchases.
     private func listenForTransactionUpdates() {
         transactionUpdatesTask = Task.detached { [weak self] in
+            for await verification in Transaction.unfinished {
+                guard case .verified(let transaction) = verification else { continue }
+                await self?.enqueueTransaction(jws: verification.jwsRepresentation, transaction: transaction)
+            }
             for await verification in Transaction.updates {
                 guard case .verified(let transaction) = verification else { continue }
                 await self?.enqueueTransaction(jws: verification.jwsRepresentation, transaction: transaction)
@@ -292,19 +316,24 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
 
     @MainActor
     private func enqueueTransaction(jws: String, transaction: Transaction) async {
-        queuedTransactions.append((jws, transaction))
-        if isPurchaseBridgeReady { await flushQueuedTransactions() }
+        guard transaction.productID == "com.arkcards.app.drivetraffic" else { return }
+        pendingTransactions[String(transaction.id)] = (jws, transaction)
+        if isPurchaseBridgeReady {
+            sendPurchaseResult(["signedTransaction": jws, "deferred": true])
+        }
     }
 
-    // Transactions stay unfinished until the web layer has stored them, so StoreKit redelivers them otherwise.
     @MainActor
     private func flushQueuedTransactions() async {
-        let pending = queuedTransactions
-        queuedTransactions.removeAll()
-        for item in pending {
+        for item in pendingTransactions.values {
             sendPurchaseResult(["signedTransaction": item.jws, "deferred": true])
-            await item.transaction.finish()
         }
+    }
+
+    @MainActor
+    private func finishFulfilledTransaction(transactionId: String) async {
+        guard let item = pendingTransactions.removeValue(forKey: transactionId) else { return }
+        await item.transaction.finish()
     }
 
     @MainActor

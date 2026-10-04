@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "npx --yes --package=npm@11.21.0 -c 'env -u npm_config_allow_scripts -u NPM_CONFIG_ALLOW_SCRIPTS npm ci'",
   "devCommand": "node ./node_modules/vite/bin/vite.js --port $PORT",
   "headers": [
     {

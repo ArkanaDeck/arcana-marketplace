@@ -79,7 +79,7 @@ async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl
         const title = String(body.title || '').trim().slice(0, 120);
         const directPaymentLink = String(body.direct_payment_link || '').trim();
         if (!title || !directPaymentLink) return res.status(400).json({ error: 'Listing title and direct payment link are required.' });
-        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid web store link starting with http:// or https://.' });
+        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid HTTPS web store link without embedded credentials.' });
 
         const ownImagePrefix = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing-images/${user.id}/`;
         const rawImageUrls = Array.isArray(body.image_urls) ? body.image_urls : [body.image_url];
@@ -169,7 +169,7 @@ async function createPremiumListingFromAppStore(req, res) {
         const title = String(body.title || '').trim().slice(0, 120);
         const directPaymentLink = String(body.direct_payment_link || '').trim();
         if (!title || !directPaymentLink) return res.status(400).json({ error: 'Listing title and web store link are required.' });
-        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid web store link starting with http:// or https://.' });
+        if (directPaymentLink.length > 500 || !isValidHttpUrl(directPaymentLink)) return res.status(400).json({ error: 'Enter a valid HTTPS web store link without embedded credentials.' });
 
         const ownImagePrefix = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing-images/${user.id}/`;
         const imageUrls = (Array.isArray(body.image_urls) ? body.image_urls : [])
@@ -205,7 +205,7 @@ async function createPremiumListingFromAppStore(req, res) {
             },
         });
         if (listing.seller_id !== user.id) return res.status(409).json({ error: 'This App Store purchase has already been used.' });
-        return res.status(200).json({ listing });
+        return res.status(200).json({ listing, fulfilledTransactionId: String(transaction.transactionId) });
     } catch (error) {
         logServerError('billing:premium-listing-iap', error);
         return res.status(500).json({ error: 'Unable to publish your promoted listing.' });
@@ -355,7 +355,7 @@ async function createWebsiteLinkCheckout(res, stripe, supabase, user, body) {
     const WEBSITE_LINK_DAYS = 30;
     try {
         const websiteUrl = String(body.websiteUrl || '').trim();
-        if (!isValidHttpUrl(websiteUrl)) return res.status(400).json({ error: 'Enter a valid website URL starting with http:// or https://.' });
+        if (!isValidHttpUrl(websiteUrl)) return res.status(400).json({ error: 'Enter a valid HTTPS website URL without embedded credentials.' });
 
         const { error: updateError } = await supabase.from('profiles').update({ website_url: websiteUrl }).eq('id', user.id);
         if (updateError) throw updateError;
@@ -389,7 +389,7 @@ async function createListingExternalLinkCheckout(res, stripe, supabase, user, bo
         const listingId = body.listingId;
         const externalStoreUrl = String(body.externalStoreUrl || '').trim();
         if (!listingId) return res.status(400).json({ error: 'A listing ID is required.' });
-        if (!isValidHttpUrl(externalStoreUrl)) return res.status(400).json({ error: 'Enter a valid external store URL starting with http:// or https://.' });
+        if (!isValidHttpUrl(externalStoreUrl)) return res.status(400).json({ error: 'Enter a valid HTTPS external store URL without embedded credentials.' });
 
         const { data: listing, error: listingError } = await supabase
             .from('listings')

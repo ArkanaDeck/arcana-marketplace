@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { isIosApp } from './app-store-purchase';
+import { acknowledgeDriveTrafficFulfillment, isIosApp } from './app-store-purchase';
 import { getSupabaseSession, supabase } from './supabase';
 
 export type DeckCondition = 'new' | 'like new' | 'good' | 'fair' | 'poor';
@@ -28,7 +28,7 @@ export type ListingRow = { id: string; seller_id: string; name: string; price: n
 
 function activeExternalStoreUrl(listing: ListingRow) {
     const url = listing.external_store_url;
-    if (!url || !listing.external_link_active || !/^https?:\/\//i.test(url)) return undefined;
+    if (!url || !listing.external_link_active || !/^https:\/\//i.test(url)) return undefined;
     if (listing.external_link_expires_at && new Date(listing.external_link_expires_at).getTime() < Date.now()) return undefined;
     return url;
 }
@@ -364,6 +364,10 @@ export async function publishListingBundle(input: CreateListingInput): Promise<P
             });
             const iapPayload = await iapResponse.json();
             if (!iapResponse.ok || !iapPayload?.listing) throw new Error(iapPayload?.error || 'Unable to publish your promoted listing.');
+            if (typeof iapPayload.fulfilledTransactionId !== 'string' || !iapPayload.fulfilledTransactionId) {
+                throw new Error('The server did not confirm purchase fulfillment. Please retry publishing.');
+            }
+            acknowledgeDriveTrafficFulfillment(iapPayload.fulfilledTransactionId);
             return { requiresPayment: false, listing: mapListing(iapPayload.listing) };
         }
 

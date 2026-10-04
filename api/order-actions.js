@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { handleNativeAppCors } from '../server/lib/native-cors.js';
 import { sendTransactionalEmail } from '../server/lib/server-email.js';
 import { createListingStatusUpdater } from '../server/lib/listing-status.js';
+import { AppleRevocationError, revokeAppleAuthorization } from '../server/lib/apple-revocation.js';
 
 // Consolidated hub for buyer/seller order-lifecycle actions (dispatch/mark-delivered/confirm-received/report-problem).
 // Merged from four separate files to stay under Vercel's serverless function count limit — routed via ?action=.
@@ -21,6 +22,20 @@ export default async function handler(req, res) {
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const action = req.query?.action;
+
+    if (action === 'revoke-apple') {
+        try {
+            const result = await revokeAppleAuthorization(user, {
+                authorizationCode: body.authorizationCode,
+                refreshToken: body.refreshToken,
+                platform: body.platform,
+            });
+            return res.status(200).json(result);
+        } catch (error) {
+            const statusCode = error instanceof AppleRevocationError ? error.statusCode : 502;
+            return res.status(statusCode).json({ error: error instanceof AppleRevocationError ? error.message : 'Apple authorization could not be revoked. Please retry.' });
+        }
+    }
 
     if (action === 'dispatch') return dispatchOrder(res, supabase, user, body);
     if (action === 'mark-delivered') return markOrderDelivered(res, supabase, user, body);

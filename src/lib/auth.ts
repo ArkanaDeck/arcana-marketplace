@@ -1,4 +1,6 @@
 import { assertSupabaseConfigured, getSupabaseSession, supabase } from './supabase';
+import { Capacitor } from '@capacitor/core';
+import { requestAppleRevocationCode } from './apple-auth';
 
 export async function signInWithEmail(email: string, password: string) {
     const normalizedEmail = email.trim();
@@ -96,6 +98,26 @@ export async function deleteOwnAccount() {
     assertSupabaseConfigured();
     const session = await getSupabaseSession();
     if (!session?.user || !supabase) throw new Error('Sign in before deleting your account.');
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Sign in again before deleting your account.');
+    if (user.identities?.some((identity) => identity.provider === 'apple')) {
+        const platform = Capacitor.getPlatform();
+        const authorizationCode = platform === 'ios' ? await requestAppleRevocationCode() : undefined;
+        const refreshToken = platform === 'ios' ? undefined : session.provider_refresh_token;
+        if (!authorizationCode && !refreshToken) {
+            throw new Error('Sign in with Apple again before deleting your account, or delete it from the iOS app.');
+        }
+        const response = await fetch('/api/order-actions?action=revoke-apple', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ authorizationCode, refreshToken, platform }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.revoked !== true) {
+            throw new Error(result.error || 'Apple authorization could not be revoked. Your account has not been deleted.');
+        }
+    }
 
     for (const bucketName of ['avatars', 'listing-images']) {
         const bucket = supabase.storage.from(bucketName);

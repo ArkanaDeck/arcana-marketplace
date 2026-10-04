@@ -15,13 +15,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-helmet-async'],
-          supabase: ['@supabase/supabase-js'],
-          capacitor: ['@capacitor/core'],
-          qrcode: ['qrcode.react'],
+        manualChunks(moduleId) {
+          const groups = {
+            react: ['react', 'react-dom', 'react-helmet-async'],
+            supabase: ['@supabase/supabase-js'],
+            capacitor: ['@capacitor/core'],
+            qrcode: ['qrcode.react'],
+          };
+          const normalizedId = moduleId.replace(/\\/g, '/');
+          return Object.entries(groups).find(([, packages]) =>
+            packages.some((name) => normalizedId.includes(`/node_modules/${name}/`)),
+          )?.[0];
         },
       },
     },

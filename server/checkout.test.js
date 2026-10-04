@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { isStripeConfigured, getCheckoutSessionPayload } from './checkout.js';
+import { isValidHttpUrl } from './lib/url-validation.js';
+
+test('seller links require HTTPS without embedded credentials', () => {
+    assert.equal(isValidHttpUrl('https://shop.example.com/decks'), true);
+    assert.equal(isValidHttpUrl('http://shop.example.com/decks'), false);
+    assert.equal(isValidHttpUrl('https://user:password@shop.example.com'), false);
+    assert.equal(isValidHttpUrl('javascript:alert(1)'), false);
+    assert.equal(isValidHttpUrl('https://'), false);
+});
 
 test('returns false when Stripe is not configured', () => {
     const configured = isStripeConfigured('');

@@ -7,6 +7,7 @@ import { computeBatchFeeBreakdown } from '../server/lib/listing-fee-engine.js';
 import { assessListingRisk } from '../server/lib/listing-risk-check.js';
 import { verifyCardListingImages } from '../server/lib/card-listing-vision.js';
 import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
+import { ListingModerationError, moderateListingBatch } from '../server/lib/listing-moderation.js';
 
 const MIN_LISTING_IMAGES = 3;
 const MAX_LISTING_IMAGES = 6;
@@ -293,7 +294,14 @@ async function submitUnifiedListingBatch(req, res) {
             if (!Array.isArray(deck.images) || deck.images.length < MIN_LISTING_IMAGES || deck.images.length > MAX_LISTING_IMAGES) return res.status(400).json({ error: `Every deck needs between ${MIN_LISTING_IMAGES} and ${MAX_LISTING_IMAGES} images already uploaded to storage.` });
         }
 
-        // AI authenticity checks are opt-in per deck (`wantsAuthentication`); skip the OpenAI call entirely otherwise.
+        try {
+            await moderateListingBatch(decks, { supabaseUrl: process.env.VITE_SUPABASE_URL, userId: user.id });
+        } catch (error) {
+            if (error instanceof ListingModerationError) return res.status(error.statusCode).json({ error: error.message });
+            throw error;
+        }
+
+        // Authenticity is optional; content moderation above is required for every listing.
         const verificationResults = [];
         for (const deck of decks) {
             if (!deck.wantsAuthentication) {
