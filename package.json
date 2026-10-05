@@ -13,7 +13,7 @@
     "build": "node ./node_modules/vite/bin/vite.js build",
     "vercel:build": "npx --yes --package=npm@11.21.0 -c 'env -u npm_config_allow_scripts -u NPM_CONFIG_ALLOW_SCRIPTS node node_modules/vercel/dist/vc.js build'",
     "deploy": "npx --yes --package=npm@11.21.0 -c 'env -u npm_config_allow_scripts -u NPM_CONFIG_ALLOW_SCRIPTS node node_modules/vercel/dist/vc.js --prod'",
-    "test": "node --test server/checkout.test.js server/lib/tarot-webhook-handler.test.js server/lib/listing-fee-engine.test.js server/lib/listing-status.test.js server/lib/app-store-transaction.test.js server/lib/listing-moderation.test.js server/lib/apple-revocation.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts src/main-layout.tsx server/lib/tarot-handler.test.js server/lib/storekit-fulfillment.test.ts server/lib/account-deletion.test.ts",
+    "test": "node --test server/checkout.test.js server/lib/tarot-webhook-handler.test.js server/lib/listing-fee-engine.test.js server/lib/listing-status.test.js server/lib/app-store-transaction.test.js server/lib/listing-moderation.test.js server/lib/apple-revocation.test.js generate-apple-secret.test.js && node ./node_modules/vitest/vitest.mjs run src/production-checklist.test.ts src/main-layout.tsx server/lib/tarot-handler.test.js server/lib/storekit-fulfillment.test.ts server/lib/account-deletion.test.ts",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "cap": "node ./node_modules/@capacitor/cli/bin/capacitor",
     "cap:sync:ios": "node ./node_modules/@capacitor/cli/bin/capacitor sync ios"
