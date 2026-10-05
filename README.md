@@ -4,6 +4,12 @@
 
 Copy `.env.example` to `.env.local`, replace its placeholders, then run `npm install` and `npm run dev`. The example file contains only placeholders and is safe to commit; `.env.local` is ignored.
 
+### Xcode Cloud
+
+Xcode Cloud's `ios/App/ci_scripts/ci_post_clone.sh` delegates to `ci/ci_post_clone.sh`. This script installs dependencies with `npm install`, runs `node ci/generate-apple-secret.js`, builds the web assets, and syncs Capacitor iOS. Configure `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` as workflow environment variables, along with `APPLE_TEAM_ID` and `APPLE_CLIENT_ID` as appropriate. Alternatively, provide `APPLE_PRIVATE_KEY_PATH` pointing to a securely provisioned P8 file. The generator reads exported environment variables; it does not load local dotenv files. Missing or invalid Apple signing credentials fail the script.
+
+The generated client secret is discarded rather than printed into Cloud logs or bundled into the app. This generation step does not configure Supabase's Apple provider automatically. Configure the app's public `VITE_` values in the workflow environment as well, and never commit private keys or secret env files.
+
 In Vercel, add the following values to **Production**, and use the live payment credentials only after testing previews with sandbox/test credentials:
 
 - Public: `VITE_APP_URL`, `VITE_SITE_NAME`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_PAYPAL_ENABLED`

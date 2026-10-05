@@ -2,18 +2,4 @@
 set -eu
 
 REPOSITORY_PATH="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "$0")/../../.." && pwd)}"
-cd "$REPOSITORY_PATH"
-
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
-if [ "$NODE_MAJOR" != "22" ]; then
-	printf '%s\n' 'Installing Node 22 for Xcode Cloud...'
-	HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NONINTERACTIVE=1 brew install node@22
-	export PATH="$(brew --prefix node@22)/bin:$PATH"
-fi
-
-printf '%s\n' 'Installing npm dependencies...'
-npm ci
-printf '%s\n' 'Building web assets...'
-npm run build
-printf '%s\n' 'Syncing Capacitor iOS assets...'
-npm run cap:sync:ios
+exec sh "$REPOSITORY_PATH/ci/ci_post_clone.sh"
