@@ -4268,21 +4268,6 @@ label.field-error .field-error-text {
     outline-offset: 2px;
 }
 
-.keyboard-done-accessory {
-    position: fixed;
-    right: 12px;
-    z-index: 1000;
-    min-height: 36px;
-    border: 0;
-    border-radius: 8px;
-    background: #087f8c;
-    color: #ffffff;
-    font: inherit;
-    font-weight: 700;
-    padding: 7px 13px;
-    box-shadow: 0 3px 12px rgba(17, 78, 96, 0.2);
-}
-
 .publish-listing-btn:disabled {
     cursor: wait;
 }

@@ -25,9 +25,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Allow Arkcards to use the camera so you can capture a profile photo or a card image for optional authenticity verification.</string>
+	<string>Arkcards uses your camera when you choose to take a profile photo or photograph tarot and oracle cards for your marketplace listings, including optional authenticity checks.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow Arkcards to access photos you select for your profile or card listings, including images submitted for authenticity verification.</string>
+	<string>Arkcards uses photos you choose to upload as your profile picture or to show tarot and oracle cards in your marketplace listings, including optional authenticity checks.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1307,7 +1307,6 @@ export const MainLayout: React.FC = () => {
                 </div>
             )}
             {isNativeApp && <button type="button" hidden data-native-bridge-action="discard-listing" onClick={discardListingChanges}>Discard Listing Changes</button>}
-            {isNativeApp && <KeyboardDoneAccessory />}
             <div className="frame">
                 {!isNativeApp && runtimeConfig.warnings.length > 0 && (
                     <div className="runtime-warning-banner" role="alert">
@@ -2358,55 +2357,6 @@ const SupportChatModal: React.FC<{ onClose: () => void; onRequireSignIn: (messag
                 : <form className="seller-chat-panel" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input type="text" aria-label="Support message" value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a message" maxLength={2000} required /><button type="submit" className="secondary-btn">Send</button></form>}
         </section>
     </div>;
-};
-
-const KeyboardDoneAccessory: React.FC = () => {
-    const [focused, setFocused] = useState(false);
-    const [keyboardOffset, setKeyboardOffset] = useState(0);
-
-    useEffect(() => {
-        const viewport = window.visualViewport;
-        const isTextField = (target: EventTarget | null) => target instanceof HTMLInputElement
-            ? !['checkbox', 'file', 'radio', 'range'].includes(target.type)
-            : target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
-        const updateKeyboardOffset = () => {
-            if (!viewport) return;
-            setKeyboardOffset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop));
-        };
-        const handleFocusIn = (event: FocusEvent) => {
-            if (isTextField(event.target)) {
-                setFocused(true);
-                updateKeyboardOffset();
-            }
-        };
-        const handleFocusOut = () => window.setTimeout(() => {
-            if (!isTextField(document.activeElement)) setFocused(false);
-        }, 0);
-
-        document.addEventListener('focusin', handleFocusIn);
-        document.addEventListener('focusout', handleFocusOut);
-        viewport?.addEventListener('resize', updateKeyboardOffset);
-        viewport?.addEventListener('scroll', updateKeyboardOffset);
-        return () => {
-            document.removeEventListener('focusin', handleFocusIn);
-            document.removeEventListener('focusout', handleFocusOut);
-            viewport?.removeEventListener('resize', updateKeyboardOffset);
-            viewport?.removeEventListener('scroll', updateKeyboardOffset);
-        };
-    }, []);
-
-    if (!focused) return null;
-    return createPortal(
-        <button
-            type="button"
-            className="keyboard-done-accessory"
-            style={{ bottom: `${keyboardOffset + 8}px` }}
-            onClick={() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined)}
-        >
-            Done
-        </button>,
-        document.body,
-    );
 };
 
 const ImagePreviewGrid: React.FC<{ previews: string[]; processingCount: number; onRemove: (index: number) => void }> = ({ previews, processingCount, onRemove }) => {

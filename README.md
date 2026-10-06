@@ -10,6 +10,10 @@ Xcode Cloud's `ios/App/ci_scripts/ci_post_clone.sh` delegates to `ci/ci_post_clo
 
 The generated client secret is discarded rather than printed into Cloud logs or bundled into the app. This generation step does not configure Supabase's Apple provider automatically. Configure the app's public `VITE_` values in the workflow environment as well, and never commit private keys or secret env files.
 
+### iOS keyboard controls
+
+The app relies on the system keyboard accessory to finish text entry. It does not render a floating web "Done" button over the bottom tabs. When testing on a device, verify the system checkmark dismisses the keyboard on search and account forms and that the tabs remain unobstructed after dismissal.
+
 In Vercel, add the following values to **Production**, and use the live payment credentials only after testing previews with sandbox/test credentials:
 
 - Public: `VITE_APP_URL`, `VITE_SITE_NAME`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_PAYPAL_ENABLED`
