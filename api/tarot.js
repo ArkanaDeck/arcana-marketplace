@@ -297,7 +297,14 @@ async function submitUnifiedListingBatch(req, res) {
         try {
             await moderateListingBatch(decks, { supabaseUrl: process.env.VITE_SUPABASE_URL, userId: user.id });
         } catch (error) {
-            if (error instanceof ListingModerationError) return res.status(error.statusCode).json({ error: error.message });
+            if (error instanceof ListingModerationError) {
+                if (error.statusCode >= 500) {
+                    logServerError('tarot:moderation', error, {
+                        userId: user.id, code: error.code, ...error.diagnostics,
+                    });
+                }
+                return res.status(error.statusCode).json({ error: error.message, code: error.code });
+            }
             throw error;
         }
 

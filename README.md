@@ -17,11 +17,26 @@ The app relies on the system keyboard accessory to finish text entry. It does no
 In Vercel, add the following values to **Production**, and use the live payment credentials only after testing previews with sandbox/test credentials:
 
 - Public: `VITE_APP_URL`, `VITE_SITE_NAME`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_PAYPAL_ENABLED`
-- Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV`, `PAYPAL_PARTNER_MERCHANT_ID`, `CRON_SECRET`
+- Server-only: `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV`, `PAYPAL_PARTNER_MERCHANT_ID`, `CRON_SECRET`
 - Optional email: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - Optional fees: `STRIPE_PROCESSING_FEE_PERCENT`, `STRIPE_PROCESSING_FEE_FIXED`, `PAYPAL_PROCESSING_FEE_PERCENT`, `PAYPAL_PROCESSING_FEE_FIXED`
 
 Set `VITE_APP_URL` to the canonical HTTPS production URL without a trailing slash. Configure Stripe's webhook endpoint as `https://your-domain/api/stripe-webhook` and copy its signing secret into `STRIPE_WEBHOOK_SECRET`. Configure `CRON_SECRET` as a long random value; Vercel provides it to the scheduled payout endpoint. The repository's `vercel.json` applies a restrictive CSP, HSTS, clickjacking protection, MIME sniffing protection, referrer policy, permissions policy, and cross-origin opener policy.
+
+### Listing content moderation and iOS API routing
+
+Standard listing publication sends an authenticated JSON `POST` to `/api/tarot?action=submit-listing-batch`. The handler reads `OPENAI_API_KEY` at request time and moderates the listing text and all 3-6 uploaded Supabase public image URLs with `omni-moderation-latest` before database writes. It does not send multipart files or use the optional authenticity base64 image for moderation. Moderation remains mandatory and publication stops if the provider fails.
+
+Set `OPENAI_API_KEY` in the Vercel environment serving the API, then redeploy; never put this secret in a `VITE_` variable or an iOS build. `VITE_VISION_AI_ENDPOINT` is unused. Native iOS `/api/` requests use `VITE_API_ORIGIN` (default `https://arkcards.com`); configure that origin without an API path in the environment building the iOS web assets. Changing this public value requires rebuilding and syncing the native app, not just redeploying Vercel.
+
+For a moderation outage, check the failed publish response's `code` and Vercel logs prefixed `[arkana:tarot:moderation]`:
+
+- `MODERATION_NOT_CONFIGURED`: the serving deployment has no non-empty `OPENAI_API_KEY`. Check the Vercel project/environment and redeploy.
+- `MODERATION_CLIENT_INIT_FAILED`: the SDK could not initialize.
+- `MODERATION_PROVIDER_FAILED`: inspect `providerStatus`, `providerCode`, `providerType`, `providerRequestId`, and `providerFailure`. A 401/403 indicates credentials or access, a 429 indicates a rate/quota restriction, and `timeout`/`connection` indicates transport failure. A 400 may indicate invalid input or an image OpenAI cannot access; verify the uploaded URLs are publicly readable.
+- `MODERATION_INVALID_RESPONSE`: no valid moderation decision was returned.
+
+Logs deliberately exclude API keys, raw provider messages, listing text, and image data. Do not disable moderation to work around an outage.
 
 PayPal credentials are server-only and must not use the `VITE_` prefix. Set `VITE_PAYPAL_ENABLED=true` only when PayPal is configured. Use `PAYPAL_ENV=sandbox` with PayPal sandbox credentials while testing and `PAYPAL_ENV=live` with live credentials in production. `PAYPAL_SECRET_KEY` remains supported as a temporary compatibility fallback.
 

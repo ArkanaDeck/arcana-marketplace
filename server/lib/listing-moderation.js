@@ -1,18 +1,30 @@
 import OpenAI from 'openai';
 
 export class ListingModerationError extends Error {
-    constructor(message, statusCode) {
-        super(message);
+    constructor(message, statusCode, { code = 'LISTING_MODERATION_ERROR', cause, diagnostics = {} } = {}) {
+        super(message, { cause });
         this.name = 'ListingModerationError';
         this.statusCode = statusCode;
+        this.code = code;
+        this.diagnostics = diagnostics;
     }
 }
 
 export async function moderateListingBatch(decks, { supabaseUrl, userId, client } = {}) {
-    if (!client && !process.env.OPENAI_API_KEY) {
-        throw new ListingModerationError('Content moderation is unavailable. Please try again later.', 503);
+    const apiKey = (process.env.OPENAI_API_KEY || '').trim();
+    if (!client && !apiKey) {
+        throw new ListingModerationError('Content moderation is unavailable. Please try again later.', 503, {
+            code: 'MODERATION_NOT_CONFIGURED',
+        });
     }
-    const moderationClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 15000, maxRetries: 1 });
+    let moderationClient;
+    try {
+        moderationClient = client || new OpenAI({ apiKey, timeout: 15000, maxRetries: 1 });
+    } catch (cause) {
+        throw new ListingModerationError('Content moderation is unavailable. Please try again later.', 503, {
+            code: 'MODERATION_CLIENT_INIT_FAILED', cause,
+        });
+    }
     const imagePrefix = `${String(supabaseUrl || '').replace(/\/$/, '')}/storage/v1/object/public/listing-images/${userId}/`;
 
     for (const deck of decks) {
@@ -44,13 +56,26 @@ export async function moderateListingBatch(decks, { supabaseUrl, userId, client 
                     ...images.map((image) => ({ type: 'image_url', image_url: { url: image } })),
                 ],
             });
-        } catch {
-            throw new ListingModerationError('Content moderation is unavailable. Please try again later.', 503);
+        } catch (cause) {
+            // Provider messages can contain credentials or submitted content; log only metadata.
+            const diagnostics = cause instanceof OpenAI.APIError ? {
+                providerStatus: cause.status,
+                providerCode: cause.code,
+                providerType: cause.type,
+                providerRequestId: cause.requestID,
+                providerFailure: cause instanceof OpenAI.APIConnectionTimeoutError ? 'timeout'
+                    : cause instanceof OpenAI.APIConnectionError ? 'connection' : 'api',
+            } : { providerFailure: 'unexpected' };
+            throw new ListingModerationError('Content moderation is unavailable. Please try again later.', 503, {
+                code: 'MODERATION_PROVIDER_FAILED', cause, diagnostics,
+            });
         }
 
         if (!Array.isArray(response?.results) || response.results.length !== 1
             || typeof response.results[0]?.flagged !== 'boolean') {
-            throw new ListingModerationError('Content moderation could not be completed. Please try again later.', 503);
+            throw new ListingModerationError('Content moderation could not be completed. Please try again later.', 503, {
+                code: 'MODERATION_INVALID_RESPONSE',
+            });
         }
         if (response.results[0].flagged) {
             throw new ListingModerationError('A listing does not meet our community content guidelines. Update its text or images before publishing.', 422);
