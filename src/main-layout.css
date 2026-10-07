@@ -2382,26 +2382,6 @@ label.field-error .field-error-text {
     border: 1px solid #F5CEBE;
 }
 
-.ai-verified-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    align-self: flex-start;
-    width: fit-content;
-    margin-top: 6px;
-    padding: 3px 10px;
-    border-radius: 99px;
-    background: #E8F5EE;
-    color: #1B6B45;
-    border: 1px solid #A8D8BE;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.ai-verified-badge::before {
-    content: '✓';
-}
-
 /* Contact and Form layout configurations */
 .sell-form-card {
     background: #ffffff;

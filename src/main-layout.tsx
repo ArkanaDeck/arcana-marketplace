@@ -132,7 +132,6 @@ export const MainLayout: React.FC = () => {
     const [wantsExternalLink, setWantsExternalLink] = useState<boolean>(false);
     const [externalStoreUrl, setExternalStoreUrl] = useState('');
     const [externalLinkUrlError, setExternalLinkUrlError] = useState<string | null>(null);
-    const [wantsAuthentication, setWantsAuthentication] = useState<boolean>(false);
     const [isRentingExternalLink, setIsRentingExternalLink] = useState(false);
     const [appStoreTransaction, setAppStoreTransaction] = useState<string | null>(null);
     const [isPurchasingStoreLink, setIsPurchasingStoreLink] = useState(false);
@@ -673,10 +672,9 @@ export const MainLayout: React.FC = () => {
             const existingListing = editModeData;
             const isEditing = existingListing !== null;
 
-            // NEW submissions route through the unified batch pipeline (a "batch" of exactly 1 deck) —
-            // the server there computes the same stacked fee and creates the listing hidden until paid.
+            // Standard listings publish immediately; store-link promotions retain their payment flow.
             if (!isEditing) {
-                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, wantsAuthentication, appStoreTransaction: wantsExternalLink && appStoreTransaction ? appStoreTransaction : undefined });
+                const result = await publishListingBundle({ name: deckName.trim(), price: parsedPrice, description: deckDescription.trim() || undefined, listingType, imageFiles: deckImageFiles, freeDelivery, condition, externalStoreUrl: wantsExternalLink ? externalStoreUrl.trim() : undefined, appStoreTransaction: wantsExternalLink && appStoreTransaction ? appStoreTransaction : undefined });
                 if (result.requiresPayment) {
                     window.location.assign(result.checkoutUrl);
                     return;
@@ -709,7 +707,6 @@ export const MainLayout: React.FC = () => {
                 setListingType('sale');
                 setDeckImageFiles([]);
                 setImagePreviews([]);
-                setWantsAuthentication(false);
                 setFlashMessage(`Published: ${result.listing.name}`);
                 setActiveView('Listings');
                 return;
@@ -746,7 +743,6 @@ export const MainLayout: React.FC = () => {
             setWantsExternalLink(false);
             setExternalStoreUrl('');
             setExternalLinkUrlError(null);
-            setWantsAuthentication(false);
             setEditModeData(null);
             setFlashMessage(risk.requiresReview ? `Submitted for review: ${savedListing.name}. ${risk.reasons[0]}` : `Updated: ${savedListing.name}`);
             setActiveView('Listings');
@@ -757,7 +753,7 @@ export const MainLayout: React.FC = () => {
                 handleRequireSignIn(message);
                 return;
             }
-            setFlashMessage(`Card verification failed: ${message}`);
+            setFlashMessage(`Unable to publish listing: ${message}`);
             alert(message);
         } finally {
             setIsUploading(false);
@@ -1227,7 +1223,6 @@ export const MainLayout: React.FC = () => {
         setWantsExternalLink(false);
         setExternalStoreUrl('');
         setExternalLinkUrlError(null);
-        setWantsAuthentication(false);
         setEditModeData(null);
         setIsMobileMenuOpen(false);
         setActiveView('Listings');
@@ -1242,7 +1237,6 @@ export const MainLayout: React.FC = () => {
                 || deckImageFiles.length
                 || wantsExternalLink
                 || externalStoreUrl.trim()
-                || wantsAuthentication
                 || freeDelivery
                 || listingType !== 'sale'
                 || condition !== 'good'
@@ -1259,8 +1253,7 @@ export const MainLayout: React.FC = () => {
             || deckImageFiles.length > 0
             || imagePreviews.join('|') !== editModeData.images.join('|')
             || wantsExternalLink
-            || externalStoreUrl.trim()
-            || wantsAuthentication;
+            || externalStoreUrl.trim();
     };
 
     const handleNativeBack = () => {
@@ -1372,7 +1365,6 @@ export const MainLayout: React.FC = () => {
                     <>
                         <div className="trust-badges" aria-label="Trust markers">
                             <span>🟢 Free Listing</span>
-                            <span>🔮 Free AI Authentication Check</span>
                             <span>💬 Direct Contact with Seller</span>
                         </div>
 
@@ -1808,7 +1800,6 @@ export const MainLayout: React.FC = () => {
                                 {viewingListing.status === 'sold'
                                     ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                                     : <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
-                                {viewingListing.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
                                 {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
@@ -1907,18 +1898,6 @@ export const MainLayout: React.FC = () => {
                                         <span>Offer Free Delivery. Include delivery charges in the listing price.</span>
                                     </label>
                                 </div>}
-                                <div className="flex items-start space-x-3 py-2 checkbox-group external-link-toggle">
-                                    <label className="checkbox-label" htmlFor="ai-authentication-toggle">
-                                        <input
-                                            id="ai-authentication-toggle"
-                                            type="checkbox"
-                                            checked={wantsAuthentication}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWantsAuthentication(e.target.checked)}
-                                        />
-                                        <span>Verify Item Authenticity (Request an AI analysis badge to increase buyer trust)</span>
-                                    </label>
-                                    <small>When selected, Arkcards sends the first listing image to OpenAI for an authenticity assessment.</small>
-                                </div>
                                 {(!isNativeApp || !editModeData) && <div className="checkbox-group external-link-toggle store-link-toggle" aria-busy={isPurchasingStoreLink}>
                                     <label className="checkbox-label" htmlFor="external-store-link">
                                         <input
@@ -1974,7 +1953,6 @@ export const MainLayout: React.FC = () => {
                                     <ImagePreviewGrid previews={imagePreviews} processingCount={processingImageCount} onRemove={handleRemoveImage} />
                                 </div>
                                 {paidPremiumSessionId && <p className="image-status" role="status">£2.00 web store link paid. Press Publish Listing to go live with the details you paid for.</p>}
-                                <p className="signup-consent">By selecting Publish Listing, you agree to send this listing's title, description, and images to OpenAI for content-safety moderation before publication. This is separate from optional authenticity review.</p>
                                 <button type="submit" className="primary-btn publish-listing-btn" disabled={isRentingExternalLink || isUploading}>
                                     {isUploading ? <><span className="upload-progress-indicator" aria-hidden="true" /><span>Publishing...</span></> : isRentingExternalLink ? 'Opening payment...' : 'Publish Listing'}
                                 </button>
@@ -2233,8 +2211,7 @@ export const MainLayout: React.FC = () => {
                                 {activeLegalPage === 'privacy' && (
                                     <>
                                         <p>We process your email address, profile details, listing text and images, messages, support requests, and any order or delivery details you provide to operate the marketplace.</p>
-                                        <p>If you explicitly request an AI authenticity check, we send the first image for that listing to OpenAI to generate the assessment. We do not send listing images for this check unless you opt in. OpenAI processes that image under its service terms; do not include people or unrelated personal information in verification images.</p>
-                                        <p>New standard listings also undergo mandatory content-safety moderation: the title, description, and uploaded images are sent to OpenAI before publication, independently of optional authenticity review. Flagged content is blocked, and publication pauses if moderation is unavailable.</p>
+                                        <p>Listing details and images are stored to publish your listing. We do not send them to external AI providers for authenticity checks or content moderation.</p>
                                         <p>Payment providers process payment details for checkout. We do not sell personal data or share it with advertising companies. We retain information only as needed for the service, safety, disputes, and legal obligations.</p>
                                         <p>You can delete your account in Account settings. Deletion removes your profile, listings, chats, and uploaded images. Limited transaction or moderation records may be retained where required for accounting, safety, or dispute resolution; delivery details are erased.</p>
                                     </>
@@ -2445,7 +2422,6 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {item.reviewStatus === 'pending_review' && <span className="listing-type-badge listing-type-badge--pending">Pending review</span>}
-            {item.aiVerified && <span className="ai-verified-badge">AI Verified</span>}
             {item.description && <p className="listing-description deck-description">{item.description}</p>}
             {item.status === 'sold' && canConfirmOrderAccepted && (
                 <div className="buyer-order-acceptance" onClick={(event) => event.stopPropagation()}>

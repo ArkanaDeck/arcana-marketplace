@@ -17,26 +17,31 @@ The app relies on the system keyboard accessory to finish text entry. It does no
 In Vercel, add the following values to **Production**, and use the live payment credentials only after testing previews with sandbox/test credentials:
 
 - Public: `VITE_APP_URL`, `VITE_SITE_NAME`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_PAYPAL_ENABLED`
-- Server-only: `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV`, `PAYPAL_PARTNER_MERCHANT_ID`, `CRON_SECRET`
+- Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV`, `PAYPAL_PARTNER_MERCHANT_ID`, `CRON_SECRET`
 - Optional email: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - Optional fees: `STRIPE_PROCESSING_FEE_PERCENT`, `STRIPE_PROCESSING_FEE_FIXED`, `PAYPAL_PROCESSING_FEE_PERCENT`, `PAYPAL_PROCESSING_FEE_FIXED`
 
 Set `VITE_APP_URL` to the canonical HTTPS production URL without a trailing slash. Configure Stripe's webhook endpoint as `https://your-domain/api/stripe-webhook` and copy its signing secret into `STRIPE_WEBHOOK_SECRET`. Configure `CRON_SECRET` as a long random value; Vercel provides it to the scheduled payout endpoint. The repository's `vercel.json` applies a restrictive CSP, HSTS, clickjacking protection, MIME sniffing protection, referrer policy, permissions policy, and cross-origin opener policy.
 
-### Listing content moderation and iOS API routing
+### Immediate listing publication and iOS API routing
 
-Standard listing publication sends an authenticated JSON `POST` to `/api/tarot?action=submit-listing-batch`. The handler reads `OPENAI_API_KEY` at request time and moderates the listing text and all 3-6 uploaded Supabase public image URLs with `omni-moderation-latest` before database writes. It does not send multipart files or use the optional authenticity base64 image for moderation. Moderation remains mandatory and publication stops if the provider fails.
+Standard listing publication sends an authenticated JSON `POST` to `/api/tarot?action=submit-listing-batch`. After validating the listing details and 3-6 uploaded Supabase public image URLs belonging to the seller, the handler saves all submitted listings in one database insert as approved and active. Standard listings have no listing fee, AI authenticity check, external moderation call, or pending-payment gate. Paid store-link promotions retain Stripe checkout or verified App Store purchases.
 
-Set `OPENAI_API_KEY` in the Vercel environment serving the API, then redeploy; never put this secret in a `VITE_` variable or an iOS build. `VITE_VISION_AI_ENDPOINT` is unused. Native iOS `/api/` requests use `VITE_API_ORIGIN` (default `https://arkcards.com`); configure that origin without an API path in the environment building the iOS web assets. Changing this public value requires rebuilding and syncing the native app, not just redeploying Vercel.
+AI verification and moderation have been permanently removed, including the OpenAI dependency. Remove obsolete `OPENAI_API_KEY`, `VISION_AI_ENDPOINT`, `VISION_AI_API_KEY`, `VISION_AI_MODEL`, and `VITE_VISION_AI_ENDPOINT` settings from deployments if present. Existing database badge columns and historical migrations remain for compatibility, but the app neither reads nor grants AI badges. Retired verification endpoints and the old authenticated tarot submission action return HTTP 410; the batch status and payment handlers remain for earlier purchases.
 
-For a moderation outage, check the failed publish response's `code` and Vercel logs prefixed `[arkana:tarot:moderation]`:
+Native iOS `/api/` requests use `VITE_API_ORIGIN` (default `https://arkcards.com`); configure that origin without an API path in the environment building the iOS web assets. Changing this public value requires rebuilding and syncing the native app, not just redeploying Vercel.
 
-- `MODERATION_NOT_CONFIGURED`: the serving deployment has no non-empty `OPENAI_API_KEY`. Check the Vercel project/environment and redeploy.
-- `MODERATION_CLIENT_INIT_FAILED`: the SDK could not initialize.
-- `MODERATION_PROVIDER_FAILED`: inspect `providerStatus`, `providerCode`, `providerType`, `providerRequestId`, and `providerFailure`. A 401/403 indicates credentials or access, a 429 indicates a rate/quota restriction, and `timeout`/`connection` indicates transport failure. A 400 may indicate invalid input or an image OpenAI cannot access; verify the uploaded URLs are publicly readable.
-- `MODERATION_INVALID_RESPONSE`: no valid moderation decision was returned.
+For the production backend at `https://arkcards.com`, open **Vercel project → Settings → Environment Variables**, select **Production**, and configure:
 
-Logs deliberately exclude API keys, raw provider messages, listing text, and image data. Do not disable moderation to work around an outage.
+| Name | Value | Purpose |
+| --- | --- | --- |
+| `VITE_API_ORIGIN` | `https://arkcards.com` | Public native backend origin; also set this in the local or Xcode Cloud environment that builds the iOS assets. |
+
+Redeploy the backend after changing its environment variables. For a local iOS build, set `VITE_API_ORIGIN=https://arkcards.com` in `.env.local`, run `npm run build` and `npm run cap:sync:ios`, then rebuild and install through Xcode. For Xcode Cloud, set the same variable in the workflow environment and create a new build. The website deliberately keeps `/api/` requests same-origin; this variable does not redirect browser requests to a separate backend.
+
+The publish button in `src/main-layout.tsx` calls `publishListingBundle` in `src/lib/listings.ts`. Its standard-listing fetch uses `/api/tarot?action=submit-listing-batch`; startup in `src/main.tsx` installs `src/lib/native-api-routing.ts`, which rewrites that URL to `https://arkcards.com/api/tarot?action=submit-listing-batch` on native devices. `capacitor://localhost` is the local app origin, not the backend destination.
+
+Deploy the updated backend and rebuild the native app to remove the old UI. Verify native connectivity with an `OPTIONS` request to the listing endpoint using `Origin: capacitor://localhost`, `Access-Control-Request-Method: POST`, and `Access-Control-Request-Headers: content-type,authorization`; expect `204` and `Access-Control-Allow-Origin: capacitor://localhost`. An authenticated standard-listing submission should return `requiresPayment: false`, `feePence: 0`, and approved, active `listings`. Database failures return an error and are logged under `[arkana:tarot:submit-listing-batch]`.
 
 PayPal credentials are server-only and must not use the `VITE_` prefix. Set `VITE_PAYPAL_ENABLED=true` only when PayPal is configured. Use `PAYPAL_ENV=sandbox` with PayPal sandbox credentials while testing and `PAYPAL_ENV=live` with live credentials in production. `PAYPAL_SECRET_KEY` remains supported as a temporary compatibility fallback.
 

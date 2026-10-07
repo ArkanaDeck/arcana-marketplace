@@ -8,7 +8,8 @@ export function installNativeApiRouting() {
     const nativeFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
         if (typeof input === 'string' && input.startsWith('/api/')) return nativeFetch(`${NATIVE_API_ORIGIN}${input}`, init);
-        if (input instanceof URL && input.origin === window.location.origin && input.pathname.startsWith('/api/')) {
+        // Custom native schemes can have an opaque URL origin, so compare protocol and host.
+        if (input instanceof URL && input.protocol === window.location.protocol && input.host === window.location.host && input.pathname.startsWith('/api/')) {
             return nativeFetch(`${NATIVE_API_ORIGIN}${input.pathname}${input.search}`, init);
         }
         return nativeFetch(input, init);

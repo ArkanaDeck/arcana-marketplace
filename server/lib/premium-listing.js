@@ -1,7 +1,7 @@
 import { isValidHttpUrl } from './url-validation.js';
 
 const PREMIUM_LINK_DAYS = 30;
-const LISTING_COLUMNS = 'id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, is_ai_authenticated, external_store_url, external_link_active, external_link_expires_at';
+const LISTING_COLUMNS = 'id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, external_store_url, external_link_active, external_link_expires_at';
 
 function readNumbered(metadata, prefix) {
     return Object.keys(metadata)
@@ -42,9 +42,6 @@ export async function createPremiumListingFromSession(supabase, session) {
             listing_type: metadata.listing_type || 'sale',
             is_free_delivery: metadata.free_delivery === 'true',
             is_premium: true,
-            // Set only by the server when the seller opted in and the AI check passed.
-            authenticated: metadata.ai_authenticated === 'true',
-            is_ai_authenticated: metadata.ai_authenticated === 'true',
             review_status: 'approved',
             premium_stripe_session_id: session.id,
         }])

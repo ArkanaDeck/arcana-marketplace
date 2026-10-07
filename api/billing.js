@@ -5,7 +5,6 @@ import { logServerError } from '../server/lib/server-logger.js';
 import { isValidHttpUrl } from '../server/lib/url-validation.js';
 import { computeListingFeeForBundle } from '../server/lib/listing-fee-engine.js';
 import { createPremiumListingFromSession } from '../server/lib/premium-listing.js';
-import { verifyCardImageWithOpenAI } from '../server/lib/openai-card-check.js';
 import { DRIVE_TRAFFIC_PRODUCT_ID, verifyAppStoreTransaction } from '../server/lib/app-store-transaction.js';
 
 // Consolidated Stripe Checkout hub (seller subscription / listing fee / website link / listing external link),
@@ -90,16 +89,6 @@ async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl
         if (imageUrls.length === 0) return res.status(400).json({ error: 'Upload at least one listing image before continuing.' });
         const description = String(body.description || '').slice(0, 2000);
 
-        // Opt-in only: the badge is granted solely from this server-side result, never from a client flag.
-        let aiAuthenticated = false;
-        if (body.wants_authentication === true) {
-            const verification = await verifyCardImageWithOpenAI(body.image_base64);
-            if (!verification.authenticated) {
-                return res.status(422).json({ error: verification.reasoning, reasoning: verification.reasoning, confidence: verification.confidence, verified: verification.verified });
-            }
-            aiAuthenticated = true;
-        }
-
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
             customer_email: user.email || undefined,
@@ -125,7 +114,6 @@ async function createPremiumListingCheckout(res, stripe, user, body, supabaseUrl
                 ...Object.fromEntries(imageUrls.map((url, index) => [`image_url_${index}`, url])),
                 listing_type: String(body.listing_type || 'sale').slice(0, 20),
                 free_delivery: body.free_delivery ? 'true' : 'false',
-                ai_authenticated: aiAuthenticated ? 'true' : 'false',
             },
         });
         return res.status(200).json({ sessionId: session.id, url: session.url });
@@ -178,15 +166,6 @@ async function createPremiumListingFromAppStore(req, res) {
             .slice(0, 6);
         if (imageUrls.length === 0) return res.status(400).json({ error: 'Upload at least one listing image before continuing.' });
 
-        let aiAuthenticated = false;
-        if (body.wants_authentication === true) {
-            const verification = await verifyCardImageWithOpenAI(body.image_base64);
-            if (!verification.authenticated) {
-                return res.status(422).json({ error: verification.reasoning, reasoning: verification.reasoning, confidence: verification.confidence, verified: verification.verified });
-            }
-            aiAuthenticated = true;
-        }
-
         // Reuses the Stripe listing builder; the unique session id column makes each App Store transaction single-use.
         const listing = await createPremiumListingFromSession(supabase, {
             id: `appstore_${transaction.transactionId}`,
@@ -201,7 +180,6 @@ async function createPremiumListingFromAppStore(req, res) {
                 ...Object.fromEntries(imageUrls.map((url, index) => [`image_url_${index}`, url])),
                 listing_type: String(body.listing_type || 'sale').slice(0, 20),
                 free_delivery: body.free_delivery ? 'true' : 'false',
-                ai_authenticated: aiAuthenticated ? 'true' : 'false',
             },
         });
         if (listing.seller_id !== user.id) return res.status(409).json({ error: 'This App Store purchase has already been used.' });

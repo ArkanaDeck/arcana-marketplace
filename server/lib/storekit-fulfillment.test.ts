@@ -57,6 +57,17 @@ describe('StoreKit durable fulfillment acknowledgement', () => {
         expect(response.json.mock.calls[0][0]).not.toHaveProperty('fulfilledTransactionId');
     });
 
+    it('fulfills a verified promotion without AI credentials even when an old client requests a check', async () => {
+        vi.stubEnv('OPENAI_API_KEY', '');
+        const listing = { id: 'listing-123', seller_id: 'seller-123' };
+        mocks.fulfill.mockResolvedValue(listing);
+        await handler({ ...request, body: { ...request.body, wants_authentication: true } }, response);
+        expect(response.status).toHaveBeenCalledWith(200);
+        expect(mocks.verify).toHaveBeenCalledOnce();
+        expect(mocks.fulfill.mock.calls[0][1].metadata).not.toHaveProperty('ai_authenticated');
+        expect(response.json).toHaveBeenCalledWith({ listing, fulfilledTransactionId: '123456' });
+    });
+
     it('does not confirm a receipt rejected by verification', async () => {
         mocks.verify.mockImplementation(() => { throw new Error('Invalid receipt'); });
         await handler(request, response);
