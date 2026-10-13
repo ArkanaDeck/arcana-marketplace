@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
 import type { Session } from '@supabase/supabase-js';
@@ -136,6 +136,18 @@ export const MainLayout: React.FC = () => {
     const [appStoreTransaction, setAppStoreTransaction] = useState<string | null>(null);
     const [isPurchasingStoreLink, setIsPurchasingStoreLink] = useState(false);
     const [storeLinkPurchaseStatus, setStoreLinkPurchaseStatus] = useState<string | null>(null);
+    const storeLinkGenerationRef = useRef(0);
+    const previousListingViewRef = useRef(activeView);
+    const previousListingUserRef = useRef<string | null>(null);
+    const resetStoreLink = useCallback(() => {
+        storeLinkGenerationRef.current += 1;
+        setWantsExternalLink(false);
+        setExternalStoreUrl('');
+        setExternalLinkUrlError(null);
+        setAppStoreTransaction(null);
+        setStoreLinkPurchaseStatus(null);
+        setIsPurchasingStoreLink(false);
+    }, []);
     const [isUploading, setIsUploading] = useState(false);
     const [paidPremiumSessionId, setPaidPremiumSessionId] = useState<string | null>(null);
     const [editModeData, setEditModeData] = useState<DeckListing | null>(null);
@@ -145,6 +157,21 @@ export const MainLayout: React.FC = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const publishFormRef = useRef<HTMLFormElement | null>(null);
     const pendingPublishDraftRef = useRef<PendingListingDraft | null>(null);
+
+    useEffect(() => {
+        if (previousListingViewRef.current === 'Sell' && activeView !== 'Sell') resetStoreLink();
+        previousListingViewRef.current = activeView;
+    }, [activeView, resetStoreLink]);
+
+    useEffect(() => {
+        const handleHistoryBack = () => {
+            if (previousListingViewRef.current !== 'Sell') return;
+            resetStoreLink();
+            setActiveView('Listings');
+        };
+        window.addEventListener('popstate', handleHistoryBack);
+        return () => window.removeEventListener('popstate', handleHistoryBack);
+    }, [resetStoreLink]);
 
     // Checkout Flow States
     const [selectedItem, setSelectedItem] = useState<DeckListing | null>(null);
@@ -242,6 +269,11 @@ export const MainLayout: React.FC = () => {
             })
             .catch(() => setIsAuthenticated(false));
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
+            if (event === 'SIGNED_OUT') {
+                resetStoreLink();
+                clearPremiumDraft();
+                setPaidPremiumSessionId(null);
+            }
             // Recovery links can land on "/" if Supabase falls back to the Site URL; send them to the reset form.
             if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
                 window.location.replace('/reset-password');
@@ -257,7 +289,17 @@ export const MainLayout: React.FC = () => {
             }
         });
         return () => subscription.unsubscribe();
-    }, []);
+    }, [resetStoreLink]);
+
+    useEffect(() => {
+        const userId = session?.user.id ?? null;
+        if (previousListingUserRef.current && previousListingUserRef.current !== userId) {
+            resetStoreLink();
+            clearPremiumDraft();
+            setPaidPremiumSessionId(null);
+        }
+        previousListingUserRef.current = userId;
+    }, [session?.user.id, resetStoreLink]);
 
     useEffect(() => {
         const pendingDraft = pendingPublishDraftRef.current;
@@ -783,8 +825,11 @@ export const MainLayout: React.FC = () => {
             return;
         }
         setIsPurchasingStoreLink(true);
+        const generation = storeLinkGenerationRef.current;
         try {
             const outcome = await purchaseDriveTraffic(session.user.id);
+            // A completed purchase remains in credit storage, but must not restore an abandoned form.
+            if (generation !== storeLinkGenerationRef.current) return;
             if (outcome.status === 'purchased') {
                 setAppStoreTransaction(outcome.signedTransaction);
                 setWantsExternalLink(true);
@@ -793,11 +838,12 @@ export const MainLayout: React.FC = () => {
                 setFlashMessage('Your purchase is awaiting approval. The promotion will be available once it is approved.');
             }
         } catch (error) {
+            if (generation !== storeLinkGenerationRef.current) return;
             const message = error instanceof Error ? error.message : 'The App Store purchase did not complete.';
             setStoreLinkPurchaseStatus(message);
             setFlashMessage(message);
         } finally {
-            setIsPurchasingStoreLink(false);
+            if (generation === storeLinkGenerationRef.current) setIsPurchasingStoreLink(false);
         }
     };
 
@@ -1003,6 +1049,9 @@ export const MainLayout: React.FC = () => {
     };
 
     const handleSignOut = async () => {
+        resetStoreLink();
+        clearPremiumDraft();
+        setPaidPremiumSessionId(null);
         try {
             await signOut();
             setIsAuthenticated(false);
@@ -1018,6 +1067,7 @@ export const MainLayout: React.FC = () => {
         setIsDeletingAccount(true);
         try {
             await deleteOwnAccount();
+            resetStoreLink();
             clearPremiumDraft();
             setSession(null);
             setListings((current) => current.filter((listing) => listing.sellerId !== session?.user?.id));
@@ -1220,9 +1270,7 @@ export const MainLayout: React.FC = () => {
         setListingType('sale');
         setDeckImageFiles([]);
         setImagePreviews([]);
-        setWantsExternalLink(false);
-        setExternalStoreUrl('');
-        setExternalLinkUrlError(null);
+        resetStoreLink();
         setEditModeData(null);
         setIsMobileMenuOpen(false);
         setActiveView('Listings');
