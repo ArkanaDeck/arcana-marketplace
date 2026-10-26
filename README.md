@@ -55,7 +55,9 @@ Seller PayPal payouts also require `profiles.paypal_merchant_id`. Configure the 
 
 The initial `index.html` includes visible marketplace content before JavaScript loads. Keep its heading and introductory paragraphs in sync with `src/home-intro.tsx`; both remain useful without a listings response. Static description and canonical tags are managed by React Helmet after startup, and the default metadata in `src/seo.tsx` must match the initial HTML. Run `node node_modules/vitest/vitest.mjs run src/seo.test.tsx` and `npm run build` when changing them.
 
-The canonical homepage is `https://arkcards.com/`. Vercel handles HTTP-to-HTTPS redirects; `vercel.json` permanently redirects the `www` host while preserving paths and query strings. If a Vercel project-level domain redirect is already configured, set that redirect to **308 Permanent Redirect** as well (it can take precedence over application routing). Do not use JavaScript or meta-refresh redirects for canonicalization.
+The canonical homepage is `https://arkcards.com/`. `vercel.json` explicitly uses HTTP 308 to redirect the `www` host and apex requests whose `x-forwarded-proto` header is `http`. The wildcard retains nested paths; Vercel carries through the original query string because the destination does not override it. HTTPS apex requests and preview hosts do not match these rules.
+
+Vercel also upgrades HTTP to HTTPS at the platform level before application routing. Consequently, `http://www.arkcards.com/` may take two permanent hops; configuration redirects alone cannot guarantee a single-hop protocol-and-host change. If a Vercel project-level domain redirect is already configured, set that redirect to **308 Permanent Redirect** as well (it can take precedence over application routing). Conditional `has` matching must be verified on a deployed preview or production domain, not with `vercel dev`. Do not use JavaScript or meta-refresh redirects for canonicalization.
 
 The sitemap deliberately omits `/search`, `/account`, and `/help`: those are in-app views, not independently implemented public pages. Only add routes once they serve their own indexable content.
 

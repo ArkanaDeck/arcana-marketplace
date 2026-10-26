@@ -38,12 +38,20 @@ describe('homepage indexing', () => {
         }
     });
 
-    it('permanently redirects only the www host and retains the requested path', () => {
-        expect(config.redirects).toContainEqual({
+    it('uses explicit 308 redirects with wildcard paths and no query overrides', () => {
+        expect(config.redirects).toEqual([{
             source: '/:path*',
             has: [{ type: 'host', value: 'www.arkcards.com' }],
             destination: 'https://arkcards.com/:path*',
-            permanent: true,
-        });
+            statusCode: 308,
+        }, {
+            source: '/:path*',
+            has: [
+                { type: 'host', value: 'arkcards.com' },
+                { type: 'header', key: 'x-forwarded-proto', value: 'http' },
+            ],
+            destination: 'https://arkcards.com/:path*',
+            statusCode: 308,
+        }]);
     });
 });
