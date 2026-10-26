@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { Seo } from './seo';
+import { HomeIntro } from './home-intro';
 import { clearPremiumDraft, compressImageFile, confirmOrderAccepted, confirmPremiumListing, deleteListing, loadBuyerSoldListingIds, loadListings, mapListing, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, readPremiumDraft, updateListing, publishListingBundle, type DeckCondition, type ListingRow, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
@@ -1256,10 +1257,10 @@ export const MainLayout: React.FC = () => {
     const isNestedNativeView = isNativeApp && !NATIVE_ROOT_VIEWS.includes(activeView);
     const nativeScreenTitle = activeView === 'Sell' && editModeData ? 'Edit Listing' : NATIVE_VIEW_TITLES[activeView] || 'Arkana';
     const noticeTitle = viewingListing?.name?.trim()
-        ? `${viewingListing.name.trim()} | ArkCards Public Notice Board`
-        : 'ArkCards Public Notice Board';
+        ? `${viewingListing.name.trim()} | ArkCards`
+        : undefined;
     const noticeDescription = viewingListing?.description?.trim().slice(0, 150)
-        || 'ArkCards is a public notice board for local notices, community events, and community listings.';
+        || undefined;
 
     const discardListingChanges = () => {
         setDeckName('');
@@ -1492,8 +1493,7 @@ export const MainLayout: React.FC = () => {
 
                             <section className="hero-grid home-hero">
                                 <div className="hero-card">
-                                    <h1 className="hero-title">Welcome to Arkana</h1>
-                                    <p className="hero-subtitle">Zero-commission marketplace for tarot and oracle card enthusiasts.</p>
+                                    <HomeIntro />
                                 </div>
                                 <div className="hero-img" aria-hidden="true"></div>
                             </section>

@@ -1,8 +1,8 @@
 import { Helmet } from 'react-helmet-async';
 
 const SITE_URL = 'https://arkcards.com';
-const DEFAULT_TITLE = 'ArkCards Public Notice Board';
-const DEFAULT_DESCRIPTION = 'ArkCards is a public notice board for local notices, community events, and community listings.';
+export const DEFAULT_TITLE = 'ArkCards | Tarot & Oracle Card Marketplace';
+export const DEFAULT_DESCRIPTION = 'Buy, sell, swap, or give away tarot, oracle, and Lenormand decks on ArkCards. Browse community listings, list for free, and contact sellers directly.';
 
 const structuredData = {
     '@context': 'https://schema.org',
@@ -10,7 +10,7 @@ const structuredData = {
         {
             '@type': 'WebSite',
             '@id': `${SITE_URL}/#website`,
-            url: SITE_URL,
+            url: `${SITE_URL}/`,
             name: 'ArkCards',
             description: DEFAULT_DESCRIPTION,
             inLanguage: 'en',
@@ -18,9 +18,9 @@ const structuredData = {
         {
             '@type': 'CollectionPage',
             '@id': `${SITE_URL}/#collectionpage`,
-            url: SITE_URL,
+            url: `${SITE_URL}/`,
             name: DEFAULT_TITLE,
-            description: 'Browse local public notices, community events, and listings on ArkCards.',
+            description: DEFAULT_DESCRIPTION,
             isPartOf: { '@id': `${SITE_URL}/#website` },
             inLanguage: 'en',
         },
@@ -33,7 +33,7 @@ type SeoProps = {
     path?: string;
 };
 
-export function Seo({ title = DEFAULT_TITLE, description = DEFAULT_DESCRIPTION, path = '' }: SeoProps) {
+export function Seo({ title = DEFAULT_TITLE, description = DEFAULT_DESCRIPTION, path = '/' }: SeoProps) {
     return (
         <Helmet>
             <title>{title}</title>

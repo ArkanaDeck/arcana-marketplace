@@ -51,6 +51,16 @@ Seller PayPal payouts also require `profiles.paypal_merchant_id`. Configure the 
 
 ## Monitoring and incident response
 
+### Homepage indexing
+
+The initial `index.html` includes visible marketplace content before JavaScript loads. Keep its heading and introductory paragraphs in sync with `src/home-intro.tsx`; both remain useful without a listings response. Static description and canonical tags are managed by React Helmet after startup, and the default metadata in `src/seo.tsx` must match the initial HTML. Run `node node_modules/vitest/vitest.mjs run src/seo.test.tsx` and `npm run build` when changing them.
+
+The canonical homepage is `https://arkcards.com/`. Vercel handles HTTP-to-HTTPS redirects; `vercel.json` permanently redirects the `www` host while preserving paths and query strings. If a Vercel project-level domain redirect is already configured, set that redirect to **308 Permanent Redirect** as well (it can take precedence over application routing). Do not use JavaScript or meta-refresh redirects for canonicalization.
+
+The sitemap deliberately omits `/search`, `/account`, and `/help`: those are in-app views, not independently implemented public pages. Only add routes once they serve their own indexable content.
+
+After deploying, verify all three noncanonical homepage variants (`http://arkcards.com/`, `http://www.arkcards.com/`, and `https://www.arkcards.com/`) permanently redirect to the canonical HTTPS homepage. Confirm that its HTTP 200 response contains the marketplace heading, description, and one canonical link without executing JavaScript. In Google Search Console, inspect the canonical URL, test the live URL, then request indexing and restart the Soft 404 validation. A code change cannot clear a Search Console report until Google recrawls it.
+
 Payment-critical serverless functions emit structured JSON logs with an `[arkana:<endpoint>]` prefix. Search these in the Vercel function logs to trace incidents:
 
 - **Failed checkout** — look for `[arkana:create-order-checkout]` or `[arkana:capture-paypal-order]` entries; the log includes the order or PayPal reference and the underlying error message.
