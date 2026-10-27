@@ -1,7 +1,7 @@
 import { supabase, getSupabaseSession } from './supabase';
-import { mapListing } from './listings';
+import { mapListing, type ListingRow, type MarketplaceListing } from './listings';
 
-type PublicSeller = {
+export type PublicSeller = {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
@@ -10,16 +10,20 @@ type PublicSeller = {
     direct_payment_link: string | null;
 };
 
-export async function loadSellerProfile(sellerId: string) {
+export async function loadSellerProfile(sellerId: string): Promise<{ profile: PublicSeller; listings: MarketplaceListing[] }> {
+    const normalizedSellerId = sellerId.trim().toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(normalizedSellerId)) {
+        throw new Error('Invalid seller profile URL. Open the seller from a marketplace listing.');
+    }
     if (!supabase) throw new Error('Supabase is not configured.');
     const [{ data: profile, error: profileError }, { data: listings, error: listingsError }] = await Promise.all([
-        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url, direct_payment_link').eq('id', sellerId).maybeSingle(),
-        supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, external_store_url, external_link_active, external_link_expires_at').eq('seller_id', sellerId).eq('is_active', true).eq('review_status', 'approved').neq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url, direct_payment_link').eq('id', normalizedSellerId).returns<PublicSeller[]>().maybeSingle(),
+        supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, external_store_url, external_link_active, external_link_expires_at').eq('seller_id', normalizedSellerId).eq('is_active', true).eq('review_status', 'approved').neq('status', 'completed').order('created_at', { ascending: false }).returns<ListingRow[]>(),
     ]);
     if (profileError) throw new Error(profileError.message || 'Unable to load seller profile.');
     if (listingsError) throw new Error(listingsError.message || 'Unable to load seller listings.');
     if (!profile) throw new Error('Seller profile not found.');
-    return { profile: profile as PublicSeller, listings: (listings || []).map(mapListing) };
+    return { profile, listings: (listings || []).map(mapListing) };
 }
 
 export async function createChatRoom(listingId: string | null, sellerId: string, initialMessage?: string) {

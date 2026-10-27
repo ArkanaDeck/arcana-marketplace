@@ -49,6 +49,14 @@ PayPal credentials are server-only and must not use the `VITE_` prefix. Set `VIT
 
 Seller PayPal payouts also require `profiles.paypal_merchant_id`. Configure the processing fee rates with `STRIPE_PROCESSING_FEE_PERCENT`, `STRIPE_PROCESSING_FEE_FIXED`, `PAYPAL_PROCESSING_FEE_PERCENT`, and `PAYPAL_PROCESSING_FEE_FIXED`; fixed values are in the account currency and default to zero.
 
+### Public seller profiles
+
+Seller URLs use `/app/profile/<user-uuid>`; slugs are not supported. The lookup trims and normalizes UUIDs, reads only the public profile projection, and uses the returned profile ID for ownership checks, chat, and reporting. Invalid routes, missing profiles, and database failures are surfaced separately. Requests from an abandoned seller view cannot overwrite the current page.
+
+Apply `supabase/migrations/20261027000001_public_seller_profile_visibility.sql` to the production Supabase database before deploying this fix. The migration explicitly makes `public_profiles` an owner-evaluated, security-barrier view owned by `postgres`, and grants read access to `anon` and `authenticated`. This is intentional: owner-only RLS on the underlying `profiles` table would otherwise hide other sellers when a view uses `security_invoker = true`. The view exposes only public display fields, active paid website links, and seller-provided payment links; email, payout details, and other private columns remain excluded. Do not grant public SELECT access to the underlying `profiles` table or disable its RLS.
+
+To verify after migration, open a real seller URL signed out and from a different account. Confirm the name, bio, and listings appear, including for sellers without active listings. Check that nonexistent UUIDs show a missing-profile message and malformed routes show an invalid-URL message. If a valid UUID still returns no row, verify that it actually has a matching `profiles.id` row; a route alone is not evidence that a profile exists. Run `node node_modules/vitest/vitest.mjs run src/lib/seller-profile.test.ts src/main-layout.tsx` for regression coverage.
+
 ## Monitoring and incident response
 
 ### Homepage indexing

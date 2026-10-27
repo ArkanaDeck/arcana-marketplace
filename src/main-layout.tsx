@@ -1227,7 +1227,7 @@ export const MainLayout: React.FC = () => {
     if (profileRouteMatch) {
         const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
         return <NativeScreenShell isNativeApp={isNativeApp} title="Seller Profile" onBack={backToMarketplace} onCancel={backToMarketplace}>
-            <SellerProfilePage sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={backToMarketplace} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />
+            <SellerProfilePage key={profileRouteMatch[1]} sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={backToMarketplace} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />
         </NativeScreenShell>;
     }
 

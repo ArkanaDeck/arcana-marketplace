@@ -325,11 +325,13 @@ create table if not exists public.support_tickets (
 
 alter table public.support_messages add column if not exists ticket_id uuid references public.support_tickets(id) on delete cascade;
 
-create or replace view public.public_profiles as
+create or replace view public.public_profiles
+with (security_invoker = false, security_barrier = true) as
 select id, coalesce(display_name, full_name) as full_name, avatar_url, bio,
   case when website_link_active and website_link_expires_at > now() then website_url else null end as website_url,
   direct_payment_link
 from public.profiles;
+alter view public.public_profiles owner to postgres;
 grant select on public.public_profiles to anon, authenticated;
 
 create table if not exists public.orders (
@@ -753,4 +755,3 @@ end;
 $$;
 
 revoke all on function public.approve_paid_listing(uuid, uuid, integer, integer, integer) from public;
-

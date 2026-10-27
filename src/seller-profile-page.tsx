@@ -1,5 +1,5 @@
 import React from 'react';
-import { loadSellerProfile } from './lib/seller-profile';
+import { loadSellerProfile, type PublicSeller } from './lib/seller-profile';
 import { formatChatMessage, isListingOpeningMessage, openDashboardChat } from './lib/dashboard-chat';
 import { saveDirectPaymentLink } from './lib/direct-payment';
 import type { MarketplaceListing } from './lib/listings';
@@ -12,7 +12,7 @@ type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProf
 type Message = { id: string; sender_id: string; chat_id: string; text: string; created_at: string };
 
 export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, onBack, onEditProfile, onSignIn, isNativeApp }) => {
-    const [profile, setProfile] = React.useState<{ id: string; full_name: string | null; avatar_url: string | null; bio: string | null; website_url: string | null; direct_payment_link: string | null } | null>(null);
+    const [profile, setProfile] = React.useState<PublicSeller | null>(null);
     const [listings, setListings] = React.useState<MarketplaceListing[]>([]);
     const [roomId, setRoomId] = React.useState<string | null>(null);
     const [messages, setMessages] = React.useState<Message[]>([]);
@@ -26,17 +26,29 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     const [pendingInitialMessage, setPendingInitialMessage] = React.useState<string | null>(() => new URLSearchParams(window.location.search).get('initialMessage'));
     const [hasOpenedPendingChat, setHasOpenedPendingChat] = React.useState(false);
     const [isStartingChat, setIsStartingChat] = React.useState(false);
+    const resolvedSellerId = profile?.id ?? sellerId;
 
     React.useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        setStatus(null);
+        setProfile(null);
+        setListings([]);
         loadSellerProfile(sellerId)
             .then(({ profile: seller, listings: sellerListings }) => {
+                if (cancelled) return;
                 setProfile(seller);
                 setListings(sellerListings);
                 setDirectPaymentLinkInput(seller.direct_payment_link || '');
                 setIsEditingDirectPaymentLink(false);
             })
-            .catch((error) => setStatus(error instanceof Error ? error.message : 'Unable to load this profile.'))
-            .finally(() => setLoading(false));
+            .catch((error) => {
+                if (cancelled) return;
+                console.error('[arkana:seller-profile] Failed to load seller profile:', error);
+                setStatus(error instanceof Error ? error.message : 'Unable to load this profile.');
+            })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
     }, [sellerId]);
 
     React.useEffect(() => {
@@ -85,7 +97,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 onSignIn();
                 return;
             }
-            const id = await openDashboardChat(listing.id, sellerId, listing.name, initialMessage);
+            const id = await openDashboardChat(listing.id, resolvedSellerId, listing.name, initialMessage);
             setRoomId(id);
             if (supabase) {
                 const { data, error } = await supabase.from('messages').select('id, sender_id, chat_id, text, created_at').eq('chat_id', id).order('created_at', { ascending: true });
@@ -101,11 +113,11 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
     };
 
     React.useEffect(() => {
-        if (hasOpenedPendingChat || loading || !pendingInitialMessage || viewerId === sellerId || !listings.length) return;
+        if (hasOpenedPendingChat || loading || !pendingInitialMessage || viewerId === resolvedSellerId || !listings.length) return;
         setHasOpenedPendingChat(true);
         void startChat(pendingInitialMessage);
         window.history.replaceState({}, '', window.location.pathname);
-    }, [hasOpenedPendingChat, loading, listings.length, pendingInitialMessage, sellerId, viewerId]);
+    }, [hasOpenedPendingChat, loading, listings.length, pendingInitialMessage, resolvedSellerId, viewerId]);
 
     const sendMessage = async () => {
         const text = messageText.trim();
@@ -130,15 +142,15 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
         {!isNativeApp && <button type="button" className="account-text-btn" onClick={onBack}>Back to marketplace</button>}
         <header className="seller-profile-header">
             {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="seller-profile-avatar" /> : <div className="seller-profile-avatar seller-profile-avatar--fallback">ARK</div>}
-            <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1>{(profile.bio || viewerId !== sellerId) && <p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>}
+            <div><p className="eyebrow">Public seller profile</p><h1>{profile.full_name || 'Arkana seller'}</h1>{(profile.bio || viewerId !== resolvedSellerId) && <p>{profile.bio || 'Browse this seller\'s current marketplace listings.'}</p>}
                 {!isNativeApp && profile.website_url && <a className="seller-website-link" href={profile.website_url} target="_blank" rel="noopener noreferrer nofollow">Visit their website</a>}
             </div>
-            {viewerId === sellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
-            {viewerId !== sellerId && activeListing && <div className="seller-profile-action"><DirectPaymentAction listingTitle={activeListing.name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
-            {viewerId !== sellerId && <CommunitySafetyActions targetType="seller" targetId={sellerId} targetLabel={profile.full_name || 'this seller'} blockedUserId={sellerId} reportContext={`Seller ID: ${sellerId}\nName: ${profile.full_name || 'Arkana seller'}`} onBlocked={() => { setRoomId(null); setMessages([]); setMessageText(''); }} />}
+            {viewerId === resolvedSellerId && <button type="button" className="secondary-btn" onClick={onEditProfile}>Edit profile</button>}
+            {viewerId !== resolvedSellerId && activeListing && <div className="seller-profile-action"><DirectPaymentAction listingTitle={activeListing.name} directPaymentLink={profile.direct_payment_link} onChat={(initialMessage) => { void startChat(initialMessage); }} isStartingChat={isStartingChat} /></div>}
+            {viewerId !== resolvedSellerId && <CommunitySafetyActions targetType="seller" targetId={resolvedSellerId} targetLabel={profile.full_name || 'this seller'} blockedUserId={resolvedSellerId} reportContext={`Seller ID: ${resolvedSellerId}\nName: ${profile.full_name || 'Arkana seller'}`} onBlocked={() => { setRoomId(null); setMessages([]); setMessageText(''); }} />}
         </header>
         {status && <p className="account-status" role="status">{status}</p>}
-        {viewerId === sellerId && (
+        {viewerId === resolvedSellerId && (
             <section className="seller-direct-payment-panel">
                 <div><p className="eyebrow">Your storefront</p><h2>Direct payment link</h2><p>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly — Arkana never touches the money.</p></div>
                 {directPaymentLinkInput && !isEditingDirectPaymentLink ? (
