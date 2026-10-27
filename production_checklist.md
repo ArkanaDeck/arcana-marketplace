@@ -22,6 +22,8 @@ Vercel deployment, production variables, domain/HTTPS, and logs/monitoring check
 - [ ] Review RLS on every user- or marketplace-owned table. Test anonymous, buyer, seller, and administrative access with separate accounts.
 - [ ] Verify storage bucket policies, upload limits, and access to listing images.
 - [ ] Configure production auth site URL and redirect URLs; test sign-up, email confirmation, sign-in, sign-out, password reset, and account deletion.
+- [ ] Configure the Supabase Apple provider for the iOS bundle ID and web Services ID; verify native Sign in with Apple in a TestFlight build on both iPhone and iPad.
+- [ ] Keep a valid App Review demo account with full feature access; verify its App Store Connect username and password by signing in after a clean install.
 - [ ] Confirm the service-role key is used only in server code and the anon key is subject to RLS.
 
 ## 3. Payments and fulfillment
@@ -50,6 +52,7 @@ Vercel deployment, production variables, domain/HTTPS, and logs/monitoring check
 - [ ] Verify browser console, network requests, server logs, metadata, sitemap, and `robots.txt` on the preview.
 - [ ] Repeat critical smoke tests on the production domain after deployment; verify headers, auth redirects, payment provider mode, and webhook delivery.
 - [ ] Confirm Capacitor app identifier and display name match the registered iOS app before submitting a native release.
+- [ ] Install the release build on a supported iPad and complete the primary sign-in flow, including Sign in with Apple, before submission.
 - [ ] Record test results, deployment URL/build, remaining known issues, rollback owner, and explicit go/no-go approval.
 
 ## 6. Rollback

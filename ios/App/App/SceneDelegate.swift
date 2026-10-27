@@ -12,6 +12,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     private let appleSignInMessageName = "arkCardsAppleSignIn"
     private let purchaseMessageName = "arkCardsPurchase"
     private var transactionUpdatesTask: Task<Void, Never>?
+    private var appleAuthorizationController: ASAuthorizationController?
     private var isPurchaseBridgeReady = false
     private var pendingTransactions: [String: (jws: String, transaction: Transaction)] = [:]
     private let keychainService = "arkcards-session"
@@ -232,6 +233,7 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = self
         controller.presentationContextProvider = self
+        appleAuthorizationController = controller
         controller.performRequests()
     }
 
@@ -240,6 +242,8 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard appleAuthorizationController === controller else { return }
+        appleAuthorizationController = nil
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = credential.identityToken,
               let token = String(data: tokenData, encoding: .utf8) else {
@@ -259,6 +263,8 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        guard appleAuthorizationController === controller else { return }
+        appleAuthorizationController = nil
         if (error as? ASAuthorizationError)?.code == .canceled {
             sendAppleSignInResult(["cancelled": true])
         } else {
