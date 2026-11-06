@@ -1,4 +1,5 @@
 import React from 'react';
+import { isIosApp } from './lib/app-store-purchase';
 
 type DirectPaymentActionProps = {
     directPaymentLink: string | null | undefined;
@@ -15,11 +16,12 @@ I have a question about it and wanted to discuss delivery options.`;
     const safetyBanner = (
         <div className="marketplace-safety-banner safety-banner-enter" role="note">
             <strong>Marketplace Safety Tip</strong>
-            <span>Keep chats inside Arkana and use “Goods &amp; Services” for external payments to preserve protection pathways.</span>
+            <span>{isIosApp() ? 'Keep chats inside Arkana and agree delivery and payment with the seller in chat.' : 'Keep chats inside Arkana and use “Goods & Services” for external payments to preserve protection pathways.'}</span>
         </div>
     );
 
-    if (directPaymentLink?.trim()) {
+    // App Store review (Guideline 4): the iOS app must not send buyers to the web to pay.
+    if (directPaymentLink?.trim() && !isIosApp()) {
         return (
             <div className="direct-pay-wrap" onClick={(event) => event.stopPropagation()}>
                 {safetyBanner}

@@ -4620,13 +4620,6 @@ label.field-error .field-error-text {
     margin-top: -3px;
 }
 
-.header-back-button.is-cancel {
-    margin-left: 0;
-    margin-right: -10px;
-    justify-content: flex-end;
-    font-weight: 500;
-}
-
 /* Centred like a UINavigationBar title, independent of the side button widths. */
 .native-header-screen-title {
     position: absolute;

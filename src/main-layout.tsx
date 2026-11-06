@@ -1241,7 +1241,7 @@ export const MainLayout: React.FC = () => {
     const deckRouteMatch = window.location.pathname.match(/^\/decks\/([^/]+)\/?$/);
     if (deckRouteMatch) {
         const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
-        return <NativeScreenShell isNativeApp={isNativeApp} title="Deck Details" onBack={backToMarketplace} onCancel={backToMarketplace}>
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Deck Details" onBack={backToMarketplace}>
             <DeckDetailPage listingId={decodeURIComponent(deckRouteMatch[1])} onBack={backToMarketplace} isNativeApp={isNativeApp} />
         </NativeScreenShell>;
     }
@@ -1249,7 +1249,7 @@ export const MainLayout: React.FC = () => {
     const profileRouteMatch = window.location.pathname.match(/^\/app\/profile\/([^/]+)\/?$/);
     if (profileRouteMatch) {
         const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
-        return <NativeScreenShell isNativeApp={isNativeApp} title="Seller Profile" onBack={backToMarketplace} onCancel={backToMarketplace}>
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Seller Profile" onBack={backToMarketplace}>
             <SellerProfilePage key={profileRouteMatch[1]} sellerId={decodeURIComponent(profileRouteMatch[1])} onBack={backToMarketplace} onEditProfile={() => { window.history.replaceState({}, '', '/'); hasSkippedAccountOnboarding.current = true; setActiveView('Account'); }} onSignIn={() => { window.history.replaceState({}, '', '/'); setAccountMode('signin'); setAccountStatus('Sign in to message this seller.'); setIsEmailSent(false); setIsResetView(false); setActiveView('Account'); }} isNativeApp={isNativeApp} />
         </NativeScreenShell>;
     }
@@ -1258,21 +1258,21 @@ export const MainLayout: React.FC = () => {
     if (messagesRouteMatch) {
         const chatId = new URLSearchParams(window.location.search).get('chatId');
         const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
-        return <NativeScreenShell isNativeApp={isNativeApp} title="Messages" onBack={backToMarketplace} onCancel={backToMarketplace}>
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Messages" onBack={backToMarketplace}>
             {chatId ? <MessagesDashboard key={chatId} chatId={chatId} onBack={backToMarketplace} isNativeApp={isNativeApp} /> : <section className="seller-profile-page"><p>Select a conversation to view messages.</p></section>}
         </NativeScreenShell>;
     }
 
     if (window.location.pathname === '/app/admin/support') {
         const backToMarketplace = () => { window.history.replaceState({}, '', '/'); setActiveView('Listings'); };
-        return <NativeScreenShell isNativeApp={isNativeApp} title="Support" onBack={backToMarketplace} onCancel={backToMarketplace}>
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Support" onBack={backToMarketplace}>
             <AdminSupportDashboard />
         </NativeScreenShell>;
     }
 
     if (window.location.pathname === '/reset-password') {
         const returnToSignIn = () => window.location.replace('/login');
-        return <NativeScreenShell isNativeApp={isNativeApp} title="Reset Password" onBack={returnToSignIn} onCancel={returnToSignIn}>
+        return <NativeScreenShell isNativeApp={isNativeApp} title="Reset Password" onBack={returnToSignIn}>
             <ResetPasswordPage onDone={(passwordChanged) => { window.location.replace(passwordChanged ? '/login?passwordReset=success' : '/login'); }} />
         </NativeScreenShell>;
     }
@@ -1343,11 +1343,6 @@ export const MainLayout: React.FC = () => {
         discardListingChanges();
     };
 
-    const handleNativeRootCancel = () => {
-        setIsMobileMenuOpen(false);
-        setActiveView(activeView === 'Home' ? 'Listings' : 'Home');
-    };
-
     const handleRequireSignIn = (message: string = SIGN_IN_REQUIRED_MESSAGE) => {
         if (!/^\/(login|signin)\/?$/.test(window.location.pathname)) window.history.pushState({}, '', '/login');
         setViewingListing(null);
@@ -1405,9 +1400,7 @@ export const MainLayout: React.FC = () => {
                                     <span className="native-header-title">Arkana</span>
                                 </button>
                             )}
-                            {isNestedNativeView ? (
-                                <button type="button" className="header-back-button is-cancel" onClick={handleNativeBack}>Cancel</button>
-                            ) : (
+                            {!isNestedNativeView && (
                                 <div className="native-header-actions">
                                     <button type="button" className="native-header-action" onClick={() => setActiveView('Help')} aria-label="Help and FAQ">?</button>
                                     <button
@@ -1421,7 +1414,6 @@ export const MainLayout: React.FC = () => {
                                     >
                                         {isAuthenticated && avatarUrl ? <img src={avatarUrl} alt="" /> : <span aria-hidden="true">👤</span>}
                                     </button>
-                                    <button type="button" className="header-back-button is-cancel" onClick={handleNativeRootCancel}>Cancel</button>
                                 </div>
                             )}
                         </div>
@@ -1873,7 +1865,7 @@ export const MainLayout: React.FC = () => {
                                     : <span className={`listing-type-badge listing-type-badge--${viewingListing.listingType}`}>{viewingListing.listingType === 'sale' ? `For sale - £${viewingListing.price.toFixed(2)}` : viewingListing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
                                 <p>Condition: {viewingListing.condition}{viewingListing.freeDelivery ? ' · Free delivery' : ''}</p>
                                 {viewingListing.description && <p className="listing-description">{viewingListing.description}</p>}
-                                {viewingListing.externalStoreUrl && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
+                                {viewingListing.externalStoreUrl && !isIosApp() && <a className="seller-profile-link" href={viewingListing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow">Visit seller's web store</a>}
                                 <CommunitySafetyActions targetType="listing" targetId={viewingListing.id} targetLabel="this seller" blockedUserId={viewingListing.sellerId} reportContext={`Listing: ${viewingListing.name}\nSeller ID: ${viewingListing.sellerId}`} />
                                 <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(viewingListing.sellerId)}`}>View seller profile</a>
                                 {viewingListing.status === 'sold' && buyerSoldListingIds.has(viewingListing.id) && (
@@ -1981,7 +1973,7 @@ export const MainLayout: React.FC = () => {
                                         />
                                         <span>Drive traffic directly to your own web store? (+£2.00 for 30 Days)</span>
                                     </label>
-                                    <small id="store-link-purchase-status" role="status">{storeLinkPurchaseStatus || (isIosApp() ? isPurchasingStoreLink ? 'Opening the App Store…' : appStoreTransaction ? 'Purchased — applied when you publish this listing.' : 'Charged through your Apple ID via the App Store.' : 'Promotion is applied after checkout.')}</small>
+                                    <small id="store-link-purchase-status" role="status">{storeLinkPurchaseStatus || (isIosApp() ? isPurchasingStoreLink ? 'Opening the App Store…' : appStoreTransaction ? 'Purchased — applied when you publish this listing.' : 'Charged through your Apple ID via the App Store. Your link is shown to buyers on arkcards.com.' : 'Promotion is applied after checkout.')}</small>
                                 </div>}
                                 {wantsExternalLink && (!isNativeApp || !editModeData) && (
                                     <div className={`form-group external-link-field${externalLinkUrlError ? ' external-link-field--error' : ''}`}>
@@ -2470,7 +2462,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-image-box product-image-box--carousel relative w-full aspect-[3/4] max-h-[320px] overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '3 / 4', maxHeight: '320px' }}>
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-cover object-top" style={{ objectFit: 'cover', objectPosition: 'top' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
-            {item.isPremium && item.externalStoreUrl && (
+            {item.isPremium && item.externalStoreUrl && !isIosApp() && (
                 <button
                     type="button"
                     className="premium-watermark"
@@ -2488,7 +2480,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-details flex flex-col min-h-[180px]">
             <h4 className="deck-title">{item.isPremium && <span className="premium-dot" role="img" aria-label="Premium listing" title="Premium listing" />}{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
-            {item.externalStoreUrl && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {item.externalStoreUrl && !isIosApp() && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
             {item.status === 'sold'
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${item.listingType}`}>{item.listingType === 'sale' ? `For sale - £${item.price.toFixed(2)}` : item.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}

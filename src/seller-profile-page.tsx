@@ -6,6 +6,7 @@ import type { MarketplaceListing } from './lib/listings';
 import { CommunitySafetyActions } from './community-safety-actions';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { DirectPaymentAction } from './direct-payment-action';
+import { isIosApp } from './lib/app-store-purchase';
 
 type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void; onSignIn: () => void; isNativeApp: boolean };
 
@@ -155,7 +156,7 @@ export const SellerProfilePage: React.FC<SellerProfilePageProps> = ({ sellerId, 
                 <div><p className="eyebrow">Your storefront</p><h2>Direct payment link</h2><p>Paste your own Stripe Payment Link, PayPal.me, or Revolut link. Buyers pay you directly — Arkana never touches the money.</p></div>
                 {directPaymentLinkInput && !isEditingDirectPaymentLink ? (
                     <div className="seller-direct-payment-panel__saved">
-                        <p>Your active payment link: <a href={directPaymentLinkInput} target="_blank" rel="noopener noreferrer nofollow">{directPaymentLinkInput}</a></p>
+                        <p>Your active payment link: {isIosApp() ? <span>{directPaymentLinkInput}</span> : <a href={directPaymentLinkInput} target="_blank" rel="noopener noreferrer nofollow">{directPaymentLinkInput}</a>}</p>
                         <button type="button" className="seller-direct-payment-panel__edit-btn" onClick={() => setIsEditingDirectPaymentLink(true)}>Edit link</button>
                     </div>
                 ) : (
@@ -201,7 +202,7 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing 
                 ? <div className="listing-sold-badge bg-red-600 text-white font-bold text-center px-4 py-2 rounded-md uppercase tracking-wider">SOLD</div>
                 : <span className={`listing-type-badge listing-type-badge--${listing.listingType}`}>{listing.listingType === 'sale' ? `For sale - £${listing.price.toFixed(2)}` : listing.listingType === 'swap' ? 'Open to swap' : 'Free to a good home'}</span>}
             {listing.description && <p>{listing.description}</p>}
-            {listing.externalStoreUrl && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
+            {listing.externalStoreUrl && !isIosApp() && <a className="seller-profile-link" href={listing.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
         </div>
         <CommunitySafetyActions targetType="listing" targetId={listing.id} targetLabel="this seller" blockedUserId={listing.sellerId} reportContext={`Listing: ${listing.name}\nSeller ID: ${listing.sellerId}`} />
     </article>;
