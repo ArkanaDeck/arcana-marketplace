@@ -925,6 +925,29 @@ export const MainLayout: React.FC = () => {
     };
 
     const appleSignInInFlightRef = useRef(false);
+
+    useEffect(() => {
+        // Safari restores the page from bfcache (still "Please wait...") when the user backs out of Apple's page.
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (!event.persisted || !appleSignInInFlightRef.current) return;
+            appleSignInInFlightRef.current = false;
+            setIsAccountSubmitting(false);
+            setAccountStatus('Sign in with Apple did not complete. Please try again.');
+        };
+        window.addEventListener('pageshow', handlePageShow);
+
+        // Supabase redirects back with ?error_description=... (or in the hash) when the OAuth flow fails.
+        const query = new URLSearchParams(window.location.search);
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const oauthError = query.get('error_description') || hash.get('error_description') || query.get('error') || hash.get('error');
+        if (oauthError) {
+            setAccountStatus(`Sign in failed: ${oauthError.replace(/\+/g, ' ')}`);
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        return () => window.removeEventListener('pageshow', handlePageShow);
+    }, []);
+
     const handleAppleSignIn = async () => {
         // State updates are async, so a ref is what actually blocks a rapid second tap.
         if (appleSignInInFlightRef.current) return;
