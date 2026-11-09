@@ -7,6 +7,7 @@ import { CommunitySafetyActions } from './community-safety-actions';
 import { getSupabaseSession, supabase } from './lib/supabase';
 import { DirectPaymentAction } from './direct-payment-action';
 import { isIosApp } from './lib/app-store-purchase';
+import { PremiumBadge } from './premium-badge';
 
 type SellerProfilePageProps = { sellerId: string; onBack: () => void; onEditProfile: () => void; onSignIn: () => void; isNativeApp: boolean };
 
@@ -195,6 +196,7 @@ const SellerListingCard: React.FC<{ listing: MarketplaceListing }> = ({ listing 
                 <button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button>
                 <button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button>
             </>}
+            <PremiumBadge listing={listing} />
         </div>
         <div className="product-details">
             <h3>{listing.name}</h3>

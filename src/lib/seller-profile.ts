@@ -8,6 +8,7 @@ export type PublicSeller = {
     bio: string | null;
     website_url: string | null;
     direct_payment_link: string | null;
+    is_premium: boolean;
 };
 
 export async function loadSellerProfile(sellerId: string): Promise<{ profile: PublicSeller; listings: MarketplaceListing[] }> {
@@ -17,13 +18,13 @@ export async function loadSellerProfile(sellerId: string): Promise<{ profile: Pu
     }
     if (!supabase) throw new Error('Supabase is not configured.');
     const [{ data: profile, error: profileError }, { data: listings, error: listingsError }] = await Promise.all([
-        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url, direct_payment_link').eq('id', normalizedSellerId).returns<PublicSeller[]>().maybeSingle(),
+        supabase.from('public_profiles').select('id, full_name, avatar_url, bio, website_url, direct_payment_link, is_premium').eq('id', normalizedSellerId).returns<PublicSeller[]>().maybeSingle(),
         supabase.from('listings').select('id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, external_store_url, external_link_active, external_link_expires_at').eq('seller_id', normalizedSellerId).eq('is_active', true).eq('review_status', 'approved').neq('status', 'completed').order('created_at', { ascending: false }).returns<ListingRow[]>(),
     ]);
     if (profileError) throw new Error(profileError.message || 'Unable to load seller profile.');
     if (listingsError) throw new Error(listingsError.message || 'Unable to load seller listings.');
     if (!profile) throw new Error('Seller profile not found.');
-    return { profile, listings: (listings || []).map(mapListing) };
+    return { profile, listings: (listings || []).map((listing) => ({ ...mapListing(listing), sellerIsPremium: profile.is_premium })) };
 }
 
 export async function createChatRoom(listingId: string | null, sellerId: string, initialMessage?: string) {

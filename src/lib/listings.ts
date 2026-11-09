@@ -21,6 +21,7 @@ export type MarketplaceListing = {
     category?: DeckCategory;
     externalStoreUrl?: string;
     isPremium: boolean;
+    sellerIsPremium?: boolean;
 };
 
 export type ListingRow = { id: string; seller_id: string; name: string; price: number | string; description: string | null; listing_type: 'sale' | 'swap' | 'free'; image: string | null; images: string[] | null; is_free_delivery: boolean; condition: DeckCondition; review_status?: 'approved' | 'pending_review' | 'rejected'; status?: 'active' | 'sold' | 'completed'; category?: DeckCategory; external_store_url?: string | null; external_link_active?: boolean | null; external_link_expires_at?: string | null };
@@ -76,7 +77,22 @@ export async function loadListings() {
     if (!supabase) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase.from('listings').select(`id, seller_id, name, price, description, listing_type, image, images, is_free_delivery, condition, review_status, status, ${LINK_COLUMNS}`).neq('status', 'completed').order('created_at', { ascending: false });
     if (error) throw new Error(error.message || 'Unable to load listings.');
-    return data.map(mapListing);
+    return withSellerPremiumStatus(data.map(mapListing));
+}
+
+async function withSellerPremiumStatus(listings: MarketplaceListing[]): Promise<MarketplaceListing[]> {
+    if (!listings.length) return listings;
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const sellerIds = [...new Set(listings.map((listing) => listing.sellerId).filter(Boolean))];
+    if (!sellerIds.length) return listings;
+    const { data, error } = await supabase.from('public_profiles')
+        .select('id, is_premium')
+        .in('id', sellerIds)
+        .returns<{ id: string; is_premium: boolean }[]>();
+    // The badge is cosmetic: a failed lookup must not stop the marketplace feed from loading.
+    if (error || !data) return listings.map((listing) => ({ ...listing, sellerIsPremium: false }));
+    const premiumSellerIds = new Set(data.filter((seller) => seller.is_premium).map((seller) => seller.id));
+    return listings.map((listing) => ({ ...listing, sellerIsPremium: premiumSellerIds.has(listing.sellerId) }));
 }
 
 // Public marketplace feed: only shows active, approved listings,
@@ -95,10 +111,10 @@ export async function loadPublishedListings() {
     // Array is already newest-first from the query above; a stable sort here keeps that order within each group.
     const listingPriority = (listing: { listing_type: string }) => (listing.listing_type === 'sale' ? 0 : 1);
     const prioritized = [...data].sort((a, b) => listingPriority(a) - listingPriority(b));
-    return prioritized.map(mapListing);
+    return withSellerPremiumStatus(prioritized.map(mapListing));
 }
 
-export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status' | 'isPremium'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; appStoreTransaction?: string };
+export type CreateListingInput = Omit<MarketplaceListing, 'id' | 'sellerId' | 'image' | 'images' | 'reviewStatus' | 'status' | 'isPremium' | 'sellerIsPremium'> & { imageFiles?: File[]; uploadedImageUrl?: string; reviewStatus?: MarketplaceListing['reviewStatus']; externalStoreUrl?: string; appStoreTransaction?: string };
 export type UpdateListingInput = CreateListingInput & { existingImages: string[] };
 export const MIN_LISTING_IMAGES = 3;
 export const MAX_LISTING_IMAGES = 6;

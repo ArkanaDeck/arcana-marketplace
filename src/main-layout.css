@@ -1621,6 +1621,11 @@ label.field-error .field-error-text {
     -webkit-tap-highlight-color: transparent;
 }
 
+.premium-watermark--badge {
+    cursor: default;
+    pointer-events: none;
+}
+
 .premium-dot {
     display: inline-block;
     width: 9px;
@@ -4550,6 +4555,13 @@ label.field-error .field-error-text {
     min-height: 100dvh;
 }
 
+/* Include inline-styled profile fields: smaller text triggers persistent iOS focus zoom. */
+.app-container input,
+.app-container textarea,
+.app-container select {
+    font-size: max(16px, 1em) !important;
+}
+
 .app-container .frame {
     width: 100%;
     max-width: none;
@@ -4835,6 +4847,7 @@ label.field-error .field-error-text {
 }
 
 .mini-listing-image-wrap {
+    position: relative;
     display: grid;
     place-items: center;
     width: 100%;

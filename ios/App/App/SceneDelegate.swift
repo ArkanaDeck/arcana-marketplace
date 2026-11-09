@@ -37,9 +37,16 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
             restoreSessionToken(in: webView)
         }
         updateProfileActions()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(restoreViewportAfterKeyboardHide),
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
     }
 
     deinit {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardDidHideNotification, object: nil)
         observedWebView?.removeObserver(self, forKeyPath: #keyPath(WKWebView.isLoading))
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: sessionMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: formMessageName)
@@ -47,6 +54,16 @@ final class ArkCardsBridgeViewController: CAPBridgeViewController, WKScriptMessa
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: appleSignInMessageName)
         bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: purchaseMessageName)
         transactionUpdatesTask?.cancel()
+    }
+
+    @objc private func restoreViewportAfterKeyboardHide() {
+        guard isViewLoaded, view.window != nil, let scrollView = bridge?.webView?.scrollView else { return }
+        // WebKit can leave the outer document zoomed or panned after editing. Keep the inner form's scroll position.
+        if scrollView.zoomScale != scrollView.minimumZoomScale {
+            scrollView.setZoomScale(scrollView.minimumZoomScale, animated: false)
+        }
+        let origin = CGPoint(x: -scrollView.adjustedContentInset.left, y: -scrollView.adjustedContentInset.top)
+        scrollView.setContentOffset(origin, animated: false)
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {

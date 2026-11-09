@@ -10,9 +10,15 @@ Xcode Cloud's `ios/App/ci_scripts/ci_post_clone.sh` delegates to `ci/ci_post_clo
 
 The generated client secret is discarded rather than printed into Cloud logs or bundled into the app. This generation step does not configure Supabase's Apple provider automatically. Configure the app's public `VITE_` values in the workflow environment as well, and never commit private keys or secret env files.
 
+### Premium seller badges
+
+A seller has a public premium badge while any of their listings has an active, unexpired paid store-link promotion with an HTTPS URL. Each promotion lasts 30 days; continuing premium status requires a renewed paid promotion with a future expiry, not a permanent entitlement or automatic charge. The `public_profiles.is_premium` field computes this from existing promotions; no subscription, new payment, or extra store-link access is granted. Home-feed, marketplace, and seller-profile cards reuse the same purple badge styling. New badges are non-clickable; existing website store-link buttons are unchanged and remain hidden on iOS.
+
+Apply `supabase/migrations/20261109000001_public_seller_premium_status.sql` before deploying or syncing a client that selects `public_profiles.is_premium`. The feed batches public seller-status lookups without accessing private profile fields. Expired promotions stop qualifying on the next feed/profile load.
+
 ### iOS keyboard controls
 
-The app relies on the system keyboard accessory to finish text entry. It does not render a floating web "Done" button over the bottom tabs. When testing on a device, verify the system checkmark dismisses the keyboard on search and account forms and that the tabs remain unobstructed after dismissal.
+The app relies on the system keyboard accessory to finish text entry. It does not render a floating web "Done" button over the bottom tabs. Native form controls use at least 16px text to prevent iOS focus zoom, including inline-styled Edit Profile fields. When the keyboard finishes hiding, the iOS bridge resets any leftover zoom and restores only the outer WebView offset, leaving the inner form's scroll position intact. When testing on a device, focus and dismiss inputs and textareas on Edit Profile, search, sign-in, and Create Listing repeatedly; verify the header and tabs return to their original positions, the form remains scrollable, and typed text is preserved. Also dismiss the keyboard without submitting, switch between fields, and repeat in landscape and on iPad.
 
 In Vercel, add the following values to **Production**, and use the live payment credentials only after testing previews with sandbox/test credentials:
 

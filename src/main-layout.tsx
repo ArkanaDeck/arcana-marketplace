@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { getProductionChecklist } from './production-checklist';
 import { Seo } from './seo';
 import { HomeIntro } from './home-intro';
+import { PremiumBadge } from './premium-badge';
 import { clearPremiumDraft, compressImageFile, confirmOrderAccepted, confirmPremiumListing, deleteListing, loadBuyerSoldListingIds, loadListings, mapListing, MAX_LISTING_IMAGES, MIN_LISTING_IMAGES, readPremiumDraft, updateListing, publishListingBundle, type DeckCondition, type ListingRow, type MarketplaceListing } from './lib/listings';
 import { getWebsiteLinkStatus, startWebsiteLinkCheckout, type WebsiteLinkStatus } from './lib/website-link';
 import { saveDirectPaymentLink, getSellerDirectPaymentLinks } from './lib/direct-payment';
@@ -1530,6 +1531,7 @@ export const MainLayout: React.FC = () => {
                                                         {listing.images[0]
                                                             ? <img src={listing.images[0]} alt={listing.name} className="mini-listing-image" />
                                                             : <span className="mini-listing-placeholder" aria-hidden="true">ARK</span>}
+                                                        <PremiumBadge listing={listing} />
                                                     </div>
                                                     <div className="mini-listing-copy">
                                                         <h3>{listing.name}</h3>
@@ -2462,7 +2464,7 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
         <div className="product-image-box product-image-box--carousel relative w-full aspect-[3/4] max-h-[320px] overflow-hidden bg-slate-50 rounded-xl" style={{ maxWidth: '500px', marginInline: 'auto', aspectRatio: '3 / 4', maxHeight: '320px' }}>
             {images.length > 0 ? <button type="button" className="listing-carousel__image" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setIsMagnified(true); }} aria-label={`Magnify image ${currentImgIdx + 1} of ${item.name}`}><img src={images[currentImgIdx]} alt={`${item.name} photo ${currentImgIdx + 1}`} className="absolute inset-0 w-full h-full object-cover object-top" style={{ objectFit: 'cover', objectPosition: 'top' }} /></button> : <span className="default-card-emoji">🎴</span>}
             {images.length > 1 && <><button type="button" className="listing-carousel__nav listing-carousel__nav--previous" aria-label="Previous image" onClick={(event) => changeImage(event, -1)}>‹</button><button type="button" className="listing-carousel__nav listing-carousel__nav--next" aria-label="Next image" onClick={(event) => changeImage(event, 1)}>›</button></>}
-            {item.isPremium && item.externalStoreUrl && !isIosApp() && (
+            {item.isPremium && item.externalStoreUrl && !isIosApp() ? (
                 <button
                     type="button"
                     className="premium-watermark"
@@ -2475,10 +2477,10 @@ const ProductListingCard: React.FC<{ item: DeckListing; inBasket: boolean; curre
                 >
                     Premium · Visit store ↗
                 </button>
-            )}
+            ) : <PremiumBadge listing={item} />}
         </div>
         <div className="product-details flex flex-col min-h-[180px]">
-            <h4 className="deck-title">{item.isPremium && <span className="premium-dot" role="img" aria-label="Premium listing" title="Premium listing" />}{item.name}</h4>
+            <h4 className="deck-title">{(item.sellerIsPremium ?? item.isPremium) && <span className="premium-dot" role="img" aria-label="Premium listing" title="Premium listing" />}{item.name}</h4>
             <a className="seller-profile-link" href={`/app/profile/${encodeURIComponent(item.sellerId)}`} onClick={(event) => event.stopPropagation()}>View seller profile</a>
             {item.externalStoreUrl && !isIosApp() && <a className="seller-profile-link" href={item.externalStoreUrl} target="_blank" rel="noopener noreferrer nofollow" onClick={(event) => event.stopPropagation()}>Visit seller's web store</a>}
             {item.status === 'sold'
